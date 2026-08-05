@@ -1,0 +1,778 @@
+"use client";
+
+import Link from "next/link";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import { HeroCard } from "@/components/ui/hero-card";
+import { PageContainer } from "@/components/ui/page-container";
+import { SectionHeader } from "@/components/ui/section-header";
+import { StatCard } from "@/components/ui/stat-card";
+
+type AvailabilityStatus =
+  | "available"
+  | "provisional"
+  | "option"
+  | "booked"
+  | "unavailable"
+  | "maintenance";
+
+type YachtStatus =
+  | AvailabilityStatus
+  | "no_availability";
+
+type SortOption =
+  | "name"
+  | "status"
+  | "rate-low"
+  | "rate-high"
+  | "availability";
+
+type FleetResponse = {
+  success: boolean;
+
+  overview: {
+    yachtCount: number;
+    availableCount: number;
+    bookedCount: number;
+    optionCount: number;
+    maintenanceCount: number;
+    sourceCount: number;
+  };
+
+  yachts: Array<{
+    id: string;
+    name: string;
+    status: YachtStatus;
+    weeklyRate: number | null;
+    currency: string;
+
+    nextAvailable: {
+      startDate: string;
+      endDate: string;
+    } | null;
+
+    source: {
+      id: string;
+      name: string;
+      type: string;
+      status: string;
+      updatedAt: string | null;
+    } | null;
+
+    availabilityCount: number;
+
+    statusCounts: Record<AvailabilityStatus, number>;
+  }>;
+
+  error?: string;
+};
+
+const statusLabels: Record<YachtStatus, string> = {
+  available: "Available",
+  provisional: "Provisional",
+  option: "Option",
+  booked: "Booked",
+  unavailable: "Unavailable",
+  maintenance: "Maintenance",
+  no_availability: "No availability",
+};
+
+export default function FleetPage() {
+  const [data, setData] = useState<FleetResponse | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState<YachtStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [sort, setSort] = useState<SortOption>("name");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFleet = useCallback(async (refreshing: boolean) => {
+    try {
+      if (refreshing) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      setError(null);
+
+      const response = await fetch("/api/fleet", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const result = (await response.json()) as FleetResponse;
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error ?? "Could not load fleet."
+        );
+      }
+
+      setData(result);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Could not load fleet."
+      );
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadFleet(false);
+  }, [loadFleet]);
+
+  const sourceOptions = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    const values = data.yachts
+      .map((yacht) => yacht.source?.name)
+      .filter((value): value is string => Boolean(value));
+
+    return Array.from(new Set(values)).sort((left, right) =>
+      left.localeCompare(right)
+    );
+  }, [data]);
+
+  const filteredYachts = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const filtered = data.yachts.filter((yacht) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        yacht.name.toLowerCase().includes(normalizedQuery) ||
+        yacht.source?.name
+          .toLowerCase()
+          .includes(normalizedQuery) === true;
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        yacht.status === statusFilter;
+
+      const matchesSource =
+        sourceFilter === "all" ||
+        yacht.source?.name === sourceFilter;
+
+      return (
+        matchesQuery &&
+        matchesStatus &&
+        matchesSource
+      );
+    });
+
+    return [...filtered].sort((left, right) => {
+      if (sort === "rate-low") {
+        return compareRates(left.weeklyRate, right.weeklyRate);
+      }
+
+      if (sort === "rate-high") {
+        return compareRates(
+          right.weeklyRate,
+          left.weeklyRate
+        );
+      }
+
+      if (sort === "availability") {
+        return compareDates(
+          left.nextAvailable?.startDate,
+          right.nextAvailable?.startDate
+        );
+      }
+
+      if (sort === "status") {
+        return statusLabels[left.status].localeCompare(
+          statusLabels[right.status]
+        );
+      }
+
+      return left.name.localeCompare(right.name);
+    });
+  }, [data, query, sort, sourceFilter, statusFilter]);
+
+  const hasFilters =
+    query.trim().length > 0 ||
+    statusFilter !== "all" ||
+    sourceFilter !== "all";
+
+  function clearFilters() {
+    setQuery("");
+    setStatusFilter("all");
+    setSourceFilter("all");
+    setSort("name");
+  }
+
+  if (isLoading) {
+    return <FleetSkeleton />;
+  }
+
+  if (!data) {
+    return (
+      <PageContainer>
+        <HeroCard
+          eyebrow="Fleet intelligence"
+          title="Fleet unavailable"
+          description="The connected fleet could not be loaded from the protected workspace."
+        />
+
+        <div className="mt-8 rounded-2xl border border-red-500/25 bg-red-500/10 p-6">
+          <p className="text-sm text-red-700 dark:text-red-200">
+            {error ?? "Could not load fleet."}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => void loadFleet(false)}
+            className="ui-primary-button apple-transition mt-5 px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+          >
+            Try again
+          </button>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer contentClassName="space-y-7">
+      <HeroCard
+        eyebrow="Fleet intelligence"
+        title="Explore your connected fleet"
+        description="Search yachts, compare future availability and inspect every connected supplier in one calm command deck."
+        actions={
+          <button
+            type="button"
+            onClick={() => void loadFleet(true)}
+            disabled={isRefreshing}
+            className="ui-primary-button apple-transition inline-flex min-h-12 items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshIcon spinning={isRefreshing} />
+            {isRefreshing ? "Refreshing..." : "Refresh fleet"}
+          </button>
+        }
+      />
+
+      {error ? (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4 text-sm text-amber-800 dark:text-amber-100">
+          {error}
+        </div>
+      ) : null}
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          label="Fleet yachts"
+          value={data.overview.yachtCount}
+          subtitle="Connected yacht records"
+          tone="neutral"
+        />
+        <StatCard
+          label="Available"
+          value={data.overview.availableCount}
+          subtitle="Open for charter"
+          tone="emerald"
+        />
+        <StatCard
+          label="Booked"
+          value={data.overview.bookedCount}
+          subtitle="Confirmed future periods"
+          tone="violet"
+        />
+        <StatCard
+          label="Options"
+          value={data.overview.optionCount}
+          subtitle="Held or tentative"
+          tone="amber"
+        />
+        <StatCard
+          label="Sources"
+          value={data.overview.sourceCount}
+          subtitle="Connected supplier feeds"
+          tone="cyan"
+        />
+      </section>
+
+      <section className="ui-panel rounded-[24px] p-4 sm:p-5">
+        <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_220px_190px_auto]">
+          <label className="relative block">
+            <span className="sr-only">Search fleet</span>
+            <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-muted-foreground">
+              <SearchIcon />
+            </span>
+
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search yachts or sources..."
+              className="ui-input h-12 pl-11 pr-4 text-sm"
+            />
+          </label>
+
+          <Select
+            value={statusFilter}
+            onChange={(value) =>
+              setStatusFilter(value as YachtStatus | "all")
+            }
+            ariaLabel="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            <option value="available">Available</option>
+            <option value="booked">Booked</option>
+            <option value="option">Option</option>
+            <option value="provisional">Provisional</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="unavailable">Unavailable</option>
+            <option value="no_availability">No availability</option>
+          </Select>
+
+          <Select
+            value={sourceFilter}
+            onChange={setSourceFilter}
+            ariaLabel="Filter by source"
+          >
+            <option value="all">All sources</option>
+            {sourceOptions.map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            value={sort}
+            onChange={(value) => setSort(value as SortOption)}
+            ariaLabel="Sort fleet"
+          >
+            <option value="name">Name A–Z</option>
+            <option value="status">Status</option>
+            <option value="availability">Next availability</option>
+            <option value="rate-low">Rate: low to high</option>
+            <option value="rate-high">Rate: high to low</option>
+          </Select>
+
+          <button
+            type="button"
+            onClick={clearFilters}
+            disabled={!hasFilters}
+            className="ui-secondary-button apple-transition h-12 px-4 text-sm font-semibold hover:bg-accent disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            Clear
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader
+          eyebrow="Connected inventory"
+          title="Fleet results"
+          subtitle={`${filteredYachts.length} of ${data.overview.yachtCount} yachts`}
+          className="mb-5"
+        />
+
+        {filteredYachts.length === 0 ? (
+          <div className="ui-panel rounded-[28px] border-dashed px-6 py-16 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-[20px] bg-accent text-accent-foreground">
+              <span className="font-heading text-3xl">Y</span>
+            </div>
+
+            <h3 className="mt-5 font-heading text-3xl leading-none tracking-[0.05em] text-foreground">
+              No yachts found
+            </h3>
+
+            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+              Adjust the search or remove one of the active filters.
+            </p>
+
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ui-primary-button apple-transition mt-6 px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {filteredYachts.map((yacht) => (
+              <YachtCard key={yacht.id} yacht={yacht} />
+            ))}
+          </div>
+        )}
+      </section>
+    </PageContainer>
+  );
+}
+
+function YachtCard({
+  yacht,
+}: {
+  yacht: FleetResponse["yachts"][number];
+}) {
+  return (
+    <article className="ui-panel apple-transition group overflow-hidden rounded-[26px] hover:-translate-y-1 hover:border-ring/25">
+      <div className="relative flex h-44 items-center justify-center overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))]">
+        <div className="absolute h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
+        <YachtIllustration />
+
+        <div className="absolute left-4 top-4">
+          <StatusBadge status={yacht.status} />
+        </div>
+      </div>
+
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-5">
+          <div className="min-w-0">
+            <h3 className="truncate font-heading text-3xl leading-none tracking-[0.05em] text-foreground">
+              {yacht.name}
+            </h3>
+
+            <p className="mt-2 truncate text-sm text-muted-foreground">
+              {yacht.source?.name ?? "No connected source"}
+            </p>
+          </div>
+
+          <div className="shrink-0 text-right">
+            <p className="font-semibold text-foreground">
+              {formatRate(yacht.weeklyRate, yacht.currency)}
+            </p>
+
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              weekly rate
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <CardMetric
+            label="Windows"
+            value={String(yacht.availabilityCount)}
+          />
+
+          <CardMetric
+            label="Next available"
+            value={
+              yacht.nextAvailable
+                ? formatShortDate(yacht.nextAvailable.startDate)
+                : "Not scheduled"
+            }
+          />
+        </div>
+
+        {yacht.nextAvailable ? (
+          <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/75 dark:text-emerald-300/75">
+              Upcoming availability
+            </p>
+
+            <p className="mt-1 text-sm font-medium text-emerald-800 dark:text-emerald-100">
+              {formatDateRange(
+                yacht.nextAvailable.startDate,
+                yacht.nextAvailable.endDate
+              )}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex items-center justify-between gap-4 border-t border-border pt-4">
+          <p className="text-xs text-muted-foreground/70">
+            {yacht.source
+              ? formatSourceType(yacht.source.type)
+              : "Manual fleet record"}
+          </p>
+
+          <Link
+            href={`/fleet/${yacht.id}`}
+            className="apple-transition inline-flex items-center gap-2 text-sm font-semibold text-cyan-700 hover:opacity-75 dark:text-cyan-300"
+          >
+            Open yacht
+            <span className="transition group-hover:translate-x-1">→</span>
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function CardMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="ui-panel-soft rounded-xl px-3 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-sm font-semibold text-foreground">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function StatusBadge({
+  status,
+}: {
+  status: YachtStatus;
+}) {
+  const style: Record<YachtStatus, string> = {
+    available:
+      "border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200",
+    booked:
+      "border-violet-500/25 bg-violet-500/10 text-violet-800 dark:text-violet-200",
+    option:
+      "border-amber-500/25 bg-amber-500/10 text-amber-900 dark:text-amber-200",
+    provisional:
+      "border-cyan-500/25 bg-cyan-500/10 text-cyan-800 dark:text-cyan-200",
+    maintenance:
+      "border-orange-500/25 bg-orange-500/10 text-orange-900 dark:text-orange-200",
+    unavailable:
+      "border-red-500/25 bg-red-500/10 text-red-800 dark:text-red-200",
+    no_availability:
+      "border-border bg-muted text-muted-foreground",
+  };
+
+  return (
+    <span
+      className={`rounded-full border px-3 py-1 text-xs font-semibold ${style[status]}`}
+    >
+      {statusLabels[status]}
+    </span>
+  );
+}
+
+function Select({
+  value,
+  onChange,
+  ariaLabel,
+  children,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label={ariaLabel}
+      className="ui-input h-12 px-4 text-sm"
+    >
+      {children}
+    </select>
+  );
+}
+
+function FleetSkeleton() {
+  return (
+    <PageContainer>
+      <div className="animate-pulse space-y-7">
+        <div className="h-64 rounded-[30px] bg-muted" />
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-36 rounded-[24px] bg-muted"
+            />
+          ))}
+        </div>
+
+        <div className="h-24 rounded-[24px] bg-muted" />
+
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-96 rounded-[26px] bg-muted"
+            />
+          ))}
+        </div>
+      </div>
+    </PageContainer>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="h-4 w-4"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+function RefreshIcon({
+  spinning,
+}: {
+  spinning: boolean;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={`h-4 w-4 ${
+        spinning ? "animate-spin" : ""
+      }`}
+      aria-hidden="true"
+    >
+      <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+      <path d="M20 4v7h-7" />
+    </svg>
+  );
+}
+
+function YachtIllustration() {
+  return (
+    <svg
+      viewBox="0 0 260 120"
+      fill="none"
+      className="relative h-28 w-64 text-slate-500 transition duration-500 group-hover:scale-105 group-hover:text-sky-300"
+      aria-hidden="true"
+    >
+      <path
+        d="M30 80h200l-18 24H55L30 80Z"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+
+      <path
+        d="M75 80V45h90l38 35"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+
+      <path
+        d="M98 45V25h45v20"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+
+      <path
+        d="M0 111c28-8 46-8 74 0 28 8 46 8 74 0 28-8 46-8 74 0 14 4 25 5 38 4"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+    </svg>
+  );
+}
+
+function compareRates(
+  left: number | null,
+  right: number | null
+): number {
+  if (left === null && right === null) {
+    return 0;
+  }
+
+  if (left === null) {
+    return 1;
+  }
+
+  if (right === null) {
+    return -1;
+  }
+
+  return left - right;
+}
+
+function compareDates(
+  left: string | undefined,
+  right: string | undefined
+): number {
+  if (!left && !right) {
+    return 0;
+  }
+
+  if (!left) {
+    return 1;
+  }
+
+  if (!right) {
+    return -1;
+  }
+
+  return left.localeCompare(right);
+}
+
+function formatRate(
+  amount: number | null,
+  currency: string
+): string {
+  if (amount === null) {
+    return "Rate on request";
+  }
+
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: currency || "EUR",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${currency || "EUR"} ${amount.toLocaleString()}`;
+  }
+}
+
+function formatShortDate(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString(
+    "en-GB",
+    {
+      day: "numeric",
+      month: "short",
+    }
+  );
+}
+
+function formatDateRange(
+  startDate: string,
+  endDate: string
+): string {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  return `${start.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  })} – ${end.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })}`;
+}
+
+function formatSourceType(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) =>
+      character.toUpperCase()
+    );
+}
