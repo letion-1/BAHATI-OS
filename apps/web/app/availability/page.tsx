@@ -611,7 +611,7 @@ export default function AvailabilityPage() {
 
         {error && (
           <section className="mt-6">
-            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+            <div className="rounded-2xl border border-red-500/30 bg-red-50 p-4 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
               {error}
             </div>
           </section>
@@ -690,7 +690,7 @@ export default function AvailabilityPage() {
                       return (
                         <div
                           key={yacht.id}
-                          className="rounded-2xl border border-border bg-[#0d1118] p-4"
+                          className="rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:border-foreground/15 dark:bg-[#0d1118]"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex min-w-0 items-center gap-3">
@@ -701,7 +701,7 @@ export default function AvailabilityPage() {
                                   className="size-12 rounded-xl border border-border object-cover"
                                 />
                               ) : (
-                                <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] text-cyan-300">
+                                <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-cyan-500/25 bg-cyan-50 text-cyan-700 dark:border-cyan-400/15 dark:bg-cyan-400/[0.06] dark:text-cyan-300">
                                   <Ship className="size-5" />
                                 </div>
                               )}
@@ -726,7 +726,7 @@ export default function AvailabilityPage() {
                               </div>
                             </div>
 
-                            <Badge className="shrink-0 border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+                            <Badge className="shrink-0 border border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
                               {
                                 availableWindows.length
                               }{" "}
@@ -868,17 +868,17 @@ function StatCard({
   tone: "cyan" | "emerald" | "violet" | "amber";
 }) {
   const toneClass = {
-    cyan: "border-cyan-400/15 bg-cyan-400/[0.06] text-cyan-300",
+    cyan: "border-cyan-500/25 bg-cyan-50 text-cyan-700 dark:border-cyan-400/15 dark:bg-cyan-400/[0.06] dark:text-cyan-300",
     emerald:
-      "border-emerald-400/15 bg-emerald-400/[0.06] text-emerald-300",
+      "border-emerald-500/25 bg-emerald-50 text-emerald-700 dark:border-emerald-400/15 dark:bg-emerald-400/[0.06] dark:text-emerald-300",
     violet:
-      "border-violet-400/15 bg-violet-400/[0.06] text-violet-300",
+      "border-violet-500/25 bg-violet-50 text-violet-700 dark:border-violet-400/15 dark:bg-violet-400/[0.06] dark:text-violet-300",
     amber:
-      "border-amber-400/15 bg-amber-400/[0.06] text-amber-300",
+      "border-amber-500/25 bg-amber-50 text-amber-800 dark:border-amber-400/15 dark:bg-amber-400/[0.06] dark:text-amber-300",
   }[tone];
 
   return (
-    <Card className="group overflow-hidden border-border bg-card text-foreground  transition hover:-translate-y-0.5 hover:border-white/15">
+    <Card className="group overflow-hidden border-border bg-card text-card-foreground transition hover:-translate-y-0.5 hover:border-foreground/15">
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -920,7 +920,7 @@ function LoadingState() {
 function EmptyState() {
   return (
     <div className="flex min-h-48 flex-col items-center justify-center text-center">
-      <Ship className="size-8 text-zinc-700" />
+      <Ship className="size-8 text-muted-foreground" />
 
       <p className="mt-3 font-medium">
         No matching availability
