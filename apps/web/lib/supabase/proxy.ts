@@ -1,44 +1,209 @@
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import {
+  createServerClient,
+} from "@supabase/ssr";
 
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({
-    request,
-  });
+import {
+  NextResponse,
+  type NextRequest,
+} from "next/server";
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+const PUBLIC_ROUTES = [
+  "/login",
+  "/logout",
+];
 
-        setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-
-          response = NextResponse.next({
-            request,
-          });
-
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-
-          Object.entries(headers).forEach(([name, value]) => {
-            response.headers.set(name, value);
-          });
-        },
-      },
-    }
+function isPublicRoute(
+  pathname: string
+): boolean {
+  return (
+    PUBLIC_ROUTES.includes(
+      pathname
+    ) ||
+    pathname.startsWith(
+      "/auth/"
+    )
   );
+}
 
-  // Validates the access token and refreshes it when required. Do not replace
-  // this with getSession() for authorization checks on the server.
-  await supabase.auth.getClaims();
+export async function updateSupabaseSession(
+  request: NextRequest
+) {
+  let response =
+    NextResponse.next({
+      request,
+    });
+
+  const supabaseUrl =
+    process.env
+      .NEXT_PUBLIC_SUPABASE_URL;
+
+  const supabaseKey =
+    process.env
+      .NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env
+      .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  const pathname =
+    request.nextUrl.pathname;
+
+  if (
+    !supabaseUrl ||
+    !supabaseKey
+  ) {
+    console.error(
+      "Supabase public environment variables are missing."
+    );
+
+    /*
+     * Do not expose protected pages when authentication
+     * cannot be initialized.
+     */
+    if (
+      !isPublicRoute(
+        pathname
+      )
+    ) {
+      const loginUrl =
+        request.nextUrl.clone();
+
+      loginUrl.pathname =
+        "/login";
+
+      loginUrl.searchParams.set(
+        "error",
+        "authentication_unavailable"
+      );
+
+      return NextResponse.redirect(
+        loginUrl
+      );
+    }
+
+    return response;
+  }
+
+  const supabase =
+    createServerClient(
+      supabaseUrl,
+      supabaseKey,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+
+          setAll(
+            cookiesToSet
+          ) {
+            cookiesToSet.forEach(
+              ({
+                name,
+                value,
+              }) => {
+                request.cookies.set(
+                  name,
+                  value
+                );
+              }
+            );
+
+            response =
+              NextResponse.next({
+                request,
+              });
+
+            cookiesToSet.forEach(
+              ({
+                name,
+                value,
+                options,
+              }) => {
+                response.cookies.set(
+                  name,
+                  value,
+                  options
+                );
+              }
+            );
+          },
+        },
+      }
+    );
+
+  let isAuthenticated =
+    false;
+
+  try {
+    const {
+      data,
+      error,
+    } =
+      await supabase.auth.getClaims();
+
+    isAuthenticated =
+      !error &&
+      Boolean(
+        data?.claims?.sub
+      );
+  } catch (error) {
+    console.error(
+      "Could not validate Supabase session:",
+      error
+    );
+  }
+
+  const publicRoute =
+    isPublicRoute(
+      pathname
+    );
+
+  if (
+    !isAuthenticated &&
+    !publicRoute
+  ) {
+    const loginUrl =
+      request.nextUrl.clone();
+
+    loginUrl.pathname =
+      "/login";
+
+    loginUrl.searchParams.set(
+      "next",
+      `${pathname}${request.nextUrl.search}`
+    );
+
+    return NextResponse.redirect(
+      loginUrl
+    );
+  }
+
+  if (
+    isAuthenticated &&
+    pathname ===
+      "/login"
+  ) {
+    const requestedDestination =
+      request.nextUrl.searchParams.get(
+        "next"
+      );
+
+    const safeDestination =
+      requestedDestination?.startsWith(
+        "/"
+      ) &&
+      !requestedDestination.startsWith(
+        "//"
+      )
+        ? requestedDestination
+        : "/";
+
+    return NextResponse.redirect(
+      new URL(
+        safeDestination,
+        request.url
+      )
+    );
+  }
 
   return response;
 }
