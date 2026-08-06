@@ -474,7 +474,7 @@ export default function NewProposalPage() {
   }
 
   return (
-    <main className="min-h-full bg-[#05070b] px-5 py-7 text-white sm:px-7 lg:px-8">
+    <main className="min-h-full bg-background px-5 py-7 text-foreground sm:px-7 lg:px-8">
       <div className="mx-auto max-w-[1500px] space-y-7">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link
@@ -485,7 +485,7 @@ export default function NewProposalPage() {
                   ? `/fleet/${yachtId}`
                   : "/proposals"
             }
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 transition hover:text-white"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-foreground"
           >
             <span>←</span>
             {inquiryId
@@ -495,27 +495,27 @@ export default function NewProposalPage() {
                 : "Back to proposals"}
           </Link>
 
-          <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200">
+          <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-200">
             Draft
           </span>
         </div>
 
-        <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br from-[#102034] via-[#09121d] to-[#05070b] p-6 shadow-2xl shadow-black/30 sm:p-8">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl" />
+        <section className="relative overflow-hidden rounded-[28px] border border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))] p-6 shadow-[var(--strong-shadow)] sm:p-8">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
 
           <div className="relative">
             <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.8)]" />
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-400">
+              <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.55)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-cyan-700 dark:text-cyan-300">
                 Proposal Builder
               </p>
             </div>
 
-            <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl xl:text-5xl">
+            <h1 className="mt-5 font-heading text-4xl leading-none tracking-[0.045em] text-[var(--hero-foreground)] sm:text-5xl">
               Create a charter proposal
             </h1>
 
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
+            <p className="ui-hero-muted mt-3 max-w-2xl text-sm leading-7 sm:text-base">
               Prepare the yacht, charter period, client information and
               commercial details before generating the final proposal.
             </p>
@@ -523,22 +523,22 @@ export default function NewProposalPage() {
         </section>
 
         {pageError ? (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-100">
+          <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-4 text-sm text-red-700 dark:text-red-200">
             {pageError}
           </div>
         ) : null}
 
         {!yachtId ? (
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-6">
-            <h2 className="font-semibold text-amber-100">
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-6">
+            <h2 className="font-semibold text-amber-900 dark:text-amber-100">
               No yacht selected
             </h2>
-            <p className="mt-2 text-sm leading-6 text-amber-200/70">
+            <p className="mt-2 text-sm leading-6 text-amber-800/80 dark:text-amber-200/75">
               Open a yacht from Fleet Intelligence and select Create proposal.
             </p>
             <Link
               href="/fleet"
-              className="mt-5 inline-flex rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-slate-200"
+              className="ui-primary-button apple-transition mt-5 inline-flex rounded-xl px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
             >
               Browse fleet
             </Link>
@@ -600,7 +600,7 @@ export default function NewProposalPage() {
             >
               {availableWindows.length > 0 ? (
                 <div>
-                  <label className="text-sm font-medium text-slate-300">
+                  <label className="text-sm font-medium text-foreground/80">
                     Imported available windows
                   </label>
                   <select
@@ -608,7 +608,7 @@ export default function NewProposalPage() {
                     onChange={(event) =>
                       selectAvailabilityWindow(event.target.value)
                     }
-                    className="mt-2 h-12 w-full rounded-xl border border-white/[0.08] bg-[#080b10] px-4 text-sm text-slate-300 outline-none transition focus:border-sky-400/40 focus:ring-2 focus:ring-sky-400/10"
+                    className="ui-input mt-2 h-12 rounded-xl px-4 text-sm"
                   >
                     <option value="">Select an available window</option>
                     {availableWindows.map((window) => (
@@ -620,7 +620,7 @@ export default function NewProposalPage() {
                   </select>
                 </div>
               ) : (
-                <div className="rounded-xl border border-amber-400/15 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-100">
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                   This yacht has no future available windows. Custom dates may
                   still be entered.
                 </div>
@@ -677,7 +677,7 @@ export default function NewProposalPage() {
               </div>
 
               <div className="mt-5">
-                <label className="text-sm font-medium text-slate-300">
+                <label className="text-sm font-medium text-foreground/80">
                   Proposal notes
                 </label>
                 <textarea
@@ -685,7 +685,7 @@ export default function NewProposalPage() {
                   onChange={(event) => updateField("notes", event.target.value)}
                   rows={7}
                   placeholder="Add itinerary ideas, special requirements, exclusions or broker notes..."
-                  className="mt-2 w-full resize-y rounded-xl border border-white/[0.08] bg-black/20 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-700 focus:border-sky-400/40 focus:ring-2 focus:ring-sky-400/10"
+                  className="ui-input mt-2 w-full resize-y rounded-xl px-4 py-3 text-sm leading-6"
                 />
               </div>
             </FormPanel>
@@ -734,16 +734,16 @@ export default function NewProposalPage() {
                   }
                 />
 
-                <div className="border-t border-white/[0.07] pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-600">
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                     Estimated charter total
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-white">
+                  <p className="mt-2 text-2xl font-semibold text-foreground">
                     {estimatedTotal !== null
                       ? formatRate(estimatedTotal, form.currency)
                       : "Not calculated"}
                   </p>
-                  <p className="mt-2 text-xs leading-5 text-slate-600">
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
                     Taxes, APA and additional fees are not included.
                   </p>
                 </div>
@@ -755,13 +755,13 @@ export default function NewProposalPage() {
                 title="Selected yacht"
                 description="Imported fleet information"
               >
-                <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-[#122031] via-[#0c141f] to-[#080b10]">
+                <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))]">
                   <YachtIllustration />
                 </div>
-                <p className="mt-4 text-xl font-semibold text-white">
+                <p className="mt-4 text-xl font-semibold text-foreground">
                   {data.yacht.name}
                 </p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {data.yacht.sources[0]?.name ?? "No connected source"}
                 </p>
               </FormPanel>
@@ -770,12 +770,12 @@ export default function NewProposalPage() {
             <button
               type="submit"
               disabled={isSubmitting || !yachtId || !data}
-              className="inline-flex min-h-13 w-full items-center justify-center rounded-xl bg-white px-5 py-3.5 text-sm font-semibold text-black transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+              className="ui-primary-button apple-transition inline-flex min-h-13 w-full items-center justify-center rounded-xl px-5 py-3.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isSubmitting ? "Saving proposal..." : "Save proposal draft"}
             </button>
 
-            <p className="text-center text-xs leading-5 text-slate-700">
+            <p className="text-center text-xs leading-5 text-muted-foreground">
               This proposal will be stored in the workspace database.
             </p>
           </aside>
@@ -795,10 +795,10 @@ function FormPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#0b0f16] p-5 shadow-xl shadow-black/10 sm:p-6">
+    <section className="ui-panel rounded-[24px] p-5 sm:p-6">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-slate-600">{description}</p>
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
       {children}
     </section>
@@ -828,9 +828,9 @@ function TextField({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-slate-300">
+      <span className="text-sm font-medium text-foreground/80">
         {label}
-        {required ? <span className="ml-1 text-sky-400">*</span> : null}
+        {required ? <span className="ml-1 text-cyan-700 dark:text-cyan-300">*</span> : null}
       </span>
 
       <input
@@ -841,15 +841,15 @@ function TextField({
         min={min}
         step={step}
         required={required}
-        className={`mt-2 h-12 w-full rounded-xl border bg-black/20 px-4 text-sm text-white outline-none transition placeholder:text-slate-700 focus:ring-2 ${
+        className={`mt-2 h-12 w-full rounded-xl border bg-background/55 px-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:ring-2 ${
           error
-            ? "border-red-400/40 focus:border-red-400/60 focus:ring-red-400/10"
-            : "border-white/[0.08] focus:border-sky-400/40 focus:ring-sky-400/10"
+            ? "border-red-500/40 focus:border-red-500/60 focus:ring-red-500/10"
+            : "border-border focus:border-cyan-500/40 focus:ring-cyan-500/10"
         }`}
       />
 
       {error ? (
-        <span className="mt-2 block text-xs text-red-300">{error}</span>
+        <span className="mt-2 block text-xs text-red-700 dark:text-red-300">{error}</span>
       ) : null}
     </label>
   );
@@ -868,11 +868,11 @@ function SelectField({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-slate-300">{label}</span>
+      <span className="text-sm font-medium text-foreground/80">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-12 w-full rounded-xl border border-white/[0.08] bg-[#080b10] px-4 text-sm text-slate-300 outline-none transition focus:border-sky-400/40 focus:ring-2 focus:ring-sky-400/10"
+        className="ui-input mt-2 h-12 rounded-xl px-4 text-sm"
       >
         {children}
       </select>
@@ -883,8 +883,8 @@ function SelectField({
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-5">
-      <p className="text-sm text-slate-600">{label}</p>
-      <p className="max-w-[220px] text-right text-sm font-semibold text-slate-300">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="max-w-[220px] text-right text-sm font-semibold text-foreground/85">
         {value}
       </p>
     </div>
@@ -893,16 +893,16 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 function ProposalSkeleton() {
   return (
-    <main className="min-h-full bg-[#05070b] px-5 py-7 sm:px-7 lg:px-8">
+    <main className="min-h-full bg-background px-5 py-7 sm:px-7 lg:px-8">
       <div className="mx-auto max-w-[1500px] animate-pulse space-y-7">
-        <div className="h-10 w-40 rounded-xl bg-white/[0.04]" />
-        <div className="h-64 rounded-[28px] bg-white/[0.04]" />
+        <div className="h-10 w-40 rounded-xl bg-muted" />
+        <div className="h-64 rounded-[28px] bg-muted" />
         <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
           <div className="space-y-6">
-            <div className="h-72 rounded-2xl bg-white/[0.04]" />
-            <div className="h-72 rounded-2xl bg-white/[0.04]" />
+            <div className="h-72 rounded-2xl bg-muted" />
+            <div className="h-72 rounded-2xl bg-muted" />
           </div>
-          <div className="h-[520px] rounded-2xl bg-white/[0.04]" />
+          <div className="h-[520px] rounded-2xl bg-muted" />
         </div>
       </div>
     </main>
@@ -914,7 +914,7 @@ function YachtIllustration() {
     <svg
       viewBox="0 0 300 140"
       fill="none"
-      className="relative h-28 w-60 text-sky-300"
+      className="relative h-28 w-60 text-cyan-700 dark:text-cyan-300"
       aria-hidden="true"
     >
       <path
