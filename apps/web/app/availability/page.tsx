@@ -1,13 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import {
   CalendarDays,
-  CheckCircle2,
-  Clock3,
   Filter,
   Loader2,
   RefreshCw,
-  Route,
   Search,
   Ship,
   X,
@@ -26,12 +24,11 @@ import {
   AvailabilityTimeline,
   type TimelineAvailabilityRecord,
 } from "@/components/availability/availability-timeline";
+import { Badge } from "@/components/ui/badge";
 import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 type AvailabilityStatus =
   | "available"
@@ -110,6 +107,11 @@ type AvailabilityFilters = {
   status: "" | AvailabilityStatus;
 };
 
+type YachtGroup = {
+  yacht: YachtRecord;
+  windows: AvailabilityRecord[];
+};
+
 const EMPTY_STATS: AvailabilityStats = {
   yachtCount: 0,
   availableYachtCount: 0,
@@ -128,105 +130,66 @@ const STATUS_OPTIONS: Array<{
   value: "" | AvailabilityStatus;
   label: string;
 }> = [
-  {
-    value: "",
-    label: "All statuses",
-  },
-  {
-    value: "available",
-    label: "Available",
-  },
-  {
-    value: "provisional",
-    label: "Provisional",
-  },
-  {
-    value: "option",
-    label: "Option",
-  },
-  {
-    value: "booked",
-    label: "Booked",
-  },
-  {
-    value: "unavailable",
-    label: "Unavailable",
-  },
-  {
-    value: "maintenance",
-    label: "Maintenance",
-  },
+  { value: "", label: "All statuses" },
+  { value: "available", label: "Available" },
+  { value: "provisional", label: "Provisional" },
+  { value: "option", label: "Option" },
+  { value: "booked", label: "Booked" },
+  { value: "unavailable", label: "Unavailable" },
+  { value: "maintenance", label: "Maintenance" },
 ];
 
 export default function AvailabilityPage() {
-  const [records, setRecords] = useState<
-    AvailabilityRecord[]
-  >([]);
-
+  const [records, setRecords] = useState<AvailabilityRecord[]>([]);
   const [stats, setStats] =
     useState<AvailabilityStats>(EMPTY_STATS);
 
-  const [searchInput, setSearchInput] =
-    useState("");
-
-  const [startDateInput, setStartDateInput] =
-    useState("");
-
-  const [endDateInput, setEndDateInput] =
-    useState("");
-
+  const [searchInput, setSearchInput] = useState("");
+  const [startDateInput, setStartDateInput] = useState("");
+  const [endDateInput, setEndDateInput] = useState("");
   const [statusInput, setStatusInput] =
     useState<"" | AvailabilityStatus>("");
 
   const [appliedFilters, setAppliedFilters] =
     useState<AvailabilityFilters>(EMPTY_FILTERS);
 
-  const [isLoading, setIsLoading] =
-    useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const startDateRef =
-    useRef<HTMLInputElement>(null);
-
-  const endDateRef =
-    useRef<HTMLInputElement>(null);
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
 
   const loadAvailability = useCallback(
-    async (filters: AvailabilityFilters) => {
-      setIsLoading(true);
+    async (
+      filters: AvailabilityFilters,
+      refreshing = false
+    ) => {
+      if (refreshing) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
       setError(null);
 
       try {
         const params = new URLSearchParams();
 
         if (filters.search.trim()) {
-          params.set(
-            "search",
-            filters.search.trim()
-          );
+          params.set("search", filters.search.trim());
         }
 
         if (filters.startDate) {
-          params.set(
-            "startDate",
-            filters.startDate
-          );
+          params.set("startDate", filters.startDate);
         }
 
         if (filters.endDate) {
-          params.set(
-            "endDate",
-            filters.endDate
-          );
+          params.set("endDate", filters.endDate);
         }
 
         if (filters.status) {
-          params.set(
-            "status",
-            filters.status
-          );
+          params.set("status", filters.status);
         }
 
         params.set("limit", "1000");
@@ -244,15 +207,12 @@ export default function AvailabilityPage() {
 
         if (!response.ok || !payload.success) {
           throw new Error(
-            payload.error ??
-              "Could not load availability."
+            payload.error ?? "Could not load availability."
           );
         }
 
         setRecords(payload.data ?? []);
-        setStats(
-          payload.stats ?? EMPTY_STATS
-        );
+        setStats(payload.stats ?? EMPTY_STATS);
       } catch (caughtError) {
         const message =
           caughtError instanceof Error
@@ -264,6 +224,7 @@ export default function AvailabilityPage() {
         setStats(EMPTY_STATS);
       } finally {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
     },
     []
@@ -273,9 +234,9 @@ export default function AvailabilityPage() {
     void loadAvailability(EMPTY_FILTERS);
   }, [loadAvailability]);
 
-  const handleSearch = (
+  function handleSearch(
     event: FormEvent<HTMLFormElement>
-  ) => {
+  ) {
     event.preventDefault();
 
     if (
@@ -286,7 +247,6 @@ export default function AvailabilityPage() {
       setError(
         "The end date cannot be earlier than the start date."
       );
-
       return;
     }
 
@@ -299,9 +259,9 @@ export default function AvailabilityPage() {
 
     setAppliedFilters(nextFilters);
     void loadAvailability(nextFilters);
-  };
+  }
 
-  const clearFilters = () => {
+  function clearFilters() {
     setSearchInput("");
     setStartDateInput("");
     setEndDateInput("");
@@ -309,7 +269,7 @@ export default function AvailabilityPage() {
     setAppliedFilters(EMPTY_FILTERS);
 
     void loadAvailability(EMPTY_FILTERS);
-  };
+  }
 
   const hasFilters =
     appliedFilters.search.length > 0 ||
@@ -317,23 +277,15 @@ export default function AvailabilityPage() {
     appliedFilters.endDate.length > 0 ||
     appliedFilters.status.length > 0;
 
-  const groupedYachts = useMemo(() => {
-    const yachts = new Map<
-      string,
-      {
-        yacht: YachtRecord;
-        windows: AvailabilityRecord[];
-      }
-    >();
+  const groupedYachts = useMemo<YachtGroup[]>(() => {
+    const yachts = new Map<string, YachtGroup>();
 
     for (const record of records) {
       if (!record.yacht) {
         continue;
       }
 
-      const existing = yachts.get(
-        record.yacht.id
-      );
+      const existing = yachts.get(record.yacht.id);
 
       if (existing) {
         existing.windows.push(record);
@@ -346,11 +298,8 @@ export default function AvailabilityPage() {
       });
     }
 
-    return [...yachts.values()].sort(
-      (first, second) =>
-        first.yacht.name.localeCompare(
-          second.yacht.name
-        )
+    return [...yachts.values()].sort((first, second) =>
+      first.yacht.name.localeCompare(second.yacht.name)
     );
   }, [records]);
 
@@ -359,29 +308,29 @@ export default function AvailabilityPage() {
       (record) => record.status === "available"
     ).length;
 
-    const committed = records.filter(
+    const booked = records.filter(
       (record) =>
         record.status === "booked" ||
         record.status === "unavailable"
     ).length;
 
-    const held = records.filter(
+    const options = records.filter(
       (record) =>
         record.status === "option" ||
         record.status === "provisional"
     ).length;
 
-    const routed = records.filter(
-      (record) =>
-        Boolean(record.embarkationPort) ||
-        Boolean(record.disembarkationPort)
-    ).length;
+    const sourceCount = new Set(
+      records
+        .map((record) => record.source?.id)
+        .filter((value): value is string => Boolean(value))
+    ).size;
 
     return {
       available,
-      committed,
-      held,
-      routed,
+      booked,
+      options,
+      sourceCount,
     };
   }, [records]);
 
@@ -398,11 +347,8 @@ export default function AvailabilityPage() {
           notes: record.notes,
           location: record.location,
           region: record.region,
-          embarkationPort:
-            record.embarkationPort,
-          disembarkationPort:
-            record.disembarkationPort,
-
+          embarkationPort: record.embarkationPort,
+          disembarkationPort: record.disembarkationPort,
           yacht: record.yacht
             ? {
                 id: record.yacht.id,
@@ -413,7 +359,6 @@ export default function AvailabilityPage() {
                 heroImageUrl: record.yacht.heroImageUrl,
               }
             : null,
-
           source: record.source
             ? {
                 id: record.source.id,
@@ -424,290 +369,252 @@ export default function AvailabilityPage() {
       [records]
     );
 
+  if (isLoading && records.length === 0) {
+    return <AvailabilitySkeleton />;
+  }
+
   return (
     <PageContainer contentClassName="space-y-7">
-      <div className="space-y-7">
-        <HeroCard
-          eyebrow="Charter inventory"
-          title="Availability"
-          description="Search and visualize normalized yacht availability imported from every connected supplier."
-          actions={
-            <Button
-              type="button"
-              className="ui-primary-button apple-transition min-h-11 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
-              disabled={isLoading}
-              onClick={() =>
-                void loadAvailability(
-                  appliedFilters
+      <HeroCard
+        eyebrow="Availability intelligence"
+        title="Command your live availability"
+        description="Search synchronized charter windows, compare future openings and inspect every connected yacht in one calm command deck."
+        actions={
+          <button
+            type="button"
+            onClick={() =>
+              void loadAvailability(appliedFilters, true)
+            }
+            disabled={isRefreshing}
+            className="ui-primary-button apple-transition inline-flex min-h-12 items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw
+              className={`size-4 ${
+                isRefreshing ? "animate-spin" : ""
+              }`}
+            />
+            {isRefreshing
+              ? "Refreshing..."
+              : "Refresh availability"}
+          </button>
+        }
+      />
+
+      {error ? (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4 text-sm text-amber-800 dark:text-amber-100">
+          {error}
+        </div>
+      ) : null}
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          label="Fleet yachts"
+          value={stats.yachtCount}
+          subtitle="Connected yacht records"
+          tone="neutral"
+        />
+        <StatCard
+          label="Available"
+          value={statusSummary.available}
+          subtitle="Open charter windows"
+          tone="emerald"
+        />
+        <StatCard
+          label="Booked"
+          value={statusSummary.booked}
+          subtitle="Confirmed or blocked"
+          tone="violet"
+        />
+        <StatCard
+          label="Options"
+          value={statusSummary.options}
+          subtitle="Held or provisional"
+          tone="amber"
+        />
+        <StatCard
+          label="Sources"
+          value={statusSummary.sourceCount}
+          subtitle="Connected supplier feeds"
+          tone="cyan"
+        />
+      </section>
+
+      <section className="ui-panel rounded-[24px] p-4 sm:p-5">
+        <form
+          onSubmit={handleSearch}
+          className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_190px_190px_auto_auto]"
+        >
+          <label className="relative block">
+            <span className="sr-only">
+              Search availability
+            </span>
+
+            <Search className="pointer-events-none absolute inset-y-0 left-4 my-auto size-4 text-muted-foreground" />
+
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) =>
+                setSearchInput(event.target.value)
+              }
+              placeholder="Search yachts, regions or suppliers..."
+              className="ui-input h-12 pl-11 pr-4 text-sm"
+            />
+          </label>
+
+          <DatePickerField
+            label="Start date"
+            value={startDateInput}
+            inputRef={startDateRef}
+            onChange={(value) => {
+              setStartDateInput(value);
+
+              if (
+                endDateInput &&
+                value > endDateInput
+              ) {
+                setEndDateInput("");
+              }
+            }}
+          />
+
+          <DatePickerField
+            label="End date"
+            value={endDateInput}
+            min={startDateInput || undefined}
+            inputRef={endDateRef}
+            onChange={setEndDateInput}
+          />
+
+          <label className="relative block">
+            <span className="sr-only">
+              Filter by availability status
+            </span>
+
+            <Filter className="pointer-events-none absolute inset-y-0 left-4 my-auto size-4 text-muted-foreground" />
+
+            <select
+              value={statusInput}
+              onChange={(event) =>
+                setStatusInput(
+                  event.target.value as
+                    | ""
+                    | AvailabilityStatus
                 )
               }
+              className="ui-input h-12 appearance-none pl-11 pr-4 text-sm"
             >
-              {isLoading ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
+              {STATUS_OPTIONS.map((option) => (
+                <option
+                  key={option.value || "all"}
+                  value={option.value}
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-              Refresh availability
-            </Button>
-          }
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="ui-primary-button apple-transition inline-flex h-12 items-center justify-center gap-2 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Search className="size-4" />
+            )}
+            Search
+          </button>
+
+          <button
+            type="button"
+            onClick={clearFilters}
+            disabled={!hasFilters || isLoading}
+            className="ui-secondary-button apple-transition inline-flex h-12 items-center justify-center gap-2 px-4 text-sm font-semibold hover:bg-accent disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <X className="size-4" />
+            Clear
+          </button>
+        </form>
+      </section>
+
+      <section>
+        <SectionHeader
+          eyebrow="Live calendar"
+          title="Availability timeline"
+          subtitle={`${stats.availabilityWindowCount} synchronized charter windows`}
+          className="mb-5"
         />
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Fleet yachts"
-            value={stats.yachtCount}
-            subtitle={`${stats.availableYachtCount} available in this view`}
-            tone="cyan"
+        <AvailabilityTimeline
+          records={timelineRecords}
+          focusDate={
+            appliedFilters.startDate ||
+            timelineRecords[0]?.startDate
+          }
+        />
+      </section>
+
+      <section>
+        <SectionHeader
+          eyebrow="Connected inventory"
+          title="Matching yachts"
+          subtitle={`${groupedYachts.length} yacht${
+            groupedYachts.length === 1 ? "" : "s"
+          } in the current result`}
+          className="mb-5"
+        />
+
+        {groupedYachts.length === 0 ? (
+          <AvailabilityEmptyState
+            hasFilters={hasFilters}
+            onClear={clearFilters}
           />
-
-          <StatCard
-            label="Available windows"
-            value={statusSummary.available}
-            subtitle="Open charter periods"
-            tone="emerald"
-          />
-
-          <StatCard
-            label="Booked or blocked"
-            value={statusSummary.committed}
-            subtitle={`${statusSummary.held} additional holds or options`}
-            tone="violet"
-          />
-
-          <StatCard
-            label="Mapped port routes"
-            value={statusSummary.routed}
-            subtitle="Windows with embarkation data"
-            tone="amber"
-          />
-        </section>
-
-        <section>
-          <form
-            onSubmit={handleSearch}
-            className="ui-panel rounded-[24px] p-4 sm:p-5"
-          >
-            <div className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_180px_180px_180px_auto]">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
-                <input
-                  type="search"
-                  value={searchInput}
-                  onChange={(event) =>
-                    setSearchInput(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Search yacht, destination or supplier"
-                  className="h-11 w-full rounded-xl border border-input bg-background/55 pl-10 pr-4 text-sm text-foreground outline-none placeholder:text-muted-foreground/75 focus:border-sky-400/40"
-                />
-              </div>
-
-              <DatePickerField
-                label="Start date"
-                value={startDateInput}
-                inputRef={startDateRef}
-                onChange={(value) => {
-                  setStartDateInput(value);
-
-                  if (
-                    endDateInput &&
-                    value > endDateInput
-                  ) {
-                    setEndDateInput("");
-                  }
-                }}
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {groupedYachts.map(({ yacht, windows }) => (
+              <AvailabilityYachtCard
+                key={yacht.id}
+                yacht={yacht}
+                windows={windows}
               />
-
-              <DatePickerField
-                label="End date"
-                value={endDateInput}
-                min={
-                  startDateInput ||
-                  undefined
-                }
-                inputRef={endDateRef}
-                onChange={setEndDateInput}
-              />
-
-              <label className="relative">
-                <span className="sr-only">
-                  Availability status
-                </span>
-
-                <Filter className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
-                <select
-                  value={statusInput}
-                  onChange={(event) =>
-                    setStatusInput(
-                      event.target
-                        .value as
-                        | ""
-                        | AvailabilityStatus
-                    )
-                  }
-                  className="h-11 w-full appearance-none rounded-xl border border-input bg-background/55 pl-10 pr-4 text-sm text-foreground outline-none focus:border-sky-400/40"
-                >
-                  {STATUS_OPTIONS.map(
-                    (option) => (
-                      <option
-                        key={
-                          option.value ||
-                          "all"
-                        }
-                        value={option.value}
-                      >
-                        {option.label}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="h-11 flex-1"
-                >
-                  {isLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Search className="size-4" />
-                  )}
-
-                  Search
-                </Button>
-
-                {hasFilters && (
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="size-11 border-border bg-card/50 text-foreground"
-                    onClick={clearFilters}
-                    aria-label="Clear filters"
-                  >
-                    <X className="size-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </form>
-        </section>
-
-        {error && (
-          <section>
-            <div className="rounded-2xl border border-red-500/30 bg-red-50 p-4 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
-              {error}
-            </div>
-          </section>
-        )}
-
-        <section>
-          {isLoading &&
-          timelineRecords.length === 0 ? (
-            <div className="ui-panel flex min-h-80 items-center justify-center rounded-[28px]">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Loading availability timeline
-              </div>
-            </div>
-          ) : (
-            <AvailabilityTimeline
-              records={timelineRecords}
-              focusDate={
-                appliedFilters.startDate ||
-                timelineRecords[0]?.startDate
-              }
-            />
-          )}
-        </section>
-
-        <section>
-          <div className="ui-panel rounded-[28px] p-5 sm:p-6">
-            <SectionHeader
-              eyebrow="Connected inventory"
-              title="Matching yachts"
-              subtitle={`${groupedYachts.length} yacht${groupedYachts.length === 1 ? "" : "s"} in the current result`}
-              className="mb-5"
-            />
-              {isLoading &&
-              groupedYachts.length === 0 ? (
-                <LoadingState />
-              ) : groupedYachts.length ===
-                0 ? (
-                <EmptyState />
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {groupedYachts.map(
-                    ({ yacht, windows }) => {
-                      const availableWindows =
-                        windows.filter(
-                          (window) =>
-                            window.status ===
-                            "available"
-                        );
-
-                      const minimumRate =
-                        getMinimumRate(
-                          availableWindows
-                        );
-
-                      const statuses = [
-                        ...new Set(
-                          windows.map(
-                            (window) =>
-                              window.status
-                          )
-                        ),
-                      ];
-
-                      return (
-                        <AvailabilityYachtCard
-                          key={yacht.id}
-                          yacht={yacht}
-                          windows={windows}
-                          availableWindows={availableWindows}
-                          minimumRate={minimumRate}
-                          statuses={statuses}
-                        />
-                      );
-                    }
-                  )}
-                </div>
-              )}
+            ))}
           </div>
-        </section>
-      </div>
+        )}
+      </section>
     </PageContainer>
   );
 }
 
-
 function AvailabilityYachtCard({
   yacht,
   windows,
-  availableWindows,
-  minimumRate,
-  statuses,
 }: {
   yacht: YachtRecord;
   windows: AvailabilityRecord[];
-  availableWindows: AvailabilityRecord[];
-  minimumRate: {
-    amount: number;
-    currency: string;
-  } | null;
-  statuses: AvailabilityStatus[];
 }) {
+  const availableWindows = windows
+    .filter((window) => window.status === "available")
+    .sort((first, second) =>
+      first.startDate.localeCompare(second.startDate)
+    );
+
+  const nextAvailable = availableWindows[0] ?? null;
+  const minimumRate = getMinimumRate(availableWindows);
+  const statuses = [
+    ...new Set(windows.map((window) => window.status)),
+  ];
+
+  const sourceName =
+    windows.find((window) => window.source)?.source?.name ??
+    "No connected source";
+
   return (
     <article className="ui-panel apple-transition group overflow-hidden rounded-[26px] hover:-translate-y-1 hover:border-ring/25">
-      <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))]">
-        <div className="absolute h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl" />
+      <div className="relative flex h-44 items-center justify-center overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))]">
+        <div className="absolute h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
 
         {yacht.heroImageUrl ? (
           <img
@@ -720,9 +627,9 @@ function AvailabilityYachtCard({
         )}
 
         <div className="absolute left-4 top-4">
-          <Badge className="border border-emerald-500/25 bg-emerald-500/10 text-emerald-100 backdrop-blur-xl">
-            {availableWindows.length} available
-          </Badge>
+          <AvailabilityBadge
+            availableCount={availableWindows.length}
+          />
         </div>
       </div>
 
@@ -734,16 +641,7 @@ function AvailabilityYachtCard({
             </h3>
 
             <p className="mt-2 truncate text-sm text-muted-foreground">
-              {[
-                yacht.yachtType,
-                yacht.lengthMeters
-                  ? `${yacht.lengthMeters} m`
-                  : null,
-                yacht.homePort,
-              ]
-                .filter(Boolean)
-                .join(" · ") ||
-                `${windows.length} matching windows`}
+              {sourceName}
             </p>
           </div>
 
@@ -764,37 +662,84 @@ function AvailabilityYachtCard({
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <AvailabilityMetric
+          <CardMetric
             label="Windows"
             value={String(windows.length)}
           />
 
-          <AvailabilityMetric
-            label="Route"
+          <CardMetric
+            label="Next available"
             value={
-              formatWindowRoute(windows) ??
-              yacht.homePort ??
-              "Not specified"
+              nextAvailable
+                ? formatShortDate(nextAvailable.startDate)
+                : "Not scheduled"
             }
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-          {statuses.map((status) => (
-            <Badge
-              key={status}
-              className={`border ${statusClass(status)}`}
-            >
-              {formatStatus(status)}
-            </Badge>
-          ))}
+        {nextAvailable ? (
+          <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/75 dark:text-emerald-300/75">
+              Upcoming availability
+            </p>
+
+            <p className="mt-1 text-sm font-medium text-emerald-800 dark:text-emerald-100">
+              {formatDateRange(
+                nextAvailable.startDate,
+                nextAvailable.endDate
+              )}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex items-center justify-between gap-4 border-t border-border pt-4">
+          <div className="flex min-w-0 flex-wrap gap-2">
+            {statuses.slice(0, 3).map((status) => (
+              <Badge
+                key={status}
+                className={`border ${statusClass(status)}`}
+              >
+                {formatStatus(status)}
+              </Badge>
+            ))}
+          </div>
+
+          <Link
+            href={`/fleet/${yacht.id}`}
+            className="apple-transition inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-cyan-700 hover:opacity-75 dark:text-cyan-300"
+          >
+            Open yacht
+            <span className="transition group-hover:translate-x-1">
+              →
+            </span>
+          </Link>
         </div>
       </div>
     </article>
   );
 }
 
-function AvailabilityMetric({
+function AvailabilityBadge({
+  availableCount,
+}: {
+  availableCount: number;
+}) {
+  if (availableCount > 0) {
+    return (
+      <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur-xl">
+        {availableCount} available
+      </span>
+    );
+  }
+
+  return (
+    <span className="rounded-full border border-border bg-background/70 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-xl">
+      No open windows
+    </span>
+  );
+}
+
+function CardMetric({
   label,
   value,
 }: {
@@ -814,12 +759,141 @@ function AvailabilityMetric({
   );
 }
 
+function DatePickerField({
+  label,
+  value,
+  min,
+  inputRef,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  min?: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onChange: (value: string) => void;
+}) {
+  function openPicker() {
+    const input = inputRef.current;
+
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+
+    try {
+      input.showPicker();
+    } catch {
+      // Native focus fallback.
+    }
+  }
+
+  return (
+    <label
+      className="relative block cursor-pointer"
+      onClick={openPicker}
+    >
+      <span className="sr-only">{label}</span>
+
+      <CalendarDays className="pointer-events-none absolute inset-y-0 left-4 my-auto size-4 text-muted-foreground" />
+
+      <input
+        ref={inputRef}
+        type="date"
+        value={value}
+        min={min}
+        aria-label={label}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        onClick={(event) => {
+          event.stopPropagation();
+
+          try {
+            event.currentTarget.showPicker();
+          } catch {
+            // Native browser fallback.
+          }
+        }}
+        className="ui-input h-12 cursor-pointer pl-11 pr-4 text-sm"
+      />
+    </label>
+  );
+}
+
+function AvailabilityEmptyState({
+  hasFilters,
+  onClear,
+}: {
+  hasFilters: boolean;
+  onClear: () => void;
+}) {
+  return (
+    <div className="ui-panel rounded-[28px] border-dashed px-6 py-16 text-center">
+      <div className="mx-auto flex size-14 items-center justify-center rounded-[20px] bg-accent text-accent-foreground">
+        <Ship className="size-6" />
+      </div>
+
+      <h3 className="mt-5 font-heading text-3xl leading-none tracking-[0.05em] text-foreground">
+        No matching availability
+      </h3>
+
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+        {hasFilters
+          ? "Adjust the search dates or remove one of the active filters."
+          : "Connect and synchronize a source to populate live charter availability."}
+      </p>
+
+      {hasFilters ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="ui-primary-button apple-transition mt-6 px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+        >
+          Clear filters
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function AvailabilitySkeleton() {
+  return (
+    <PageContainer>
+      <div className="animate-pulse space-y-7">
+        <div className="h-64 rounded-[30px] bg-muted" />
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-36 rounded-[24px] bg-muted"
+            />
+          ))}
+        </div>
+
+        <div className="h-24 rounded-[24px] bg-muted" />
+        <div className="h-[520px] rounded-[28px] bg-muted" />
+
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-96 rounded-[26px] bg-muted"
+            />
+          ))}
+        </div>
+      </div>
+    </PageContainer>
+  );
+}
+
 function YachtIllustration() {
   return (
     <svg
       viewBox="0 0 260 120"
       fill="none"
-      className="relative h-24 w-56 text-slate-500 transition duration-500 group-hover:scale-105 group-hover:text-sky-300"
+      className="relative h-28 w-64 text-slate-500 transition duration-500 group-hover:scale-105 group-hover:text-sky-300"
       aria-hidden="true"
     >
       <path
@@ -846,154 +920,35 @@ function YachtIllustration() {
   );
 }
 
-function DatePickerField({
-  label,
-  value,
-  min,
-  inputRef,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  min?: string;
-  inputRef: RefObject<HTMLInputElement | null>;
-  onChange: (value: string) => void;
-}) {
-  const openPicker = () => {
-    const input = inputRef.current;
-
-    if (!input) {
-      return;
-    }
-
-    input.focus();
-
-    try {
-      input.showPicker();
-    } catch {
-      // Older browsers still open the picker
-      // when the date input receives focus.
-    }
-  };
-
-  return (
-    <div
-      className="relative cursor-pointer"
-      onClick={openPicker}
-    >
-      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
-
-      <input
-        ref={inputRef}
-        type="date"
-        value={value}
-        min={min}
-        aria-label={label}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        onClick={(event) => {
-          event.stopPropagation();
-
-          try {
-            event.currentTarget.showPicker();
-          } catch {
-            // Native browser fallback.
-          }
-        }}
-        className="h-11 w-full cursor-pointer rounded-xl border border-input bg-background/55 pl-10 pr-3 text-sm text-foreground outline-none focus:border-sky-400/40"
-      />
-    </div>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div className="flex min-h-48 items-center justify-center">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
-        Loading yachts
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex min-h-48 flex-col items-center justify-center text-center">
-      <Ship className="size-8 text-muted-foreground" />
-
-      <p className="mt-3 font-medium">
-        No matching availability
-      </p>
-
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        No yacht is continuously available
-        for the selected dates and filters.
-      </p>
-    </div>
-  );
-}
-
-function formatWindowRoute(
-  windows: AvailabilityRecord[]
-): string | null {
-  const routedWindow = windows.find(
-    (window) =>
-      window.embarkationPort ||
-      window.disembarkationPort
-  );
-
-  if (!routedWindow) {
-    return null;
-  }
-
-  const from = routedWindow.embarkationPort;
-  const to = routedWindow.disembarkationPort;
-
-  if (from && to) {
-    return `${from} → ${to}`;
-  }
-
-  return from ?? to ?? null;
-}
-
 function getMinimumRate(
   records: AvailabilityRecord[]
 ): {
   amount: number;
   currency: string;
 } | null {
-  const pricedRecords =
-    records.filter(
-      (
-        record
-      ): record is AvailabilityRecord & {
-        weeklyRate: number;
-      } =>
-        typeof record.weeklyRate ===
-          "number" &&
-        Number.isFinite(
-          record.weeklyRate
-        )
-    );
+  const pricedRecords = records.filter(
+    (
+      record
+    ): record is AvailabilityRecord & {
+      weeklyRate: number;
+    } =>
+      typeof record.weeklyRate === "number" &&
+      Number.isFinite(record.weeklyRate)
+  );
 
   if (pricedRecords.length === 0) {
     return null;
   }
 
-  const lowest = pricedRecords.reduce(
-    (current, record) =>
-      record.weeklyRate <
-      current.weeklyRate
-        ? record
-        : current
+  const lowest = pricedRecords.reduce((current, record) =>
+    record.weeklyRate < current.weeklyRate
+      ? record
+      : current
   );
 
   return {
     amount: lowest.weeklyRate,
-    currency:
-      lowest.currency || "EUR",
+    currency: lowest.currency || "EUR",
   };
 }
 
@@ -1002,25 +957,45 @@ function formatMoney(
   currency: string
 ) {
   try {
-    return new Intl.NumberFormat(
-      "en-US",
-      {
-        style: "currency",
-        currency:
-          currency || "EUR",
-        maximumFractionDigits: 0,
-      }
-    ).format(amount);
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: currency || "EUR",
+      maximumFractionDigits: 0,
+    }).format(amount);
   } catch {
     return `${currency || "EUR"} ${amount.toLocaleString(
-      "en-US"
+      "en-GB"
     )}`;
   }
 }
 
-function formatStatus(
-  status: AvailabilityStatus
+function formatShortDate(value: string) {
+  return new Date(
+    `${value}T00:00:00`
+  ).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function formatDateRange(
+  startDate: string,
+  endDate: string
 ) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  return `${start.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  })} – ${end.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })}`;
+}
+
+function formatStatus(status: AvailabilityStatus) {
   return status
     .split("_")
     .map(
@@ -1031,27 +1006,20 @@ function formatStatus(
     .join(" ");
 }
 
-function statusClass(
-  status: AvailabilityStatus
-) {
+function statusClass(status: AvailabilityStatus) {
   switch (status) {
     case "available":
-      return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
-
+      return "border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200";
     case "provisional":
-      return "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300";
-
+      return "border-cyan-500/25 bg-cyan-500/10 text-cyan-800 dark:text-cyan-200";
     case "option":
-      return "border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300";
-
+      return "border-amber-500/25 bg-amber-500/10 text-amber-900 dark:text-amber-200";
     case "booked":
-      return "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300";
-
+      return "border-violet-500/25 bg-violet-500/10 text-violet-800 dark:text-violet-200";
     case "maintenance":
-      return "border-orange-500/25 bg-orange-500/10 text-orange-800 dark:text-orange-300";
-
+      return "border-orange-500/25 bg-orange-500/10 text-orange-900 dark:text-orange-200";
     case "unavailable":
     default:
-      return "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300";
+      return "border-red-500/25 bg-red-500/10 text-red-800 dark:text-red-200";
   }
 }
