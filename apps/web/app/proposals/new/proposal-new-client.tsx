@@ -60,6 +60,28 @@ type YachtDetailResponse = {
   error?: string;
 };
 
+type InquiryListItem = {
+  id: string;
+  client_name: string | null;
+  email: string | null;
+  phone: string | null;
+  destination: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  guests: number | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  currency: string | null;
+  preferences: string | null;
+  original_inquiry?: string | null;
+};
+
+type InquiriesResponse = {
+  success: boolean;
+  inquiries?: InquiryListItem[];
+  error?: string;
+};
+
 type ProposalFormState = {
   clientName: string;
   clientEmail: string;
@@ -99,23 +121,59 @@ const initialForm: ProposalFormState = {
 export default function NewProposalPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const yachtId = searchParams.get("yachtId");
 
-  const [data, setData] = useState<YachtDetailResponse | null>(null);
-  const [form, setForm] = useState<ProposalFormState>(initialForm);
+  const yachtId = searchParams.get("yachtId");
+  const inquiryId = searchParams.get("inquiryId");
+
+  const requestedStartDate =
+    searchParams.get("startDate") ?? "";
+
+  const requestedEndDate =
+    searchParams.get("endDate") ?? "";
+
+  const requestedGuests =
+    searchParams.get("guests") ?? "";
+
+  const requestedWeeklyRate =
+    searchParams.get("weeklyRate") ?? "";
+
+  const requestedCurrency =
+    searchParams.get("currency") ?? "EUR";
+
+  const [data, setData] =
+    useState<YachtDetailResponse | null>(null);
+
+  const [inquiry, setInquiry] =
+    useState<InquiryListItem | null>(null);
+
+  const [form, setForm] =
+    useState<ProposalFormState>(() => ({
+      ...initialForm,
+      startDate: requestedStartDate,
+      endDate: requestedEndDate,
+      guests: requestedGuests,
+      weeklyRate: requestedWeeklyRate,
+      currency: requestedCurrency,
+    }));
+
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(Boolean(yachtId));
+
+  const [isYachtLoading, setIsYachtLoading] =
+    useState(Boolean(yachtId));
+
+  const [isInquiryLoading, setIsInquiryLoading] =
+    useState(Boolean(inquiryId));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
 
   const loadYacht = useCallback(async () => {
     if (!yachtId) {
-      setIsLoading(false);
+      setIsYachtLoading(false);
       return;
     }
 
     try {
-      setIsLoading(true);
+      setIsYachtLoading(true);
       setPageError(null);
 
       const response = await fetch(
@@ -144,16 +202,25 @@ export default function NewProposalPage() {
 
       setForm((current) => ({
         ...current,
-        startDate: firstAvailableWindow?.startDate ?? current.startDate,
-        endDate: firstAvailableWindow?.endDate ?? current.endDate,
+        startDate:
+          current.startDate ||
+          firstAvailableWindow?.startDate ||
+          "",
+        endDate:
+          current.endDate ||
+          firstAvailableWindow?.endDate ||
+          "",
         weeklyRate:
-          suggestedRate !== null && suggestedRate !== undefined
+          current.weeklyRate ||
+          (suggestedRate !== null &&
+          suggestedRate !== undefined
             ? String(suggestedRate)
-            : current.weeklyRate,
+            : ""),
         currency:
-          firstAvailableWindow?.currency ??
-          result.yacht.rates.currency ??
-          current.currency,
+          current.currency ||
+          firstAvailableWindow?.currency ||
+          result.yacht.rates.currency ||
+          "EUR",
       }));
     } catch (loadError) {
       setPageError(
@@ -162,13 +229,95 @@ export default function NewProposalPage() {
           : "Could not load yacht."
       );
     } finally {
-      setIsLoading(false);
+      setIsYachtLoading(false);
     }
   }, [yachtId]);
 
   useEffect(() => {
     void loadYacht();
   }, [loadYacht]);
+
+  const loadInquiry = useCallback(async () => {
+    if (!inquiryId) {
+      setIsInquiryLoading(false);
+      return;
+    }
+
+    try {
+      setIsInquiryLoading(true);
+      setPageError(null);
+
+      const response = await fetch("/api/inquiries", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const result =
+        (await response.json()) as InquiriesResponse;
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error ?? "Could not load the inquiry."
+        );
+      }
+
+      const matchedInquiry =
+        result.inquiries?.find(
+          (item) => item.id === inquiryId
+        ) ?? null;
+
+      if (!matchedInquiry) {
+        throw new Error(
+          "The selected inquiry could not be found."
+        );
+      }
+
+      setInquiry(matchedInquiry);
+
+      setForm((current) => ({
+        ...current,
+        clientName:
+          matchedInquiry.client_name?.trim() ??
+          current.clientName,
+        clientEmail:
+          matchedInquiry.email?.trim() ??
+          current.clientEmail,
+        clientPhone:
+          matchedInquiry.phone?.trim() ??
+          current.clientPhone,
+        startDate:
+          matchedInquiry.start_date ??
+          current.startDate,
+        endDate:
+          matchedInquiry.end_date ??
+          current.endDate,
+        guests:
+          matchedInquiry.guests !== null
+            ? String(matchedInquiry.guests)
+            : current.guests,
+        currency:
+          matchedInquiry.currency ??
+          current.currency,
+        notes:
+          buildInquiryNotes(
+            matchedInquiry,
+            current.notes
+          ),
+      }));
+    } catch (loadError) {
+      setPageError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Could not load the inquiry."
+      );
+    } finally {
+      setIsInquiryLoading(false);
+    }
+  }, [inquiryId]);
+
+  useEffect(() => {
+    void loadInquiry();
+  }, [loadInquiry]);
 
   const availableWindows = useMemo(() => {
     if (!data) {
@@ -271,6 +420,7 @@ export default function NewProposalPage() {
         },
         body: JSON.stringify({
           yachtId,
+          inquiryId: inquiryId || null,
           clientName: form.clientName.trim(),
           clientEmail: form.clientEmail.trim(),
           clientPhone: form.clientPhone.trim() || null,
@@ -316,6 +466,9 @@ export default function NewProposalPage() {
     }
   }
 
+  const isLoading =
+    isYachtLoading || isInquiryLoading;
+
   if (isLoading) {
     return <ProposalSkeleton />;
   }
@@ -325,11 +478,21 @@ export default function NewProposalPage() {
       <div className="mx-auto max-w-[1500px] space-y-7">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link
-            href={yachtId ? `/fleet/${yachtId}` : "/proposals"}
+            href={
+              inquiryId
+                ? `/workspace/inquiry/${inquiryId}`
+                : yachtId
+                  ? `/fleet/${yachtId}`
+                  : "/proposals"
+            }
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 transition hover:text-white"
           >
             <span>←</span>
-            {yachtId ? "Back to yacht" : "Back to proposals"}
+            {inquiryId
+              ? "Back to inquiry"
+              : yachtId
+                ? "Back to yacht"
+                : "Back to proposals"}
           </Link>
 
           <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200">
@@ -541,6 +704,14 @@ export default function NewProposalPage() {
                 <SummaryRow
                   label="Client"
                   value={form.clientName || "Not entered"}
+                />
+                <SummaryRow
+                  label="Destination"
+                  value={
+                    inquiry?.destination ||
+                    searchParams.get("destination") ||
+                    "Not entered"
+                  }
                 />
                 <SummaryRow
                   label="Guests"
@@ -768,6 +939,77 @@ function YachtIllustration() {
       />
     </svg>
   );
+}
+
+function buildInquiryNotes(
+  inquiry: InquiryListItem,
+  existingNotes: string
+): string {
+  const sections: string[] = [];
+
+  if (inquiry.destination) {
+    sections.push(
+      `Destination: ${inquiry.destination}`
+    );
+  }
+
+  if (inquiry.preferences) {
+    sections.push(
+      `Client preferences: ${inquiry.preferences}`
+    );
+  }
+
+  if (
+    inquiry.budget_min !== null ||
+    inquiry.budget_max !== null
+  ) {
+    sections.push(
+      `Client budget: ${formatBudgetRange(
+        inquiry.budget_min,
+        inquiry.budget_max,
+        inquiry.currency
+      )}`
+    );
+  }
+
+  if (inquiry.original_inquiry) {
+    sections.push(
+      `Original inquiry:\n${inquiry.original_inquiry}`
+    );
+  }
+
+  if (existingNotes.trim()) {
+    sections.push(existingNotes.trim());
+  }
+
+  return sections.join("\n\n");
+}
+
+function formatBudgetRange(
+  minimum: number | null,
+  maximum: number | null,
+  currency: string | null
+): string {
+  const code = currency || "EUR";
+
+  const format = (value: number | null) =>
+    value === null
+      ? "?"
+      : new Intl.NumberFormat("en-GB", {
+          style: "currency",
+          currency: code,
+          maximumFractionDigits: 0,
+        }).format(value);
+
+  if (
+    minimum !== null &&
+    maximum !== null &&
+    minimum === maximum
+  ) {
+    return format(minimum);
+  }
+
+  return `${format(minimum)} – ${format(maximum)}`;
 }
 
 function validateProposalForm(form: ProposalFormState): FormErrors {
