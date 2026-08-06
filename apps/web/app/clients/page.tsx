@@ -282,7 +282,7 @@ export default function ClientsPage() {
 
   return (
     <PageContainer contentClassName="space-y-7">
-      <div className="contents">
+      <div className="space-y-7">
         <HeroCard
           eyebrow="Client intelligence"
           title="Luxury client CRM"
