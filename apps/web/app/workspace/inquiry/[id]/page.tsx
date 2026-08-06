@@ -22,7 +22,6 @@ import type { ReactNode } from "react";
 import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
-import { StatCard } from "@/components/ui/stat-card";
 import { createClient } from "@/lib/supabase/server";
 
 type InquiryWorkspacePageProps = {
@@ -120,6 +119,17 @@ export default async function InquiryWorkspacePage({
     ? splitPreferences(inquiry.preferences)
     : [];
 
+  const destinationSummary = summarizeDestination(
+    inquiry.destination
+  );
+
+  const compactCharterDates = formatCompactDateRange(
+    inquiry.start_date,
+    inquiry.end_date
+  );
+
+  const compactBudget = formatCompactBudget(inquiry);
+
   return (
     <PageContainer contentClassName="space-y-7">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -141,11 +151,9 @@ export default async function InquiryWorkspacePage({
       <HeroCard
         eyebrow="Inquiry intelligence"
         title={inquiry.client_name || "Unnamed inquiry"}
-        description={
+        description={buildHeroDescription(
           inquiry.client_type
-            ? `${inquiry.client_type} charter request ready for review, fleet matching and proposal preparation.`
-            : "Review the extracted charter brief, confirm missing details and move the request into matching."
-        }
+        )}
         actions={
           <div className="flex flex-wrap gap-3">
             <Link
@@ -167,41 +175,44 @@ export default async function InquiryWorkspacePage({
         }
       />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard
+      <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <InquiryStatCard
           label="Destination"
-          value={inquiry.destination || "Not set"}
-          subtitle="Preferred cruising area"
+          value={destinationSummary.primary}
+          subtitle={destinationSummary.secondary}
           tone="cyan"
+          icon={<MapPin className="size-4" />}
         />
 
-        <StatCard
+        <InquiryStatCard
           label="Guests"
-          value={inquiry.guests ?? "Not set"}
+          value={
+            inquiry.guests !== null
+              ? String(inquiry.guests)
+              : "Not set"
+          }
           subtitle="Confirmed party size"
           tone="emerald"
+          icon={<Users className="size-4" />}
         />
 
-        <StatCard
+        <InquiryStatCard
           label="Charter dates"
-          value={
-            formatDateRange(
-              inquiry.start_date,
-              inquiry.end_date
-            ) || "Not set"
-          }
+          value={compactCharterDates || "Not set"}
           subtitle="Requested charter window"
           tone="violet"
+          icon={<CalendarDays className="size-4" />}
         />
 
-        <StatCard
+        <InquiryStatCard
           label="Budget"
-          value={formatBudget(inquiry) || "Not set"}
+          value={compactBudget || "Not set"}
           subtitle="Expected charter range"
           tone="amber"
+          icon={<WalletCards className="size-4" />}
         />
 
-        <StatCard
+        <InquiryStatCard
           label="Readiness"
           value={`${readinessScore}%`}
           subtitle={
@@ -210,6 +221,7 @@ export default async function InquiryWorkspacePage({
               : "Broker review status"
           }
           tone="neutral"
+          icon={<CheckCircle2 className="size-4" />}
         />
       </section>
 
@@ -518,6 +530,93 @@ export default async function InquiryWorkspacePage({
   );
 }
 
+type InquiryStatTone =
+  | "cyan"
+  | "emerald"
+  | "violet"
+  | "amber"
+  | "neutral";
+
+function InquiryStatCard({
+  label,
+  value,
+  subtitle,
+  tone,
+  icon,
+}: {
+  label: string;
+  value: string;
+  subtitle: string;
+  tone: InquiryStatTone;
+  icon: ReactNode;
+}) {
+  const toneStyles: Record<
+    InquiryStatTone,
+    {
+      icon: string;
+      glow: string;
+    }
+  > = {
+    cyan: {
+      icon:
+        "border-cyan-500/20 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+      glow: "bg-cyan-400/10",
+    },
+    emerald: {
+      icon:
+        "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+      glow: "bg-emerald-400/10",
+    },
+    violet: {
+      icon:
+        "border-violet-500/20 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+      glow: "bg-violet-400/10",
+    },
+    amber: {
+      icon:
+        "border-amber-500/20 bg-amber-500/10 text-amber-800 dark:text-amber-300",
+      glow: "bg-amber-400/10",
+    },
+    neutral: {
+      icon:
+        "border-border bg-background/55 text-muted-foreground",
+      glow: "bg-foreground/[0.04]",
+    },
+  };
+
+  const styles = toneStyles[tone];
+
+  return (
+    <article className="ui-panel apple-transition relative min-h-[190px] min-w-0 overflow-hidden rounded-[24px] p-5 hover:-translate-y-0.5 hover:border-ring/20 sm:p-6">
+      <div
+        className={`pointer-events-none absolute -right-8 -top-10 size-28 rounded-full blur-3xl ${styles.glow}`}
+      />
+
+      <div className="relative flex h-full min-w-0 flex-col">
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {label}
+          </p>
+
+          <div
+            className={`flex size-9 shrink-0 items-center justify-center rounded-xl border ${styles.icon}`}
+          >
+            {icon}
+          </div>
+        </div>
+
+        <p className="mt-5 min-w-0 break-words font-heading text-[clamp(1.75rem,2.2vw,2.65rem)] leading-[0.98] tracking-[0.035em] text-foreground [overflow-wrap:anywhere]">
+          {value}
+        </p>
+
+        <p className="mt-auto min-w-0 break-words pt-5 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
+          {subtitle}
+        </p>
+      </div>
+    </article>
+  );
+}
+
 function InfoColumn({
   title,
   icon,
@@ -710,6 +809,243 @@ function splitPreferences(value: string): string[] {
     .split(/[,;\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function buildHeroDescription(
+  clientType: string | null
+): string {
+  const normalized = clientType
+    ?.trim()
+    .replace(/[.!?]+$/, "");
+
+  if (!normalized) {
+    return "Review the extracted charter brief, confirm missing details and move the request into matching.";
+  }
+
+  return `${normalized} request ready for review, fleet matching and proposal preparation.`;
+}
+
+function summarizeDestination(
+  value: string | null
+): {
+  primary: string;
+  secondary: string;
+} {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return {
+      primary: "Not set",
+      secondary: "Preferred cruising area",
+    };
+  }
+
+  const parenthetical = normalized.match(
+    /^(.+?)\s*\((.+)\)\s*$/
+  );
+
+  if (parenthetical) {
+    return {
+      primary: parenthetical[1].trim(),
+      secondary: sentenceCase(
+        parenthetical[2].trim()
+      ),
+    };
+  }
+
+  const separator = normalized.match(
+    /^(.+?)\s+(?:with|and)\s+(.+)$/
+  );
+
+  if (
+    separator &&
+    separator[1].trim().length <= 24
+  ) {
+    return {
+      primary: separator[1].trim(),
+      secondary: sentenceCase(
+        separator[2].trim()
+      ),
+    };
+  }
+
+  return {
+    primary: normalized,
+    secondary: "Preferred cruising area",
+  };
+}
+
+function sentenceCase(value: string): string {
+  if (!value) {
+    return value;
+  }
+
+  return (
+    value.charAt(0).toUpperCase() +
+    value.slice(1)
+  );
+}
+
+function formatCompactBudget(inquiry: {
+  budget_min: number | null;
+  budget_max: number | null;
+  currency: string | null;
+}): string | null {
+  if (
+    inquiry.budget_min === null &&
+    inquiry.budget_max === null
+  ) {
+    return null;
+  }
+
+  const symbol =
+    inquiry.currency === "EUR"
+      ? "€"
+      : inquiry.currency === "USD"
+        ? "$"
+        : inquiry.currency === "GBP"
+          ? "£"
+          : inquiry.currency
+            ? `${inquiry.currency} `
+            : "";
+
+  const minimum =
+    inquiry.budget_min !== null
+      ? formatCompactAmount(
+          inquiry.budget_min
+        )
+      : "?";
+
+  const maximum =
+    inquiry.budget_max !== null
+      ? formatCompactAmount(
+          inquiry.budget_max
+        )
+      : "?";
+
+  if (
+    inquiry.budget_min !== null &&
+    inquiry.budget_max !== null &&
+    inquiry.budget_min === inquiry.budget_max
+  ) {
+    return `${symbol}${minimum}`;
+  }
+
+  return `${symbol}${minimum}–${maximum}`;
+}
+
+function formatCompactAmount(
+  amount: number
+): string {
+  if (Math.abs(amount) >= 1_000_000) {
+    return `${trimCompactDecimal(
+      amount / 1_000_000
+    )}M`;
+  }
+
+  if (Math.abs(amount) >= 1_000) {
+    return `${trimCompactDecimal(
+      amount / 1_000
+    )}K`;
+  }
+
+  return amount.toLocaleString("en-GB");
+}
+
+function trimCompactDecimal(
+  value: number
+): string {
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(1).replace(/\.0$/, "");
+}
+
+function formatCompactDateRange(
+  startDate: string | null,
+  endDate: string | null
+): string | null {
+  if (!startDate && !endDate) {
+    return null;
+  }
+
+  if (startDate && !endDate) {
+    return formatCompactDate(startDate);
+  }
+
+  if (!startDate && endDate) {
+    return formatCompactDate(endDate);
+  }
+
+  const start = parseStoredDate(startDate!);
+  const end = parseStoredDate(endDate!);
+
+  if (!start || !end) {
+    return `${startDate}–${endDate}`;
+  }
+
+  const startDay = start.getDate();
+  const endDay = end.getDate();
+
+  const startMonth = start.toLocaleDateString(
+    "en-GB",
+    { month: "short" }
+  );
+
+  const endMonth = end.toLocaleDateString(
+    "en-GB",
+    { month: "short" }
+  );
+
+  const startYear = start.getFullYear();
+  const endYear = end.getFullYear();
+
+  if (
+    startYear === endYear &&
+    start.getMonth() === end.getMonth()
+  ) {
+    if (startDay === endDay) {
+      return `${startDay} ${startMonth} ${startYear}`;
+    }
+
+    return `${startDay}–${endDay} ${startMonth} ${startYear}`;
+  }
+
+  if (startYear === endYear) {
+    return `${startDay} ${startMonth}–${endDay} ${endMonth} ${startYear}`;
+  }
+
+  return `${startDay} ${startMonth} ${startYear}–${endDay} ${endMonth} ${endYear}`;
+}
+
+function formatCompactDate(
+  value: string
+): string {
+  const date = parseStoredDate(value);
+
+  if (!date) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  ).format(date);
+}
+
+function parseStoredDate(
+  value: string
+): Date | null {
+  const date = new Date(
+    `${value}T00:00:00`
+  );
+
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
 }
 
 function formatBudget(inquiry: {
