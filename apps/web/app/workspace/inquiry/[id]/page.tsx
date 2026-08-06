@@ -23,6 +23,7 @@ import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { createClient } from "@/lib/supabase/server";
+import { InquiryMatchActions } from "@/components/inquiries/inquiry-match-actions";
 
 type InquiryWorkspacePageProps = {
   params: Promise<{ id: string }>;
@@ -394,31 +395,27 @@ export default async function InquiryWorkspacePage({
               className="mb-5"
             />
 
-            <div className="space-y-3">
-              <Link
-                href={`/availability?inquiry=${inquiry.id}`}
-                className="ui-primary-button apple-transition flex min-h-12 w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
-              >
-                <Ship className="size-4" />
-                Match fleet
-              </Link>
+            <InquiryMatchActions
+              inquiry={{
+                id: inquiry.id,
+                destination: inquiry.destination,
+                startDate: inquiry.start_date,
+                endDate: inquiry.end_date,
+                guests: inquiry.guests,
+                budgetMin: inquiry.budget_min,
+                budgetMax: inquiry.budget_max,
+                currency: inquiry.currency,
+                preferences: inquiry.preferences,
+              }}
+            />
 
-              <Link
-                href="/proposals/new"
-                className="ui-secondary-button apple-transition flex min-h-12 w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:bg-accent"
-              >
-                <FileText className="size-4" />
-                Build proposal
-              </Link>
-
-              <a
-                href={buildContactHref(inquiry)}
-                className="ui-secondary-button apple-transition flex min-h-12 w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:bg-accent"
-              >
-                <Send className="size-4" />
-                Contact client
-              </a>
-            </div>
+            <a
+              href={buildContactHref(inquiry)}
+              className="ui-secondary-button apple-transition mt-3 flex min-h-12 w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:bg-accent"
+            >
+              <Send className="size-4" />
+              Contact client
+            </a>
           </section>
 
           <section className="ui-panel apple-transition rounded-[26px] p-5 sm:p-6 hover:border-ring/20">
