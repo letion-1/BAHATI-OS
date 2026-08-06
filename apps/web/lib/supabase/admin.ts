@@ -5,7 +5,8 @@ import {
   type SupabaseClient,
 } from "@supabase/supabase-js";
 
-let adminClient: SupabaseClient | null = null;
+let adminClient: SupabaseClient | null =
+  null;
 
 export function createAdminClient(): SupabaseClient {
   if (adminClient) {
@@ -13,35 +14,97 @@ export function createAdminClient(): SupabaseClient {
   }
 
   const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 
-  const serviceKey =
-    process.env.SUPABASE_SECRET_KEY ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
   if (!supabaseUrl) {
     throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL is not configured."
+      "NEXT_PUBLIC_SUPABASE_URL is missing."
     );
   }
 
-  if (!serviceKey) {
+  if (!serviceRoleKey) {
     throw new Error(
-      "A server-only SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY is required."
+      "SUPABASE_SERVICE_ROLE_KEY is missing."
     );
   }
+
+  validateServiceRoleKey(serviceRoleKey);
 
   adminClient = createClient(
     supabaseUrl,
-    serviceKey,
+    serviceRoleKey,
     {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
         detectSessionInUrl: false,
       },
+      global: {
+        headers: {
+          "X-Client-Info":
+            "intrigue-yacht-os-service-role",
+        },
+      },
     }
   );
 
   return adminClient;
+}
+
+function validateServiceRoleKey(
+  key: string
+): void {
+  if (key.startsWith("sb_secret_")) {
+    return;
+  }
+
+  if (
+    key.startsWith("sb_publishable_") ||
+    key.startsWith("anon")
+  ) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY contains a public key. Replace it with the Supabase secret or service_role key."
+    );
+  }
+
+  const parts = key.split(".");
+
+  if (parts.length !== 3) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is not a valid Supabase secret or legacy service-role JWT."
+    );
+  }
+
+  try {
+    const payload = JSON.parse(
+      Buffer.from(
+        parts[1],
+        "base64url"
+      ).toString("utf8")
+    ) as {
+      role?: string;
+    };
+
+    if (payload.role !== "service_role") {
+      throw new Error(
+        `SUPABASE_SERVICE_ROLE_KEY has role "${payload.role ?? "unknown"}" instead of "service_role".`
+      );
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes(
+        "instead of"
+      )
+    ) {
+      throw error;
+    }
+
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY could not be validated."
+    );
+  }
 }

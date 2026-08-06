@@ -464,7 +464,7 @@ function TimelineHeader({
               <p
                 className={`mt-1 text-xs ${
                   day.isToday
-                    ? "font-semibold text-emerald-300"
+                    ? "font-semibold text-emerald-700 dark:text-emerald-300"
                     : "text-muted-foreground"
                 }`}
               >
@@ -689,7 +689,7 @@ function AvailabilityRecordDetails({
   onClose: () => void;
 }) {
   return (
-    <div className="border-t border-border bg-[#080b11] p-5">
+    <div className="border-t border-border bg-background p-5">
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-400">
@@ -737,7 +737,7 @@ function AvailabilityRecordDetails({
       </div>
 
       {record.notes ? (
-        <div className="mt-4 rounded-xl border border-border bg-black/20 p-4">
+        <div className="mt-4 rounded-xl border border-border bg-muted/50 p-4 dark:bg-black/20">
           <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Notes</p>
           <p className="mt-2 text-sm leading-6 text-foreground/80">{record.notes}</p>
         </div>
@@ -754,7 +754,7 @@ function DetailCard({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-black/20 p-4">
+    <div className="rounded-xl border border-border bg-muted/50 p-4 dark:bg-black/20">
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </p>

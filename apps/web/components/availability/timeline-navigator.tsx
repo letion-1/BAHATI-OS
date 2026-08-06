@@ -202,19 +202,19 @@ export function TimelineNavigator({
   }
 
   return (
-    <section className="border-b border-white/10 bg-zinc-950/70 px-5 py-4">
+    <section className="border-b border-border bg-muted/55 px-5 py-4 dark:bg-zinc-950/70">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Season navigator
           </p>
 
-          <p className="mt-1 text-xs text-zinc-600">
+          <p className="mt-1 text-xs text-muted-foreground/75">
             Click the season or drag the highlighted viewport.
           </p>
         </div>
 
-        <p className="hidden text-xs text-zinc-600 sm:block">
+        <p className="hidden text-xs text-muted-foreground/75 sm:block">
           {formatCompactDate(visibleStart)}
           {" – "}
           {formatCompactDate(
@@ -225,19 +225,19 @@ export function TimelineNavigator({
 
       <div className="relative">
         <div
-          className="relative flex h-6 overflow-hidden rounded-t-lg border-x border-t border-white/10 bg-zinc-900"
+          className="relative flex h-6 overflow-hidden rounded-t-lg border-x border-t border-border bg-card dark:bg-zinc-900"
           aria-hidden="true"
         >
           {months.map((month) => (
             <div
               key={month.key}
-              className="absolute inset-y-0 border-r border-white/10 px-2"
+              className="absolute inset-y-0 border-r border-border/70 px-2"
               style={{
                 left: `${month.leftPercent}%`,
                 width: `${month.widthPercent}%`,
               }}
             >
-              <span className="block truncate pt-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+              <span className="block truncate pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 {month.label}
               </span>
             </div>
@@ -247,7 +247,7 @@ export function TimelineNavigator({
         <div
           ref={trackRef}
           onPointerDown={handleTrackPointerDown}
-          className="relative h-16 cursor-crosshair touch-none overflow-hidden rounded-b-lg border border-white/10 bg-zinc-900/80"
+          className="relative h-16 cursor-crosshair touch-none overflow-hidden rounded-b-lg border border-border bg-muted/70 dark:bg-zinc-900/80"
         >
           <NavigatorGrid months={months} />
 
@@ -326,9 +326,9 @@ export function TimelineNavigator({
                 )
               );
             }}
-            className={`absolute inset-y-1 z-20 touch-none rounded-md border-2 border-white bg-white/10 shadow-[0_0_24px_rgba(255,255,255,0.12)] outline-none transition-shadow focus:ring-2 focus:ring-white/40 ${
+            className={`absolute inset-y-1 z-20 touch-none rounded-md border-2 border-primary bg-primary/10 shadow-[0_0_24px_rgba(70,45,28,0.12)] outline-none transition-shadow focus:ring-2 focus:ring-primary/35 dark:border-white dark:bg-white/10 dark:shadow-[0_0_24px_rgba(255,255,255,0.12)] dark:focus:ring-white/40 ${
               isDragging
-                ? "cursor-grabbing shadow-[0_0_30px_rgba(255,255,255,0.22)]"
+                ? "cursor-grabbing shadow-[0_0_30px_rgba(70,45,28,0.22)] dark:shadow-[0_0_30px_rgba(255,255,255,0.22)]"
                 : "cursor-grab"
             }`}
             style={{
@@ -336,9 +336,9 @@ export function TimelineNavigator({
               width: `${viewport.widthPercent}%`,
             }}
           >
-            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/20" />
-            <div className="absolute left-1 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-white/50" />
-            <div className="absolute right-1 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-white/50" />
+            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-primary/25 dark:bg-white/20" />
+            <div className="absolute left-1 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-primary/55 dark:bg-white/50" />
+            <div className="absolute right-1 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-primary/55 dark:bg-white/50" />
           </div>
         </div>
       </div>
@@ -356,7 +356,7 @@ function NavigatorGrid({
       {months.map((month) => (
         <div
           key={month.key}
-          className="absolute inset-y-0 border-r border-white/[0.06]"
+          className="absolute inset-y-0 border-r border-border/50"
           style={{
             left: `${month.leftPercent}%`,
             width: `${month.widthPercent}%`,

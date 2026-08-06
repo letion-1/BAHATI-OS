@@ -59,21 +59,21 @@ export default async function InquiryWorkspacePage({
   );
 
   return (
-    <main className="min-h-[calc(100vh-72px)] bg-[#08090b] text-white">
+    <main className="min-h-[calc(100vh-72px)] bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-8 lg:px-8">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-white/40">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Link
                 href="/inquiries"
-                className="transition hover:text-white"
+                className="transition hover:text-foreground"
               >
                 Inquiries
               </Link>
 
               <span>/</span>
 
-              <span className="text-white/70">
+              <span className="text-foreground/80">
                 {inquiry.reference || inquiry.id}
               </span>
             </div>
@@ -86,7 +86,7 @@ export default async function InquiryWorkspacePage({
               <StatusBadge status={inquiry.status} />
             </div>
 
-            <p className="mt-2 text-sm text-white/45">
+            <p className="mt-2 text-sm text-muted-foreground">
               {inquiry.client_type || "Charter inquiry"}
             </p>
           </div>
@@ -94,14 +94,14 @@ export default async function InquiryWorkspacePage({
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/inquiries"
-              className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/[0.07] hover:text-white"
+              className="rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-sm font-medium text-foreground/80 transition hover:bg-accent hover:text-foreground"
             >
               Back to inquiries
             </Link>
 
             <Link
               href="/inquiries/new"
-              className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               New inquiry
             </Link>
@@ -110,20 +110,20 @@ export default async function InquiryWorkspacePage({
 
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
-            <div className="rounded-[24px] border border-white/10 bg-[#0d0f12] p-6">
-              <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="rounded-[24px] border border-border bg-card p-6">
+              <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold">
                     Charter overview
                   </p>
 
-                  <p className="mt-1 text-xs text-white/40">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Core details extracted from the client inquiry
                   </p>
                 </div>
 
                 {confidence !== null ? (
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/60">
+                  <span className="rounded-full border border-border bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground">
                     {confidence}% AI confidence
                   </span>
                 ) : null}
@@ -160,7 +160,7 @@ export default async function InquiryWorkspacePage({
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
-              <section className="rounded-[24px] border border-white/10 bg-[#0d0f12] p-6">
+              <section className="rounded-[24px] border border-border bg-card p-6">
                 <SectionHeading
                   title="Client details"
                   description="Contact information for this inquiry"
@@ -189,7 +189,7 @@ export default async function InquiryWorkspacePage({
                 </div>
               </section>
 
-              <section className="rounded-[24px] border border-white/10 bg-[#0d0f12] p-6">
+              <section className="rounded-[24px] border border-border bg-card p-6">
                 <SectionHeading
                   title="Inquiry details"
                   description="Source and tracking information"
@@ -221,7 +221,7 @@ export default async function InquiryWorkspacePage({
               </section>
             </div>
 
-            <section className="rounded-[24px] border border-white/10 bg-[#0d0f12] p-6">
+            <section className="rounded-[24px] border border-border bg-card p-6">
               <SectionHeading
                 title="Preferences"
                 description="Requested yacht features and charter priorities"
@@ -234,27 +234,27 @@ export default async function InquiryWorkspacePage({
                   ).map((preference) => (
                     <span
                       key={preference}
-                      className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs text-white/70"
+                      className="rounded-full border border-border bg-accent/70 px-3 py-1.5 text-xs text-foreground/80"
                     >
                       {preference}
                     </span>
                   ))}
                 </div>
               ) : (
-                <p className="mt-5 text-sm text-white/35">
+                <p className="mt-5 text-sm text-muted-foreground/70">
                   No preferences were provided.
                 </p>
               )}
             </section>
 
-            <section className="rounded-[24px] border border-white/10 bg-[#0d0f12] p-6">
+            <section className="rounded-[24px] border border-border bg-card p-6">
               <SectionHeading
                 title="Original inquiry"
                 description="The source message used to create this record"
               />
 
-              <div className="mt-5 rounded-2xl border border-white/10 bg-[#08090b] p-5">
-                <p className="whitespace-pre-wrap text-sm leading-7 text-white/65">
+              <div className="mt-5 rounded-2xl border border-border bg-muted/40 dark:bg-[#08090b] p-5">
+                <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/75">
                   {inquiry.original_inquiry ||
                     "Original inquiry text is unavailable."}
                 </p>
@@ -263,7 +263,7 @@ export default async function InquiryWorkspacePage({
           </div>
 
           <aside className="space-y-5">
-            <section className="rounded-[24px] border border-white/10 bg-[#0d0f12] p-6">
+            <section className="rounded-[24px] border border-border bg-card p-6">
               <SectionHeading
                 title="Next actions"
                 description="Move this inquiry through the charter pipeline"
@@ -272,28 +272,28 @@ export default async function InquiryWorkspacePage({
               <div className="mt-5 space-y-3">
                 <button
                   type="button"
-                  className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
+                  className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
                 >
                   Match fleet
                 </button>
 
                 <button
                   type="button"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white"
+                  className="w-full rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm font-semibold text-foreground/80 transition hover:bg-accent hover:text-foreground"
                 >
                   Build proposal
                 </button>
 
                 <button
                   type="button"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/[0.07] hover:text-white"
+                  className="w-full rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm font-semibold text-foreground/80 transition hover:bg-accent hover:text-foreground"
                 >
                   Contact client
                 </button>
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-white/10 bg-[#0d0f12] p-6">
+            <section className="rounded-[24px] border border-border bg-card p-6">
               <SectionHeading
                 title="Inquiry health"
                 description="A quick broker-readiness snapshot"
@@ -358,7 +358,7 @@ function SectionHeading({
         {title}
       </p>
 
-      <p className="mt-1 text-xs text-white/40">
+      <p className="mt-1 text-xs text-muted-foreground">
         {description}
       </p>
     </div>
@@ -373,16 +373,16 @@ function InfoCard({
   value: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+    <div className="rounded-2xl border border-border bg-muted/40 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
         {label}
       </p>
 
       <p
         className={`mt-2 text-sm font-medium ${
           value
-            ? "text-white/85"
-            : "text-white/25"
+            ? "text-foreground"
+            : "text-muted-foreground/45"
         }`}
       >
         {value || "Not provided"}
@@ -399,12 +399,12 @@ function DetailRow({
   value: string | null;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
-      <span className="text-xs text-white/40">
+    <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
+      <span className="text-xs text-muted-foreground">
         {label}
       </span>
 
-      <span className="max-w-[65%] text-right text-sm font-medium text-white/75">
+      <span className="max-w-[65%] text-right text-sm font-medium text-foreground/85">
         {value || "Not provided"}
       </span>
     </div>
@@ -419,7 +419,7 @@ function StatusBadge({
   const label = status || "new";
 
   return (
-    <span className="rounded-full border border-emerald-400/15 bg-emerald-400/[0.07] px-3 py-1 text-xs font-medium capitalize text-emerald-200/80">
+    <span className="rounded-full border border-emerald-500/30 bg-emerald-50 px-3 py-1 text-xs font-medium capitalize text-emerald-700 dark:border-emerald-400/15 dark:bg-emerald-400/[0.07] dark:text-emerald-200">
       {label}
     </span>
   );
@@ -434,15 +434,15 @@ function HealthRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-white/55">
+      <span className="text-sm text-muted-foreground">
         {label}
       </span>
 
       <span
         className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
           complete
-            ? "bg-emerald-400/10 text-emerald-300"
-            : "bg-amber-300/10 text-amber-200"
+            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
+            : "bg-amber-50 text-amber-800 dark:bg-amber-300/10 dark:text-amber-200"
         }`}
       >
         {complete ? "✓" : "!"}
