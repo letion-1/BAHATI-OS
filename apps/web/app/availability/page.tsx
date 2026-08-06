@@ -374,7 +374,7 @@ export default function AvailabilityPage() {
   }
 
   return (
-    <PageContainer contentClassName="space-y-7">
+    <PageContainer contentClassName="min-w-0 max-w-full space-y-7 overflow-x-clip">
       <HeroCard
         eyebrow="Availability intelligence"
         title="Command your live availability"
@@ -406,7 +406,7 @@ export default function AvailabilityPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         <StatCard
           label="Fleet yachts"
           value={stats.yachtCount}
@@ -442,7 +442,7 @@ export default function AvailabilityPage() {
       <section className="ui-panel rounded-[24px] p-4 sm:p-5">
         <form
           onSubmit={handleSearch}
-          className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_190px_190px_auto_auto]"
+          className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(160px,0.8fr)_minmax(160px,0.8fr)] 2xl:grid-cols-[minmax(280px,1fr)_190px_190px_190px_auto_auto]"
         >
           <label className="relative block">
             <span className="sr-only">
@@ -540,7 +540,7 @@ export default function AvailabilityPage() {
         </form>
       </section>
 
-      <section>
+      <section className="min-w-0 max-w-full">
         <SectionHeader
           eyebrow="Live calendar"
           title="Availability timeline"
@@ -548,13 +548,15 @@ export default function AvailabilityPage() {
           className="mb-5"
         />
 
-        <AvailabilityTimeline
-          records={timelineRecords}
-          focusDate={
-            appliedFilters.startDate ||
-            timelineRecords[0]?.startDate
-          }
-        />
+        <div className="min-w-0 max-w-full overflow-hidden">
+          <AvailabilityTimeline
+            records={timelineRecords}
+            focusDate={
+              appliedFilters.startDate ||
+              timelineRecords[0]?.startDate
+            }
+          />
+        </div>
       </section>
 
       <section>
@@ -859,11 +861,11 @@ function AvailabilityEmptyState({
 
 function AvailabilitySkeleton() {
   return (
-    <PageContainer>
+    <PageContainer contentClassName="min-w-0 max-w-full overflow-x-clip">
       <div className="animate-pulse space-y-7">
         <div className="h-64 rounded-[30px] bg-muted" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}

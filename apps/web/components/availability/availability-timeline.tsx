@@ -199,7 +199,7 @@ export function AvailabilityTimeline({
   }
 
   return (
-    <Card className="ui-panel overflow-hidden rounded-[28px] border-border bg-card text-card-foreground">
+    <Card className="ui-panel w-full min-w-0 max-w-full overflow-hidden rounded-[28px] border-border bg-card text-card-foreground">
       <CardHeader className="border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))] text-[var(--hero-foreground)]">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -279,7 +279,7 @@ export function AvailabilityTimeline({
         </div>
       </CardHeader>
 
-      <CardContent className="p-0">
+      <CardContent className="min-w-0 p-0">
         <TimelineNavigator
           records={records}
           visibleStart={visibleStart}
@@ -293,7 +293,7 @@ export function AvailabilityTimeline({
 
         <TimelineLegend />
 
-        <div className="relative overflow-x-auto">
+        <div className="relative w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
           <div
             className="min-w-max"
             style={{

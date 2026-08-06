@@ -23,6 +23,7 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
+  Plus,
   Settings,
   Ship,
   Users,
@@ -526,18 +527,15 @@ export function AppShell({
             </div>
 
             <Link
-              href="/inquiries/new"
-              className="apple-transition inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm hover:-translate-y-0.5 hover:opacity-90 sm:w-auto sm:px-3"
-              aria-label="New inquiry"
-              title="New inquiry"
-            >
-              <MessageSquareText className="size-4" />
+  href="/inquiries/new"
+  className="ui-primary-button apple-transition inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap px-4 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+  aria-label="New inquiry"
+  title="New inquiry"
+>
+  <Plus className="size-4 shrink-0" />
 
-              <span className="hidden lg:inline">
-                New
-                inquiry
-              </span>
-            </Link>
+  <span>New inquiry</span>
+</Link>
 
             <form
               action={

@@ -202,7 +202,7 @@ export function TimelineNavigator({
   }
 
   return (
-    <section className="border-b border-border bg-card/80 px-5 py-4 backdrop-blur-xl dark:bg-zinc-950/70">
+    <section className="w-full min-w-0 max-w-full border-b border-border bg-card/80 px-5 py-4 backdrop-blur-xl dark:bg-zinc-950/70">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
