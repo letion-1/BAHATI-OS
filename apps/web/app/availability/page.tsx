@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Anchor,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -15,7 +14,6 @@ import {
 } from "lucide-react";
 import {
   type FormEvent,
-  type ReactNode,
   type RefObject,
   useCallback,
   useEffect,
@@ -30,14 +28,10 @@ import {
 } from "@/components/availability/availability-timeline";
 import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
+import { SectionHeader } from "@/components/ui/section-header";
+import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 type AvailabilityStatus =
   | "available"
@@ -431,8 +425,8 @@ export default function AvailabilityPage() {
     );
 
   return (
-    <PageContainer>
-      <div>
+    <PageContainer contentClassName="space-y-7">
+      <div className="space-y-7">
         <HeroCard
           eyebrow="Charter inventory"
           title="Availability"
@@ -459,41 +453,37 @@ export default function AvailabilityPage() {
           }
         />
 
-        <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            title="Fleet yachts"
+            label="Fleet yachts"
             value={stats.yachtCount}
-            description={`${stats.availableYachtCount} available in this view`}
-            icon={<Ship className="size-5" />}
+            subtitle={`${stats.availableYachtCount} available in this view`}
             tone="cyan"
           />
 
           <StatCard
-            title="Available windows"
+            label="Available windows"
             value={statusSummary.available}
-            description="Open charter periods"
-            icon={<CheckCircle2 className="size-5" />}
+            subtitle="Open charter periods"
             tone="emerald"
           />
 
           <StatCard
-            title="Booked or blocked"
+            label="Booked or blocked"
             value={statusSummary.committed}
-            description={`${statusSummary.held} additional holds or options`}
-            icon={<Clock3 className="size-5" />}
+            subtitle={`${statusSummary.held} additional holds or options`}
             tone="violet"
           />
 
           <StatCard
-            title="Mapped port routes"
+            label="Mapped port routes"
             value={statusSummary.routed}
-            description="Windows with embarkation data"
-            icon={<Route className="size-5" />}
+            subtitle="Windows with embarkation data"
             tone="amber"
           />
         </section>
 
-        <section className="mt-8">
+        <section>
           <form
             onSubmit={handleSearch}
             className="ui-panel rounded-[24px] p-4 sm:p-5"
@@ -610,24 +600,22 @@ export default function AvailabilityPage() {
         </section>
 
         {error && (
-          <section className="mt-6">
+          <section>
             <div className="rounded-2xl border border-red-500/30 bg-red-50 p-4 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
               {error}
             </div>
           </section>
         )}
 
-        <section className="mt-6">
+        <section>
           {isLoading &&
           timelineRecords.length === 0 ? (
-            <Card className="border-border bg-card text-foreground ">
-              <CardContent className="flex min-h-80 items-center justify-center">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Loading availability timeline
-                </div>
-              </CardContent>
-            </Card>
+            <div className="ui-panel flex min-h-80 items-center justify-center rounded-[28px]">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Loading availability timeline
+              </div>
+            </div>
           ) : (
             <AvailabilityTimeline
               records={timelineRecords}
@@ -639,23 +627,14 @@ export default function AvailabilityPage() {
           )}
         </section>
 
-        <section className="mt-6">
-          <Card className="border-border bg-card text-foreground ">
-            <CardHeader className="border-b border-border">
-              <CardTitle>
-                Matching yachts
-              </CardTitle>
-
-              <p className="text-sm text-muted-foreground">
-                {groupedYachts.length} yacht
-                {groupedYachts.length === 1
-                  ? ""
-                  : "s"}{" "}
-                in the current result
-              </p>
-            </CardHeader>
-
-            <CardContent className="p-5">
+        <section>
+          <div className="ui-panel rounded-[28px] p-5 sm:p-6">
+            <SectionHeader
+              eyebrow="Connected inventory"
+              title="Matching yachts"
+              subtitle={`${groupedYachts.length} yacht${groupedYachts.length === 1 ? "" : "s"} in the current result`}
+              className="mb-5"
+            />
               {isLoading &&
               groupedYachts.length === 0 ? (
                 <LoadingState />
@@ -690,7 +669,7 @@ export default function AvailabilityPage() {
                       return (
                         <div
                           key={yacht.id}
-                          className="rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:border-foreground/15 dark:bg-[#0d1118]"
+                          className="ui-panel apple-transition rounded-[24px] p-5 hover:-translate-y-1 hover:border-ring/25"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex min-w-0 items-center gap-3">
@@ -785,8 +764,7 @@ export default function AvailabilityPage() {
                   )}
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </div>
         </section>
       </div>
     </PageContainer>
@@ -851,58 +829,6 @@ function DatePickerField({
         className="h-11 w-full cursor-pointer rounded-xl border border-input bg-background/55 pl-10 pr-3 text-sm text-foreground outline-none focus:border-sky-400/40"
       />
     </div>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  description,
-  icon,
-  tone,
-}: {
-  title: string;
-  value: number;
-  description: string;
-  icon: ReactNode;
-  tone: "cyan" | "emerald" | "violet" | "amber";
-}) {
-  const toneClass = {
-    cyan: "border-cyan-500/25 bg-cyan-50 text-cyan-700 dark:border-cyan-400/15 dark:bg-cyan-400/[0.06] dark:text-cyan-300",
-    emerald:
-      "border-emerald-500/25 bg-emerald-50 text-emerald-700 dark:border-emerald-400/15 dark:bg-emerald-400/[0.06] dark:text-emerald-300",
-    violet:
-      "border-violet-500/25 bg-violet-50 text-violet-700 dark:border-violet-400/15 dark:bg-violet-400/[0.06] dark:text-violet-300",
-    amber:
-      "border-amber-500/25 bg-amber-50 text-amber-800 dark:border-amber-400/15 dark:bg-amber-400/[0.06] dark:text-amber-300",
-  }[tone];
-
-  return (
-    <Card className="group overflow-hidden border-border bg-card text-card-foreground transition hover:-translate-y-0.5 hover:border-foreground/15">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {title}
-            </p>
-
-            <p className="mt-5 text-3xl font-semibold tracking-tight">
-              {value.toLocaleString("en-US")}
-            </p>
-
-            <p className="mt-2 text-xs text-muted-foreground">
-              {description}
-            </p>
-          </div>
-
-          <div
-            className={`flex size-11 items-center justify-center rounded-xl border ${toneClass}`}
-          >
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
