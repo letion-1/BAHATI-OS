@@ -199,7 +199,7 @@ export function AvailabilityTimeline({
   }
 
   return (
-    <Card className="ui-panel overflow-hidden rounded-[28px]">
+    <Card className="ui-panel overflow-hidden rounded-[28px] border-border bg-card text-card-foreground">
       <CardHeader className="border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))] text-[var(--hero-foreground)]">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -689,7 +689,7 @@ function AvailabilityRecordDetails({
   onClose: () => void;
 }) {
   return (
-    <div className="border-t border-border bg-background p-5">
+    <div className="border-t border-border bg-background/60 p-5 dark:bg-background/30">
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-400">

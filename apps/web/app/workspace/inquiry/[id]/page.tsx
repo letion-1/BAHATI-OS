@@ -130,7 +130,7 @@ export default async function InquiryWorkspacePage({
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section className="ui-panel apple-transition rounded-[28px] p-5 sm:p-6 hover:border-ring/20">
             <SectionHeader
               eyebrow="Client record"
               title="Contact and inquiry details"
@@ -179,7 +179,7 @@ export default async function InquiryWorkspacePage({
             </div>
           </section>
 
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section className="ui-panel apple-transition rounded-[28px] p-5 sm:p-6 hover:border-ring/20">
             <SectionHeader
               eyebrow="Charter brief"
               title="Preferences"
@@ -207,7 +207,7 @@ export default async function InquiryWorkspacePage({
             )}
           </section>
 
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section className="ui-panel apple-transition rounded-[28px] p-5 sm:p-6 hover:border-ring/20">
             <SectionHeader
               eyebrow="Source message"
               title="Original inquiry"
@@ -225,7 +225,7 @@ export default async function InquiryWorkspacePage({
         </div>
 
         <aside className="space-y-5">
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section className="ui-panel apple-transition rounded-[28px] p-5 sm:p-6 hover:border-ring/20">
             <SectionHeader
               eyebrow="Pipeline"
               title="Next actions"
@@ -255,7 +255,7 @@ export default async function InquiryWorkspacePage({
             </div>
           </section>
 
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section className="ui-panel apple-transition rounded-[28px] p-5 sm:p-6 hover:border-ring/20">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

@@ -202,7 +202,7 @@ export function TimelineNavigator({
   }
 
   return (
-    <section className="border-b border-border bg-muted/55 px-5 py-4 dark:bg-zinc-950/70">
+    <section className="border-b border-border bg-card/80 px-5 py-4 backdrop-blur-xl dark:bg-zinc-950/70">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -225,7 +225,7 @@ export function TimelineNavigator({
 
       <div className="relative">
         <div
-          className="relative flex h-6 overflow-hidden rounded-t-lg border-x border-t border-border bg-card dark:bg-zinc-900"
+          className="relative flex h-6 overflow-hidden rounded-t-lg border-x border-t border-border bg-muted/45 dark:bg-zinc-900"
           aria-hidden="true"
         >
           {months.map((month) => (

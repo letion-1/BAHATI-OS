@@ -667,98 +667,14 @@ export default function AvailabilityPage() {
                       ];
 
                       return (
-                        <div
+                        <AvailabilityYachtCard
                           key={yacht.id}
-                          className="ui-panel apple-transition rounded-[24px] p-5 hover:-translate-y-1 hover:border-ring/25"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex min-w-0 items-center gap-3">
-                              {yacht.heroImageUrl ? (
-                                <img
-                                  src={yacht.heroImageUrl}
-                                  alt=""
-                                  className="size-12 rounded-xl border border-border object-cover"
-                                />
-                              ) : (
-                                <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-cyan-500/25 bg-cyan-50 text-cyan-700 dark:border-cyan-400/15 dark:bg-cyan-400/[0.06] dark:text-cyan-300">
-                                  <Ship className="size-5" />
-                                </div>
-                              )}
-
-                              <div className="min-w-0">
-                                <p className="truncate font-medium">
-                                  {yacht.name}
-                                </p>
-
-                                <p className="mt-1 truncate text-xs text-muted-foreground">
-                                  {[
-                                    yacht.yachtType,
-                                    yacht.lengthMeters
-                                      ? `${yacht.lengthMeters} m`
-                                      : null,
-                                    yacht.homePort,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" · ") ||
-                                    `${windows.length} matching windows`}
-                                </p>
-                              </div>
-                            </div>
-
-                            <Badge className="shrink-0 border border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
-                              {
-                                availableWindows.length
-                              }{" "}
-                              available
-                            </Badge>
-                          </div>
-
-                          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                              <p className="text-xs text-muted-foreground">
-                                Starting rate
-                              </p>
-
-                              <p className="mt-1">
-                                {minimumRate
-                                  ? formatMoney(
-                                      minimumRate.amount,
-                                      minimumRate.currency
-                                    )
-                                  : "On request"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-xs text-muted-foreground">
-                                Route
-                              </p>
-
-                              <p className="mt-1 truncate">
-                                {formatWindowRoute(windows) ??
-                                  yacht.homePort ??
-                                  "Not specified"}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
-                            {statuses.map(
-                              (status) => (
-                                <Badge
-                                  key={status}
-                                  className={`border ${statusClass(
-                                    status
-                                  )}`}
-                                >
-                                  {formatStatus(
-                                    status
-                                  )}
-                                </Badge>
-                              )
-                            )}
-                          </div>
-                        </div>
+                          yacht={yacht}
+                          windows={windows}
+                          availableWindows={availableWindows}
+                          minimumRate={minimumRate}
+                          statuses={statuses}
+                        />
                       );
                     }
                   )}
@@ -768,6 +684,165 @@ export default function AvailabilityPage() {
         </section>
       </div>
     </PageContainer>
+  );
+}
+
+
+function AvailabilityYachtCard({
+  yacht,
+  windows,
+  availableWindows,
+  minimumRate,
+  statuses,
+}: {
+  yacht: YachtRecord;
+  windows: AvailabilityRecord[];
+  availableWindows: AvailabilityRecord[];
+  minimumRate: {
+    amount: number;
+    currency: string;
+  } | null;
+  statuses: AvailabilityStatus[];
+}) {
+  return (
+    <article className="ui-panel apple-transition group overflow-hidden rounded-[26px] hover:-translate-y-1 hover:border-ring/25">
+      <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))]">
+        <div className="absolute h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl" />
+
+        {yacht.heroImageUrl ? (
+          <img
+            src={yacht.heroImageUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-55 transition duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <YachtIllustration />
+        )}
+
+        <div className="absolute left-4 top-4">
+          <Badge className="border border-emerald-500/25 bg-emerald-500/10 text-emerald-100 backdrop-blur-xl">
+            {availableWindows.length} available
+          </Badge>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-5">
+          <div className="min-w-0">
+            <h3 className="truncate font-heading text-3xl leading-none tracking-[0.05em] text-foreground">
+              {yacht.name}
+            </h3>
+
+            <p className="mt-2 truncate text-sm text-muted-foreground">
+              {[
+                yacht.yachtType,
+                yacht.lengthMeters
+                  ? `${yacht.lengthMeters} m`
+                  : null,
+                yacht.homePort,
+              ]
+                .filter(Boolean)
+                .join(" · ") ||
+                `${windows.length} matching windows`}
+            </p>
+          </div>
+
+          <div className="shrink-0 text-right">
+            <p className="font-semibold text-foreground">
+              {minimumRate
+                ? formatMoney(
+                    minimumRate.amount,
+                    minimumRate.currency
+                  )
+                : "Rate on request"}
+            </p>
+
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              starting rate
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <AvailabilityMetric
+            label="Windows"
+            value={String(windows.length)}
+          />
+
+          <AvailabilityMetric
+            label="Route"
+            value={
+              formatWindowRoute(windows) ??
+              yacht.homePort ??
+              "Not specified"
+            }
+          />
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
+          {statuses.map((status) => (
+            <Badge
+              key={status}
+              className={`border ${statusClass(status)}`}
+            >
+              {formatStatus(status)}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function AvailabilityMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="ui-panel-soft rounded-xl px-3 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
+
+      <p className="mt-1 truncate text-sm font-semibold text-foreground">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function YachtIllustration() {
+  return (
+    <svg
+      viewBox="0 0 260 120"
+      fill="none"
+      className="relative h-24 w-56 text-slate-500 transition duration-500 group-hover:scale-105 group-hover:text-sky-300"
+      aria-hidden="true"
+    >
+      <path
+        d="M30 80h200l-18 24H55L30 80Z"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        d="M75 80V45h90l38 35"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        d="M98 45V25h45v20"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        d="M0 111c28-8 46-8 74 0 28 8 46 8 74 0 28-8 46-8 74 0 14 4 25 5 38 4"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+    </svg>
   );
 }
 
