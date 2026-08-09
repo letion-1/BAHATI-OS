@@ -234,7 +234,7 @@ export async function POST(request: Request) {
     }
 
     const yachtResult = await admin
-      .from("yachts")
+      .from("fleet")
       .select("id, company_id")
       .eq("company_id", workspace.companyId)
       .eq("id", yachtId!)
@@ -250,7 +250,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Yacht not found in the active workspace.",
+          error: "Yacht not found in the active fleet.",
         },
         {
           status: 404,

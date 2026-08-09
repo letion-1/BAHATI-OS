@@ -18,8 +18,10 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import {
   type ReactNode,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -192,6 +194,38 @@ export function InquiryMatchActions({
 
   const [copiedYachtId, setCopiedYachtId] =
     useState<string | null>(null);
+
+  const [portalReady, setPortalReady] =
+    useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        setEditor(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   const selectedMatch = useMemo(
     () =>
@@ -507,32 +541,38 @@ export function InquiryMatchActions({
     );
   }
 
-  return (
-    <div className="space-y-3">
+  const matcherModal = isOpen ? (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Match yachts"
+    >
       <button
         type="button"
-        onClick={() => void openMatcher()}
-        className="ui-primary-button apple-transition flex min-h-12 w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
-        aria-expanded={isOpen}
-      >
-        <Ship className="size-4" />
-        Match yachts
-        <ChevronDown
-          className={`ml-auto size-4 transition ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        />
-      </button>
+        aria-label="Close yacht matcher"
+        onClick={() => {
+          setIsOpen(false);
+          setEditor(null);
+        }}
+        className="absolute inset-0 bg-black/55 backdrop-blur-[3px]"
+      />
 
-      {isOpen ? (
-        <div className="overflow-hidden rounded-[22px] border border-border bg-background/35">
-          <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Suggested yachts
+      <section className="ui-panel relative z-10 flex max-h-[92vh] w-full max-w-[1180px] min-w-0 flex-col overflow-hidden rounded-[28px] shadow-2xl">
+        <div className="relative overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))] px-5 py-5 sm:px-7 sm:py-6">
+          <div className="pointer-events-none absolute right-12 top-1/2 size-40 -translate-y-1/2 rounded-full bg-cyan-400/10 blur-3xl" />
+
+          <div className="relative flex items-start justify-between gap-5">
+            <div className="min-w-0">
+              <p className="ui-hero-muted text-[10px] font-semibold uppercase tracking-[0.22em]">
+                Inquiry intelligence
               </p>
 
-              <p className="mt-1 text-sm text-foreground/80">
+              <h2 className="mt-2 font-heading text-3xl leading-none tracking-[0.045em] text-[var(--hero-foreground)] sm:text-4xl">
+                Match yachts
+              </h2>
+
+              <p className="ui-hero-muted mt-3 text-sm leading-6">
                 {formatDateRange(
                   inquiry.startDate,
                   inquiry.endDate
@@ -540,78 +580,78 @@ export function InquiryMatchActions({
                 {inquiry.destination
                   ? ` · ${inquiry.destination}`
                   : ""}
+                {inquiry.guests !== null
+                  ? ` · ${inquiry.guests} guests`
+                  : ""}
               </p>
             </div>
 
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
-              className="rounded-xl p-2 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+              onClick={() => {
+                setIsOpen(false);
+                setEditor(null);
+              }}
+              className="ui-secondary-button apple-transition inline-flex size-11 shrink-0 items-center justify-center rounded-xl p-0 hover:bg-accent"
               aria-label="Close yacht matcher"
             >
-              <X className="size-4" />
+              <X className="size-5" />
             </button>
           </div>
+        </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background/70 p-4 sm:p-6">
           {isLoading ? (
-            <div className="flex min-h-40 items-center justify-center gap-2 px-5 py-8 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
+            <div className="flex min-h-[420px] items-center justify-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
               Finding yachts and verification history
             </div>
           ) : error ? (
-            <div className="p-4">
-              <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <div className="mx-auto max-w-xl py-14">
+              <div className="flex items-start gap-3 rounded-[22px] border border-amber-500/20 bg-amber-500/10 p-5 text-sm leading-6 text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="mt-0.5 size-5 shrink-0" />
                 <span>{error}</span>
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  void loadMatchesAndChecks()
-                }
-                className="ui-secondary-button mt-3 min-h-10 w-full px-4 text-sm font-semibold"
+                onClick={() => void loadMatchesAndChecks()}
+                className="ui-primary-button mt-4 min-h-11 w-full px-4 text-sm font-semibold"
               >
                 Try again
               </button>
             </div>
           ) : matches.length === 0 ? (
-            <div className="px-5 py-8 text-center">
-              <Ship className="mx-auto size-7 text-muted-foreground" />
+            <div className="flex min-h-[420px] flex-col items-center justify-center px-5 text-center">
+              <Ship className="size-8 text-muted-foreground" />
 
-              <p className="mt-3 text-sm font-semibold text-foreground">
+              <p className="mt-4 text-base font-semibold text-foreground">
                 No yachts available for the full date range
               </p>
 
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
                 Change the inquiry dates or review the general availability calendar.
               </p>
             </div>
           ) : (
-            <div className="max-h-[620px] space-y-3 overflow-y-auto p-3">
+            <div className="grid gap-4 xl:grid-cols-2">
               {matches.map((match, index) => {
                 const yachtChecks =
                   checksByYacht.get(match.yacht.id) ?? [];
 
                 const yachtfolioCheck =
-                  getLatestCheck(
-                    yachtChecks,
-                    ["yachtfolio"]
-                  );
+                  getLatestCheck(yachtChecks, [
+                    "yachtfolio",
+                  ]);
 
                 const managerCheck =
-                  getLatestCheck(
-                    yachtChecks,
-                    [
-                      "manager_email",
-                      "manager_manual",
-                    ]
-                  );
+                  getLatestCheck(yachtChecks, [
+                    "manager_email",
+                    "manager_manual",
+                  ]);
 
                 const effective =
-                  getEffectiveAvailability(
-                    yachtChecks
-                  );
+                  getEffectiveAvailability(yachtChecks);
 
                 const blocked =
                   effective?.status === "booked" ||
@@ -632,40 +672,38 @@ export function InquiryMatchActions({
                 return (
                   <article
                     key={match.yacht.id}
-                    className={`apple-transition overflow-hidden rounded-2xl border ${
+                    className={`apple-transition min-w-0 overflow-hidden rounded-[24px] border ${
                       isSelected
-                        ? "border-cyan-500/40 bg-cyan-500/[0.07]"
+                        ? "border-cyan-500/45 bg-cyan-500/[0.07]"
                         : blocked
                           ? "border-red-500/20 bg-red-500/[0.04]"
-                          : "border-border bg-card/45 hover:border-ring/25"
+                          : "border-border bg-card/65 hover:border-ring/25"
                     }`}
                   >
-                    <div className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-[16px] border border-border bg-background/55">
+                    <div className="p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-border bg-background/55">
                           {match.yacht.heroImageUrl ? (
                             <img
-                              src={
-                                match.yacht.heroImageUrl
-                              }
+                              src={match.yacht.heroImageUrl}
                               alt=""
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <Ship className="size-5 text-muted-foreground" />
+                            <Ship className="size-6 text-muted-foreground" />
                           )}
 
                           {isSelected ? (
                             <span className="absolute inset-0 flex items-center justify-center bg-cyan-950/65 text-white">
-                              <Check className="size-5" />
+                              <Check className="size-6" />
                             </span>
                           ) : null}
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-foreground">
+                              <p className="truncate text-base font-semibold text-foreground">
                                 {match.yacht.name}
                               </p>
 
@@ -690,7 +728,7 @@ export function InquiryMatchActions({
                                 </p>
                               ) : null}
 
-                              <p className="mt-1 text-xs font-semibold text-foreground">
+                              <p className="mt-1 text-sm font-semibold text-foreground">
                                 {match.weeklyRate !== null
                                   ? formatMoney(
                                       match.weeklyRate,
@@ -701,15 +739,14 @@ export function InquiryMatchActions({
                             </div>
                           </div>
 
-                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          <div className="mt-4 grid gap-2 sm:grid-cols-3">
                             <MatchMetric
                               icon={
                                 <Users className="size-3.5" />
                               }
                               value={
-                                getGuestCapacity(
-                                  match.yacht
-                                ) !== null
+                                getGuestCapacity(match.yacht) !==
+                                null
                                   ? `${getGuestCapacity(
                                       match.yacht
                                     )} guests`
@@ -738,7 +775,7 @@ export function InquiryMatchActions({
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
                         <EvidenceCard
                           eyebrow="Source availability"
                           title="Available"
@@ -807,11 +844,12 @@ export function InquiryMatchActions({
 
                       {effective ? (
                         <div
-                          className={`mt-3 rounded-2xl border px-4 py-3 text-xs ${
+                          className={`mt-4 rounded-2xl border px-4 py-3 text-xs ${
                             effective.status === "available"
                               ? "border-emerald-500/20 bg-emerald-500/[0.07] text-emerald-800 dark:text-emerald-200"
                               : effective.status === "booked" ||
-                                  effective.status === "unavailable"
+                                  effective.status ===
+                                    "unavailable"
                                 ? "border-red-500/20 bg-red-500/[0.07] text-red-700 dark:text-red-200"
                                 : "border-amber-500/20 bg-amber-500/[0.07] text-amber-800 dark:text-amber-200"
                           }`}
@@ -819,14 +857,13 @@ export function InquiryMatchActions({
                           <span className="font-semibold">
                             Current availability intelligence:
                           </span>{" "}
-                          {formatStatus(effective.status)}
-                          {" · "}
+                          {formatStatus(effective.status)} ·{" "}
                           {sourceLabel(effective.source)}
                         </div>
                       ) : null}
 
                       {match.reasons.length > 0 ? (
-                        <p className="mt-3 text-xs leading-5 text-emerald-700 dark:text-emerald-300">
+                        <p className="mt-4 text-xs leading-5 text-emerald-700 dark:text-emerald-300">
                           {match.reasons
                             .slice(0, 2)
                             .join(" · ")}
@@ -841,7 +878,7 @@ export function InquiryMatchActions({
                         </p>
                       ) : null}
 
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-5 grid gap-2 sm:grid-cols-2">
                         <button
                           type="button"
                           onClick={() =>
@@ -850,7 +887,7 @@ export function InquiryMatchActions({
                               "yachtfolio"
                             )
                           }
-                          className="ui-secondary-button apple-transition inline-flex min-h-10 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
+                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
                         >
                           <Radio className="size-3.5" />
                           Record Yachtfolio check
@@ -864,7 +901,7 @@ export function InquiryMatchActions({
                               "manager_email"
                             )
                           }
-                          className="ui-secondary-button apple-transition inline-flex min-h-10 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
+                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
                         >
                           <CheckCircle2 className="size-3.5" />
                           Manager verification
@@ -873,15 +910,12 @@ export function InquiryMatchActions({
                         <button
                           type="button"
                           onClick={() =>
-                            void copyVerificationRequest(
-                              match
-                            )
+                            void copyVerificationRequest(match)
                           }
-                          className="ui-secondary-button apple-transition inline-flex min-h-10 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
+                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
                         >
                           <Clipboard className="size-3.5" />
-                          {copiedYachtId ===
-                          match.yacht.id
+                          {copiedYachtId === match.yacht.id
                             ? "Copied"
                             : "Copy request"}
                         </button>
@@ -889,10 +923,8 @@ export function InquiryMatchActions({
                         <button
                           type="button"
                           disabled={blocked}
-                          onClick={() =>
-                            selectYacht(match)
-                          }
-                          className="ui-primary-button apple-transition ml-auto inline-flex min-h-10 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+                          onClick={() => selectYacht(match)}
+                          className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
                         >
                           {blocked
                             ? "Do not offer"
@@ -903,12 +935,11 @@ export function InquiryMatchActions({
                       </div>
 
                       {editorOpen ? (
-                        <div className="mt-4 rounded-[18px] border border-border bg-background/50 p-4">
+                        <div className="mt-5 rounded-[20px] border border-border bg-background/60 p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                {editor.source ===
-                                "yachtfolio"
+                                {editor.source === "yachtfolio"
                                   ? "Record Yachtfolio check"
                                   : "Manager verification"}
                               </p>
@@ -924,9 +955,7 @@ export function InquiryMatchActions({
 
                             <button
                               type="button"
-                              onClick={() =>
-                                setEditor(null)
-                              }
+                              onClick={() => setEditor(null)}
                               className="rounded-xl p-2 text-muted-foreground transition hover:bg-accent hover:text-foreground"
                               aria-label="Close verification editor"
                             >
@@ -945,22 +974,17 @@ export function InquiryMatchActions({
                           <div className="mt-4 flex flex-wrap gap-2">
                             {CHECK_STATUSES.filter(
                               (option) =>
-                                editor.source !==
-                                  "yachtfolio" ||
-                                option.value !==
-                                  "pending"
+                                editor.source !== "yachtfolio" ||
+                                option.value !== "pending"
                             ).map((option) => (
                               <button
                                 key={option.value}
                                 type="button"
                                 onClick={() =>
-                                  setEditorStatus(
-                                    option.value
-                                  )
+                                  setEditorStatus(option.value)
                                 }
                                 className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
-                                  editorStatus ===
-                                  option.value
+                                  editorStatus === option.value
                                     ? "border-cyan-500/35 bg-cyan-500/10 text-cyan-800 dark:text-cyan-200"
                                     : "border-border bg-background/55 text-muted-foreground hover:bg-accent hover:text-foreground"
                                 }`}
@@ -973,14 +997,11 @@ export function InquiryMatchActions({
                           <textarea
                             value={editorNotes}
                             onChange={(event) =>
-                              setEditorNotes(
-                                event.target.value
-                              )
+                              setEditorNotes(event.target.value)
                             }
                             rows={3}
                             placeholder={
-                              editor.source ===
-                              "yachtfolio"
+                              editor.source === "yachtfolio"
                                 ? "Optional note, e.g. checked in Yachtfolio Bookings."
                                 : "Optional note, e.g. manager confirmed from Split at €165,000 + VAT/APA."
                             }
@@ -1011,7 +1032,65 @@ export function InquiryMatchActions({
             </div>
           )}
         </div>
-      ) : null}
+
+        <div className="flex flex-col gap-3 border-t border-border bg-card/90 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">
+              {selectedMatch
+                ? "Selected yacht"
+                : `${matches.length} matching yacht${
+                    matches.length === 1 ? "" : "s"
+                  }`}
+            </p>
+
+            {selectedMatch ? (
+              <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                {selectedMatch.yacht.name}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setEditor(null);
+              }}
+              className="ui-secondary-button apple-transition min-h-11 px-5 text-sm font-semibold hover:bg-accent"
+            >
+              Close
+            </button>
+
+            <button
+              type="button"
+              onClick={buildProposal}
+              disabled={!selectedMatch}
+              className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <FileText className="size-4" />
+              {selectedMatch
+                ? `Build proposal for ${selectedMatch.yacht.name}`
+                : "Select a yacht first"}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => void openMatcher()}
+        className="ui-primary-button apple-transition flex min-h-12 w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+        aria-expanded={isOpen}
+      >
+        <Ship className="size-4" />
+        Match yachts
+        <ChevronDown className="ml-auto size-4" />
+      </button>
 
       <button
         type="button"
@@ -1024,6 +1103,10 @@ export function InquiryMatchActions({
           ? `Build proposal for ${selectedMatch.yacht.name}`
           : "Select a yacht to build proposal"}
       </button>
+
+      {portalReady && matcherModal
+        ? createPortal(matcherModal, document.body)
+        : null}
     </div>
   );
 }
