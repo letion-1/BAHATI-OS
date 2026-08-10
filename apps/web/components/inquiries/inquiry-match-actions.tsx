@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Building2,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -9,10 +10,12 @@ import {
   Clock3,
   FileText,
   Loader2,
+  Mail,
   MapPin,
   Radio,
   Save,
   Ship,
+  UserRound,
   Users,
   WalletCards,
   X,
@@ -138,6 +141,33 @@ type CheckEditor = {
   source: AvailabilityCheckSource;
 } | null;
 
+type ManagerContact = {
+  id: string;
+  yachtId: string;
+  managementCompany: string | null;
+  contactName: string | null;
+  role: string;
+  email: string;
+  phone: string | null;
+  updatedAt: string | null;
+};
+
+type ManagerContactsResponse = {
+  success: boolean;
+  error?: string;
+  contacts?: ManagerContact[];
+  contact?: ManagerContact;
+};
+
+type ManagerContactForm = {
+  managementCompany: string;
+  contactName: string;
+  role: string;
+  email: string;
+  phone: string;
+};
+
+
 const CHECK_STATUSES: Array<{
   value: AvailabilityCheckStatus;
   label: string;
@@ -177,6 +207,7 @@ export function InquiryMatchActions({
   const [error, setError] = useState<string | null>(null);
   const [matches, setMatches] = useState<YachtMatch[]>([]);
   const [checks, setChecks] = useState<AvailabilityCheck[]>([]);
+  const [contacts, setContacts] = useState<ManagerContact[]>([]);
   const [selectedYachtId, setSelectedYachtId] =
     useState<string | null>(null);
 
@@ -191,6 +222,24 @@ export function InquiryMatchActions({
 
   const [savingCheck, setSavingCheck] =
     useState(false);
+
+  const [contactEditorYachtId, setContactEditorYachtId] =
+    useState<string | null>(null);
+
+  const [contactForm, setContactForm] =
+    useState<ManagerContactForm>({
+      managementCompany: "",
+      contactName: "",
+      role: "Charter Manager",
+      email: "",
+      phone: "",
+    });
+
+  const [savingContact, setSavingContact] =
+    useState(false);
+
+  const [emailingYachtId, setEmailingYachtId] =
+    useState<string | null>(null);
 
   const [copiedYachtId, setCopiedYachtId] =
     useState<string | null>(null);
@@ -216,6 +265,7 @@ export function InquiryMatchActions({
       if (event.key === "Escape") {
         setIsOpen(false);
         setEditor(null);
+        setContactEditorYachtId(null);
       }
     };
 
@@ -255,6 +305,16 @@ export function InquiryMatchActions({
 
     return map;
   }, [checks]);
+
+  const contactsByYacht = useMemo(() => {
+    const map = new Map<string, ManagerContact>();
+
+    for (const contact of contacts) {
+      map.set(contact.yachtId, contact);
+    }
+
+    return map;
+  }, [contacts]);
 
   async function openMatcher() {
     setIsOpen((current) => !current);
@@ -342,8 +402,42 @@ export function InquiryMatchActions({
         inquiry
       );
 
+      let loadedContacts: ManagerContact[] = [];
+
+      if (rankedMatches.length > 0) {
+        const yachtIds = rankedMatches
+          .map((match) => match.yacht.id)
+          .join(",");
+
+        const contactsResponse = await fetch(
+          `/api/yacht-contacts?yachtIds=${encodeURIComponent(
+            yachtIds
+          )}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+        const contactsPayload =
+          (await contactsResponse.json()) as ManagerContactsResponse;
+
+        if (
+          !contactsResponse.ok ||
+          !contactsPayload.success
+        ) {
+          throw new Error(
+            contactsPayload.error ??
+              "Could not load Charter Manager contacts."
+          );
+        }
+
+        loadedContacts = contactsPayload.contacts ?? [];
+      }
+
       setMatches(rankedMatches);
       setChecks(checksPayload.checks ?? []);
+      setContacts(loadedContacts);
       setHasLoaded(true);
     } catch (caughtError) {
       setError(
@@ -353,6 +447,7 @@ export function InquiryMatchActions({
       );
       setMatches([]);
       setChecks([]);
+      setContacts([]);
     } finally {
       setIsLoading(false);
     }
@@ -446,6 +541,201 @@ export function InquiryMatchActions({
       );
     } finally {
       setSavingCheck(false);
+    }
+  }
+
+  function openManagerContactEditor(
+    yachtId: string
+  ) {
+    const existing =
+      contactsByYacht.get(yachtId) ?? null;
+
+    setContactEditorYachtId(yachtId);
+
+    setContactForm({
+      managementCompany:
+        existing?.managementCompany ?? "",
+      contactName:
+        existing?.contactName ?? "",
+      role:
+        existing?.role ?? "Charter Manager",
+      email:
+        existing?.email ?? "",
+      phone:
+        existing?.phone ?? "",
+    });
+  }
+
+  function updateContactField(
+    field: keyof ManagerContactForm,
+    value: string
+  ) {
+    setContactForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    setError(null);
+  }
+
+  async function saveManagerContact(
+    yachtId: string
+  ) {
+    if (!contactForm.email.trim()) {
+      setError(
+        "Enter the Charter Manager email before saving."
+      );
+      return;
+    }
+
+    setSavingContact(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        "/api/yacht-contacts",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            yachtId,
+            managementCompany:
+              contactForm.managementCompany.trim() ||
+              null,
+            contactName:
+              contactForm.contactName.trim() || null,
+            role:
+              contactForm.role.trim() ||
+              "Charter Manager",
+            email: contactForm.email.trim(),
+            phone:
+              contactForm.phone.trim() || null,
+          }),
+        }
+      );
+
+      const payload =
+        (await response.json()) as ManagerContactsResponse;
+
+      if (!response.ok || !payload.success) {
+        throw new Error(
+          payload.error ??
+            "Could not save Charter Manager contact."
+        );
+      }
+
+      if (payload.contact) {
+        setContacts((current) => {
+          const withoutCurrent = current.filter(
+            (contact) =>
+              contact.yachtId !==
+              payload.contact!.yachtId
+          );
+
+          return [
+            payload.contact!,
+            ...withoutCurrent,
+          ];
+        });
+      }
+
+      setContactEditorYachtId(null);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not save Charter Manager contact."
+      );
+    } finally {
+      setSavingContact(false);
+    }
+  }
+
+  async function emailManager(
+    match: YachtMatch
+  ) {
+    const contact =
+      contactsByYacht.get(match.yacht.id) ?? null;
+
+    if (!contact) {
+      openManagerContactEditor(match.yacht.id);
+      return;
+    }
+
+    if (!inquiry.startDate || !inquiry.endDate) {
+      setError(
+        "The inquiry needs both charter dates before requesting confirmation."
+      );
+      return;
+    }
+
+    const {
+      subject,
+      body,
+    } = buildVerificationEmail(
+      match,
+      inquiry
+    );
+
+    setEmailingYachtId(match.yacht.id);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        "/api/availability-checks",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inquiryId: inquiry.id,
+            yachtId: match.yacht.id,
+            source: "manager_email",
+            status: "pending",
+            startDate: inquiry.startDate,
+            endDate: inquiry.endDate,
+            notes:
+              `Verification email prepared for ${contact.email}. Subject: ${subject}`,
+          }),
+        }
+      );
+
+      const payload =
+        (await response.json()) as AvailabilityChecksResponse;
+
+      if (!response.ok || !payload.success) {
+        throw new Error(
+          payload.error ??
+            "Could not record the verification request."
+        );
+      }
+
+      if (payload.check) {
+        setChecks((current) => [
+          payload.check!,
+          ...current,
+        ]);
+      }
+
+      const mailto =
+        `mailto:${encodeURIComponent(
+          contact.email
+        )}` +
+        `?subject=${encodeURIComponent(subject)}` +
+        `&body=${encodeURIComponent(body)}`;
+
+      window.location.href = mailto;
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not prepare the manager verification email."
+      );
+    } finally {
+      setEmailingYachtId(null);
     }
   }
 
@@ -554,6 +844,7 @@ export function InquiryMatchActions({
         onClick={() => {
           setIsOpen(false);
           setEditor(null);
+          setContactEditorYachtId(null);
         }}
         className="absolute inset-0 bg-black/55 backdrop-blur-[3px]"
       />
@@ -591,6 +882,7 @@ export function InquiryMatchActions({
               onClick={() => {
                 setIsOpen(false);
                 setEditor(null);
+                setContactEditorYachtId(null);
               }}
               className="ui-secondary-button apple-transition inline-flex size-11 shrink-0 items-center justify-center rounded-xl p-0 hover:bg-accent"
               aria-label="Close yacht matcher"
@@ -665,6 +957,17 @@ export function InquiryMatchActions({
                     inquiry.startDate,
                     managerCheck
                   );
+
+                const managerContact =
+                  contactsByYacht.get(match.yacht.id) ??
+                  null;
+
+                const confidence =
+                  getAvailabilityConfidence({
+                    yachtfolioCheck,
+                    managerCheck,
+                    needsManagerConfirmation,
+                  });
 
                 const editorOpen =
                   editor?.yachtId === match.yacht.id;
@@ -775,7 +1078,7 @@ export function InquiryMatchActions({
                         </div>
                       </div>
 
-                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         <EvidenceCard
                           eyebrow="Source availability"
                           title="Available"
@@ -840,6 +1143,62 @@ export function InquiryMatchActions({
                                 : "neutral"
                           }
                         />
+
+                        <EvidenceCard
+                          eyebrow="Confidence"
+                          title={confidence.label}
+                          detail={confidence.detail}
+                          tone={confidence.tone}
+                        />
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-background/45 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background/60 text-muted-foreground">
+                            <Building2 className="size-4" />
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                              Charter Manager contact
+                            </p>
+
+                            {managerContact ? (
+                              <>
+                                <p className="mt-1 truncate text-xs font-semibold text-foreground">
+                                  {managerContact.contactName ||
+                                    managerContact.managementCompany ||
+                                    "Charter Manager"}
+                                </p>
+
+                                <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                                  {managerContact.managementCompany
+                                    ? `${managerContact.managementCompany} · `
+                                    : ""}
+                                  {managerContact.email}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                No verification contact saved yet.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openManagerContactEditor(
+                              match.yacht.id
+                            )
+                          }
+                          className="ui-secondary-button apple-transition min-h-9 shrink-0 px-3 text-[11px] font-semibold hover:bg-accent"
+                        >
+                          {managerContact
+                            ? "Edit contact"
+                            : "Add contact"}
+                        </button>
                       </div>
 
                       {effective ? (
@@ -896,6 +1255,28 @@ export function InquiryMatchActions({
                         <button
                           type="button"
                           onClick={() =>
+                            void emailManager(match)
+                          }
+                          disabled={
+                            emailingYachtId ===
+                            match.yacht.id
+                          }
+                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {emailingYachtId ===
+                          match.yacht.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Mail className="size-3.5" />
+                          )}
+                          {managerContact
+                            ? "Email manager"
+                            : "Add manager contact"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
                             openCheckEditor(
                               match.yacht.id,
                               "manager_email"
@@ -904,7 +1285,7 @@ export function InquiryMatchActions({
                           className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
                         >
                           <CheckCircle2 className="size-3.5" />
-                          Manager verification
+                          Record manager reply
                         </button>
 
                         <button
@@ -924,7 +1305,7 @@ export function InquiryMatchActions({
                           type="button"
                           disabled={blocked}
                           onClick={() => selectYacht(match)}
-                          className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+                          className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 sm:col-span-2"
                         >
                           {blocked
                             ? "Do not offer"
@@ -933,6 +1314,155 @@ export function InquiryMatchActions({
                               : "Select yacht"}
                         </button>
                       </div>
+
+                      {contactEditorYachtId ===
+                      match.yacht.id ? (
+                        <div className="mt-5 rounded-[20px] border border-border bg-background/60 p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                Verification contact
+                              </p>
+
+                              <p className="mt-1 text-sm font-semibold text-foreground">
+                                {match.yacht.name}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setContactEditorYachtId(
+                                  null
+                                )
+                              }
+                              className="rounded-xl p-2 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                              aria-label="Close manager contact editor"
+                            >
+                              <X className="size-4" />
+                            </button>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Management company
+                              </span>
+                              <div className="relative mt-2">
+                                <Building2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                <input
+                                  value={
+                                    contactForm.managementCompany
+                                  }
+                                  onChange={(event) =>
+                                    updateContactField(
+                                      "managementCompany",
+                                      event.target.value
+                                    )
+                                  }
+                                  placeholder="ORVAS"
+                                  className="ui-input h-11 w-full rounded-xl pl-10 pr-3 text-xs"
+                                />
+                              </div>
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Contact name
+                              </span>
+                              <div className="relative mt-2">
+                                <UserRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                <input
+                                  value={
+                                    contactForm.contactName
+                                  }
+                                  onChange={(event) =>
+                                    updateContactField(
+                                      "contactName",
+                                      event.target.value
+                                    )
+                                  }
+                                  placeholder="Anna Rossi"
+                                  className="ui-input h-11 w-full rounded-xl pl-10 pr-3 text-xs"
+                                />
+                              </div>
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Role
+                              </span>
+                              <input
+                                value={contactForm.role}
+                                onChange={(event) =>
+                                  updateContactField(
+                                    "role",
+                                    event.target.value
+                                  )
+                                }
+                                placeholder="Charter Manager"
+                                className="ui-input mt-2 h-11 w-full rounded-xl px-3 text-xs"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Email *
+                              </span>
+                              <div className="relative mt-2">
+                                <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                <input
+                                  type="email"
+                                  value={contactForm.email}
+                                  onChange={(event) =>
+                                    updateContactField(
+                                      "email",
+                                      event.target.value
+                                    )
+                                  }
+                                  placeholder="charter@company.com"
+                                  className="ui-input h-11 w-full rounded-xl pl-10 pr-3 text-xs"
+                                />
+                              </div>
+                            </label>
+
+                            <label className="block sm:col-span-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Phone
+                              </span>
+                              <input
+                                value={contactForm.phone}
+                                onChange={(event) =>
+                                  updateContactField(
+                                    "phone",
+                                    event.target.value
+                                  )
+                                }
+                                placeholder="+33 ..."
+                                className="ui-input mt-2 h-11 w-full rounded-xl px-3 text-xs"
+                              />
+                            </label>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void saveManagerContact(
+                                match.yacht.id
+                              )
+                            }
+                            disabled={savingContact}
+                            className="ui-primary-button apple-transition mt-4 inline-flex min-h-10 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {savingContact ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Save className="size-3.5" />
+                            )}
+                            Save manager contact
+                          </button>
+                        </div>
+                      ) : null}
 
                       {editorOpen ? (
                         <div className="mt-5 rounded-[20px] border border-border bg-background/60 p-4">
@@ -1056,6 +1586,7 @@ export function InquiryMatchActions({
               onClick={() => {
                 setIsOpen(false);
                 setEditor(null);
+                setContactEditorYachtId(null);
               }}
               className="ui-secondary-button apple-transition min-h-11 px-5 text-sm font-semibold hover:bg-accent"
             >
@@ -1109,6 +1640,216 @@ export function InquiryMatchActions({
         : null}
     </div>
   );
+}
+
+function getAvailabilityConfidence({
+  yachtfolioCheck,
+  managerCheck,
+  needsManagerConfirmation,
+}: {
+  yachtfolioCheck: AvailabilityCheck | null;
+  managerCheck: AvailabilityCheck | null;
+  needsManagerConfirmation: boolean;
+}): {
+  label: string;
+  detail: string;
+  tone:
+    | "positive"
+    | "warning"
+    | "negative"
+    | "neutral";
+} {
+  if (
+    managerCheck?.status === "booked" ||
+    managerCheck?.status === "unavailable"
+  ) {
+    return {
+      label: "Blocked",
+      detail:
+        "Direct manager evidence says this yacht should not be offered.",
+      tone: "negative",
+    };
+  }
+
+  if (
+    managerCheck?.status === "available" &&
+    !needsManagerConfirmation
+  ) {
+    return {
+      label: "Verified",
+      detail:
+        "Fresh direct manager confirmation is on record.",
+      tone: "positive",
+    };
+  }
+
+  if (
+    managerCheck?.status === "pending"
+  ) {
+    return {
+      label: "Pending",
+      detail:
+        "A fresh confirmation request is awaiting a reply.",
+      tone: "warning",
+    };
+  }
+
+  if (
+    managerCheck?.status === "option"
+  ) {
+    return {
+      label: "Caution",
+      detail:
+        "The Charter Manager reports an option on these dates.",
+      tone: "warning",
+    };
+  }
+
+  if (
+    managerCheck?.status === "available" &&
+    needsManagerConfirmation
+  ) {
+    return {
+      label: "Reconfirm",
+      detail:
+        "The last direct confirmation is now outside the freshness rule.",
+      tone: "warning",
+    };
+  }
+
+  if (
+    yachtfolioCheck?.status === "available" &&
+    !needsManagerConfirmation
+  ) {
+    return {
+      label: "High",
+      detail:
+        "Yachtfolio and the source support availability for this inquiry.",
+      tone: "positive",
+    };
+  }
+
+  if (
+    yachtfolioCheck?.status === "available" &&
+    needsManagerConfirmation
+  ) {
+    return {
+      label: "Medium",
+      detail:
+        "Yachtfolio says available, but a near-term manager confirmation is recommended.",
+      tone: "warning",
+    };
+  }
+
+  if (
+    yachtfolioCheck?.status === "booked" ||
+    yachtfolioCheck?.status === "unavailable"
+  ) {
+    return {
+      label: "Blocked",
+      detail:
+        "The recorded Yachtfolio check does not support offering this yacht.",
+      tone: "negative",
+    };
+  }
+
+  return {
+    label: needsManagerConfirmation
+      ? "Needs confirmation"
+      : "Source only",
+    detail: needsManagerConfirmation
+      ? "The source suggests availability, but fresh direct evidence is missing."
+      : "Only the connected source is currently supporting availability.",
+    tone: needsManagerConfirmation
+      ? "warning"
+      : "neutral",
+  };
+}
+
+function buildVerificationEmail(
+  match: YachtMatch,
+  inquiry: InquiryMatchInput
+): {
+  subject: string;
+  body: string;
+} {
+  const dates =
+    formatDateRange(
+      inquiry.startDate,
+      inquiry.endDate
+    );
+
+  const subject =
+    `Availability request · ${match.yacht.name} · ${dates}`;
+
+  const body = [
+    "Hi,",
+    "",
+    `Could you please confirm the current availability of ${match.yacht.name} for the following charter inquiry?`,
+    "",
+    `Dates: ${dates}`,
+    inquiry.destination
+      ? `Destination: ${inquiry.destination}`
+      : null,
+    inquiry.guests !== null
+      ? `Guests: ${inquiry.guests}`
+      : null,
+    inquiry.budgetMin !== null ||
+    inquiry.budgetMax !== null
+      ? `Budget: ${formatInquiryBudget(inquiry)}`
+      : null,
+    "",
+    "Many thanks.",
+  ]
+    .filter(
+      (line): line is string =>
+        line !== null
+    )
+    .join("\n");
+
+  return {
+    subject,
+    body,
+  };
+}
+
+function formatInquiryBudget(
+  inquiry: InquiryMatchInput
+): string {
+  const currency =
+    inquiry.currency || "EUR";
+
+  const format = (amount: number | null) => {
+    if (amount === null) {
+      return "?";
+    }
+
+    try {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    } catch {
+      return `${currency} ${amount.toLocaleString(
+        "en-GB"
+      )}`;
+    }
+  };
+
+  if (
+    inquiry.budgetMin !== null &&
+    inquiry.budgetMax !== null &&
+    inquiry.budgetMin === inquiry.budgetMax
+  ) {
+    return format(inquiry.budgetMin);
+  }
+
+  return `${format(
+    inquiry.budgetMin
+  )} – ${format(
+    inquiry.budgetMax
+  )}`;
 }
 
 function EvidenceCard({
