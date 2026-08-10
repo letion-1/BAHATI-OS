@@ -136,6 +136,16 @@ type AvailabilityChecksResponse = {
   check?: AvailabilityCheck;
 };
 
+type EmailDraftRecord = {
+  id: string;
+};
+
+type EmailDraftResponse = {
+  success: boolean;
+  error?: string;
+  draft?: EmailDraftRecord | null;
+};
+
 type CheckEditor = {
   yachtId: string;
   source: AvailabilityCheckSource;
@@ -666,7 +676,7 @@ export function InquiryMatchActions({
 
     if (!inquiry.startDate || !inquiry.endDate) {
       setError(
-        "The inquiry needs both charter dates before requesting confirmation."
+        "The inquiry needs both charter dates before creating the verification email."
       );
       return;
     }
@@ -684,7 +694,7 @@ export function InquiryMatchActions({
 
     try {
       const response = await fetch(
-        "/api/availability-checks",
+        "/api/email-drafts",
         {
           method: "POST",
           headers: {
@@ -693,46 +703,49 @@ export function InquiryMatchActions({
           body: JSON.stringify({
             inquiryId: inquiry.id,
             yachtId: match.yacht.id,
-            source: "manager_email",
-            status: "pending",
+            managerContactId: contact.id,
+            purpose: "availability_verification",
+            toEmail: contact.email,
+            toName:
+              contact.contactName ??
+              contact.managementCompany ??
+              "Charter Manager",
+            subject,
+            body,
             startDate: inquiry.startDate,
             endDate: inquiry.endDate,
-            notes:
-              `Verification email prepared for ${contact.email}. Subject: ${subject}`,
           }),
         }
       );
 
       const payload =
-        (await response.json()) as AvailabilityChecksResponse;
+        (await response.json()) as EmailDraftResponse;
 
-      if (!response.ok || !payload.success) {
+      if (
+        !response.ok ||
+        !payload.success ||
+        !payload.draft?.id
+      ) {
         throw new Error(
           payload.error ??
-            "Could not record the verification request."
+            "Could not create the manager email draft."
         );
       }
 
-      if (payload.check) {
-        setChecks((current) => [
-          payload.check!,
-          ...current,
-        ]);
-      }
+      setIsOpen(false);
+      setEditor(null);
+      setContactEditorYachtId(null);
 
-      const mailto =
-        `mailto:${encodeURIComponent(
-          contact.email
-        )}` +
-        `?subject=${encodeURIComponent(subject)}` +
-        `&body=${encodeURIComponent(body)}`;
-
-      window.location.href = mailto;
+      router.push(
+        `/email?draft=${encodeURIComponent(
+          payload.draft.id
+        )}`
+      );
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Could not prepare the manager verification email."
+          : "Could not create the manager email draft."
       );
     } finally {
       setEmailingYachtId(null);
@@ -833,7 +846,7 @@ export function InquiryMatchActions({
 
   const matcherModal = isOpen ? (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-5"
       role="dialog"
       aria-modal="true"
       aria-label="Match yachts"
@@ -849,8 +862,8 @@ export function InquiryMatchActions({
         className="absolute inset-0 bg-black/55 backdrop-blur-[3px]"
       />
 
-      <section className="ui-panel relative z-10 flex max-h-[92vh] w-full max-w-[1180px] min-w-0 flex-col overflow-hidden rounded-[28px] shadow-2xl">
-        <div className="relative overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))] px-5 py-5 sm:px-7 sm:py-6">
+      <section className="ui-panel relative z-10 flex max-h-[calc(100dvh-1rem)] w-full max-w-[1180px] min-w-0 flex-col overflow-hidden rounded-[28px] shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]">
+        <div className="relative shrink-0 overflow-visible border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))] px-5 py-6 sm:px-7 sm:py-7">
           <div className="pointer-events-none absolute right-12 top-1/2 size-40 -translate-y-1/2 rounded-full bg-cyan-400/10 blur-3xl" />
 
           <div className="relative flex items-start justify-between gap-5">
@@ -859,7 +872,7 @@ export function InquiryMatchActions({
                 Inquiry intelligence
               </p>
 
-              <h2 className="mt-2 font-heading text-3xl leading-none tracking-[0.045em] text-[var(--hero-foreground)] sm:text-4xl">
+              <h2 className="mt-2 pb-1 font-heading text-3xl leading-[1.15] tracking-[0.045em] text-[var(--hero-foreground)] sm:text-4xl">
                 Match yachts
               </h2>
 
@@ -1270,7 +1283,7 @@ export function InquiryMatchActions({
                             <Mail className="size-3.5" />
                           )}
                           {managerContact
-                            ? "Email manager"
+                            ? "Create email draft"
                             : "Add manager contact"}
                         </button>
 

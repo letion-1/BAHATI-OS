@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Mail,
   MessageSquareText,
   Plus,
   Settings,
@@ -94,6 +95,11 @@ const navigation = [
     name: "Proposals",
     href: "/proposals",
     icon: FileText,
+  },
+  {
+    name: "Email",
+    href: "/email",
+    icon: Mail,
   },
   {
     name: "Documents",
