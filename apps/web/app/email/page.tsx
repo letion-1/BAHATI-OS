@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Save,
   Send,
+  Unplug,
 } from "lucide-react";
 import {
   useSearchParams,
@@ -64,6 +65,20 @@ type EmailDraftsResponse = {
   error?: string;
 };
 
+type GmailConnection = {
+  connected: boolean;
+  emailAddress: string | null;
+  status: string;
+  tokenExpiresAt?: string | null;
+  updatedAt?: string | null;
+};
+
+type GmailStatusResponse = {
+  success: boolean;
+  connection?: GmailConnection;
+  error?: string;
+};
+
 type DraftForm = {
   toEmail: string;
   toName: string;
@@ -85,6 +100,12 @@ function EmailWorkspace() {
 
   const requestedDraftId =
     searchParams.get("draft");
+
+  const connectedProvider =
+    searchParams.get("connected");
+
+  const oauthError =
+    searchParams.get("oauthError");
 
   const [drafts, setDrafts] =
     useState<EmailDraft[]>([]);
@@ -120,6 +141,22 @@ function EmailWorkspace() {
   const [message, setMessage] =
     useState<string | null>(null);
 
+  const [gmailConnection, setGmailConnection] =
+    useState<GmailConnection>({
+      connected: false,
+      emailAddress: null,
+      status: "disconnected",
+    });
+
+  const [isLoadingConnection, setIsLoadingConnection] =
+    useState(true);
+
+  const [isDisconnectingGmail, setIsDisconnectingGmail] =
+    useState(false);
+
+  const [isSendingGmail, setIsSendingGmail] =
+    useState(false);
+
   const selectedDraft = useMemo(
     () =>
       drafts.find(
@@ -145,6 +182,49 @@ function EmailWorkspace() {
       ).length,
     };
   }, [drafts]);
+
+  const loadGmailStatus = useCallback(
+    async () => {
+      setIsLoadingConnection(true);
+
+      try {
+        const response = await fetch(
+          "/api/email/google/status",
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+        const payload =
+          (await response.json()) as GmailStatusResponse;
+
+        if (
+          !response.ok ||
+          !payload.success ||
+          !payload.connection
+        ) {
+          throw new Error(
+            payload.error ??
+              "Could not load Gmail connection."
+          );
+        }
+
+        setGmailConnection(
+          payload.connection
+        );
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Could not load Gmail connection."
+        );
+      } finally {
+        setIsLoadingConnection(false);
+      }
+    },
+    []
+  );
 
   const loadDrafts = useCallback(
     async (refreshing = false) => {
@@ -208,7 +288,20 @@ function EmailWorkspace() {
 
   useEffect(() => {
     void loadDrafts(false);
-  }, [loadDrafts]);
+    void loadGmailStatus();
+  }, [loadDrafts, loadGmailStatus]);
+
+  useEffect(() => {
+    if (connectedProvider === "gmail") {
+      setMessage(
+        "Gmail connected. Yacht OS can now send approved drafts from this mailbox."
+      );
+    }
+
+    if (oauthError) {
+      setError(oauthError);
+    }
+  }, [connectedProvider, oauthError]);
 
   useEffect(() => {
     if (!selectedDraft) {
@@ -304,6 +397,151 @@ function EmailWorkspace() {
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function sendWithGmail() {
+    if (!selectedDraft) {
+      return;
+    }
+
+    setIsSendingGmail(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const saveResponse = await fetch(
+        "/api/email-drafts",
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: selectedDraft.id,
+            toEmail: form.toEmail,
+            toName: form.toName,
+            subject: form.subject,
+            body: form.body,
+          }),
+        }
+      );
+
+      const savedPayload =
+        (await saveResponse.json()) as EmailDraftsResponse;
+
+      if (
+        !saveResponse.ok ||
+        !savedPayload.success ||
+        !savedPayload.draft
+      ) {
+        throw new Error(
+          savedPayload.error ??
+            "Could not save the draft before sending."
+        );
+      }
+
+      replaceDraft(
+        savedPayload.draft
+      );
+
+      const sendResponse = await fetch(
+        "/api/email/google/send",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            draftId: selectedDraft.id,
+          }),
+        }
+      );
+
+      const sendPayload =
+        (await sendResponse.json()) as EmailDraftsResponse & {
+          sender?: string;
+        };
+
+      if (
+        !sendResponse.ok ||
+        !sendPayload.success ||
+        !sendPayload.draft
+      ) {
+        throw new Error(
+          sendPayload.error ??
+            "Gmail could not send the draft."
+        );
+      }
+
+      replaceDraft(
+        sendPayload.draft
+      );
+
+      setMessage(
+        `Sent from ${
+          sendPayload.sender ??
+          gmailConnection.emailAddress ??
+          "Gmail"
+        }. Manager verification is now pending.`
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not send with Gmail."
+      );
+    } finally {
+      setIsSendingGmail(false);
+    }
+  }
+
+  async function disconnectGmail() {
+    setIsDisconnectingGmail(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(
+        "/api/email/google/disconnect",
+        {
+          method: "POST",
+        }
+      );
+
+      const payload =
+        (await response.json()) as {
+          success: boolean;
+          error?: string;
+        };
+
+      if (
+        !response.ok ||
+        !payload.success
+      ) {
+        throw new Error(
+          payload.error ??
+            "Could not disconnect Gmail."
+        );
+      }
+
+      setGmailConnection({
+        connected: false,
+        emailAddress: null,
+        status: "disconnected",
+      });
+
+      setMessage(
+        "Gmail disconnected from Yacht OS."
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not disconnect Gmail."
+      );
+    } finally {
+      setIsDisconnectingGmail(false);
     }
   }
 
@@ -466,12 +704,36 @@ function EmailWorkspace() {
         <div className="grid gap-4 md:grid-cols-2">
           <ConnectionCard
             name="Gmail"
-            detail="OAuth connection point for sending verification requests and reading manager replies."
+            detail={
+              gmailConnection.connected
+                ? `Connected as ${
+                    gmailConnection.emailAddress ??
+                    "Google account"
+                  }. Yacht OS can send approved email drafts from this mailbox.`
+                : "Connect a Google mailbox so Yacht OS can send approved Charter Manager verification emails directly."
+            }
+            connected={
+              gmailConnection.connected
+            }
+            account={
+              gmailConnection.emailAddress
+            }
+            loading={
+              isLoadingConnection
+            }
+            connectHref="/api/email/google/connect"
+            disconnecting={
+              isDisconnectingGmail
+            }
+            onDisconnect={() =>
+              void disconnectGmail()
+            }
           />
 
           <ConnectionCard
             name="Microsoft Outlook"
-            detail="OAuth connection point for Microsoft 365 broker mailboxes."
+            detail="Microsoft 365 OAuth is the next provider after Gmail."
+            disabled
           />
         </div>
       </section>
@@ -699,21 +961,39 @@ function EmailWorkspace() {
 
                   {selectedDraft.status ===
                   "draft" ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void markSent()
-                      }
-                      disabled={isMarkingSent}
-                      className="ui-primary-button apple-transition ml-auto inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-50"
-                    >
-                      {isMarkingSent ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Send className="size-4" />
-                      )}
-                      Mark sent
-                    </button>
+                    gmailConnection.connected ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void sendWithGmail()
+                        }
+                        disabled={isSendingGmail}
+                        className="ui-primary-button apple-transition ml-auto inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isSendingGmail ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Send className="size-4" />
+                        )}
+                        Send with Gmail
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void markSent()
+                        }
+                        disabled={isMarkingSent}
+                        className="ui-primary-button apple-transition ml-auto inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isMarkingSent ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Send className="size-4" />
+                        )}
+                        Mark sent manually
+                      </button>
+                    )
                   ) : (
                     <div className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
                       <CheckCircle2 className="size-4" />
@@ -723,7 +1003,7 @@ function EmailWorkspace() {
                 </div>
 
                 <p className="text-xs leading-5 text-muted-foreground">
-                  For now, “Open in email app” is the fallback transport. Once Gmail or Outlook OAuth is connected, this screen will send directly and “Mark sent” becomes automatic.
+                  When Gmail is connected, “Send with Gmail” sends the approved draft directly from the connected mailbox. “Open in email app” and manual sent tracking remain available as fallbacks.
                 </p>
               </div>
             </>
@@ -737,9 +1017,23 @@ function EmailWorkspace() {
 function ConnectionCard({
   name,
   detail,
+  connected = false,
+  account = null,
+  loading = false,
+  connectHref,
+  disconnecting = false,
+  onDisconnect,
+  disabled = false,
 }: {
   name: string;
   detail: string;
+  connected?: boolean;
+  account?: string | null;
+  loading?: boolean;
+  connectHref?: string;
+  disconnecting?: boolean;
+  onDisconnect?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="rounded-[22px] border border-border bg-background/40 p-5">
@@ -749,29 +1043,69 @@ function ConnectionCard({
             <Mail className="size-4 text-muted-foreground" />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">
               {name}
             </p>
+
+            {account ? (
+              <p className="mt-1 truncate text-xs font-semibold text-foreground/80">
+                {account}
+              </p>
+            ) : null}
+
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               {detail}
             </p>
           </div>
         </div>
 
-        <span className="shrink-0 rounded-full border border-border bg-background/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Not connected
+        <span
+          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+            connected
+              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+              : "border-border bg-background/55 text-muted-foreground"
+          }`}
+        >
+          {loading
+            ? "Checking"
+            : connected
+              ? "Connected"
+              : "Not connected"}
         </span>
       </div>
 
-      <button
-        type="button"
-        disabled
-        className="ui-secondary-button mt-4 min-h-10 w-full cursor-not-allowed px-4 text-xs font-semibold opacity-50"
-        title="OAuth provider wiring is the next implementation phase."
-      >
-        OAuth connection next
-      </button>
+      {connected ? (
+        <button
+          type="button"
+          onClick={onDisconnect}
+          disabled={disconnecting}
+          className="ui-secondary-button mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 px-4 text-xs font-semibold hover:bg-accent disabled:opacity-50"
+        >
+          {disconnecting ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Unplug className="size-3.5" />
+          )}
+          Disconnect
+        </button>
+      ) : connectHref && !disabled ? (
+        <a
+          href={connectHref}
+          className="ui-primary-button apple-transition mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90"
+        >
+          <Mail className="size-3.5" />
+          Connect {name}
+        </a>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className="ui-secondary-button mt-4 min-h-10 w-full cursor-not-allowed px-4 text-xs font-semibold opacity-50"
+        >
+          Coming next
+        </button>
+      )}
     </div>
   );
 }
