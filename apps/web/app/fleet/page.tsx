@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -113,7 +113,7 @@ export default function FleetPage() {
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.error ?? "Could not load fleet."
+          result.error ?? "Could not load yachts."
         );
       }
 
@@ -122,7 +122,7 @@ export default function FleetPage() {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Could not load fleet."
+          : "Could not load yachts."
       );
     } finally {
       setIsLoading(false);
@@ -227,14 +227,14 @@ export default function FleetPage() {
     return (
       <PageContainer>
         <HeroCard
-          eyebrow="Fleet intelligence"
-          title="Fleet unavailable"
+          eyebrow="Yacht intelligence"
+          title="Yachts unavailable"
           description="The connected fleet could not be loaded from the protected workspace."
         />
 
         <div className="mt-8 rounded-2xl border border-red-500/25 bg-red-500/10 p-6">
           <p className="text-sm text-red-700 dark:text-red-200">
-            {error ?? "Could not load fleet."}
+            {error ?? "Could not load yachts."}
           </p>
 
           <button
@@ -252,9 +252,9 @@ export default function FleetPage() {
   return (
     <PageContainer contentClassName="space-y-7">
       <HeroCard
-        eyebrow="Fleet intelligence"
-        title="Explore your connected fleet"
-        description="Search yachts, compare future availability and inspect every connected supplier in one calm command deck."
+        eyebrow="Yacht intelligence"
+        title="Explore your yacht access"
+        description="Search yachts, compare availability and work with controlled, managed, broker-access and reference yachts from one workspace."
         actions={
           <button
             type="button"
@@ -263,7 +263,7 @@ export default function FleetPage() {
             className="ui-primary-button apple-transition inline-flex min-h-12 items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshIcon spinning={isRefreshing} />
-            {isRefreshing ? "Refreshing..." : "Refresh fleet"}
+            {isRefreshing ? "Refreshing..." : "Refresh yachts"}
           </button>
         }
       />
@@ -276,7 +276,7 @@ export default function FleetPage() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
-          label="Fleet yachts"
+          label="Yachts"
           value={data.overview.yachtCount}
           subtitle="Connected yacht records"
           tone="neutral"
@@ -310,7 +310,7 @@ export default function FleetPage() {
       <section className="ui-panel rounded-[24px] p-4 sm:p-5">
         <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_220px_190px_auto]">
           <label className="relative block">
-            <span className="sr-only">Search fleet</span>
+            <span className="sr-only">Search yachts</span>
             <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-muted-foreground">
               <SearchIcon />
             </span>
@@ -357,9 +357,9 @@ export default function FleetPage() {
           <Select
             value={sort}
             onChange={(value) => setSort(value as SortOption)}
-            ariaLabel="Sort fleet"
+            ariaLabel="Sort yachts"
           >
-            <option value="name">Name A–Z</option>
+            <option value="name">Name Aâ€“Z</option>
             <option value="status">Status</option>
             <option value="availability">Next availability</option>
             <option value="rate-low">Rate: low to high</option>
@@ -379,8 +379,8 @@ export default function FleetPage() {
 
       <section>
         <SectionHeader
-          eyebrow="Connected inventory"
-          title="Fleet results"
+          eyebrow="Yacht catalogue"
+          title="Yacht results"
           subtitle={`${filteredYachts.length} of ${data.overview.yachtCount} yachts`}
           className="mb-5"
         />
@@ -493,7 +493,7 @@ function YachtCard({
           <p className="text-xs text-muted-foreground/70">
             {yacht.source
               ? formatSourceType(yacht.source.type)
-              : "Manual fleet record"}
+              : "Manual yacht record"}
           </p>
 
           <Link
@@ -501,7 +501,7 @@ function YachtCard({
             className="apple-transition inline-flex items-center gap-2 text-sm font-semibold text-cyan-700 hover:opacity-75 dark:text-cyan-300"
           >
             Open yacht
-            <span className="transition group-hover:translate-x-1">→</span>
+            <span className="transition group-hover:translate-x-1">â†’</span>
           </Link>
         </div>
       </div>
@@ -762,7 +762,7 @@ function formatDateRange(
   return `${start.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
-  })} – ${end.toLocaleDateString("en-GB", {
+  })} â€“ ${end.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",

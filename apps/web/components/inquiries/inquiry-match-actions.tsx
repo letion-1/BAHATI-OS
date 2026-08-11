@@ -8,12 +8,14 @@ import {
   ChevronDown,
   Clipboard,
   Clock3,
+  KeyRound,
   FileText,
   Loader2,
   Mail,
   MapPin,
   Radio,
   Save,
+  ShieldCheck,
   Ship,
   UserRound,
   Users,
@@ -146,6 +148,53 @@ type EmailDraftResponse = {
   draft?: EmailDraftRecord | null;
 };
 
+type YachtAccessType =
+  | "controlled"
+  | "managed"
+  | "broker_access"
+  | "reference";
+
+type CalendarAuthority =
+  | "our_company"
+  | "owner"
+  | "charter_manager"
+  | "operator"
+  | "unknown";
+
+type BookingModel =
+  | "direct"
+  | "confirmation_required"
+  | "owner_approval_required"
+  | "reference_only";
+
+type YachtAccessProfile = {
+  id: string;
+  yachtId: string;
+  accessType: YachtAccessType;
+  calendarAuthority: CalendarAuthority;
+  bookingModel: BookingModel;
+  clientProposalPermission: boolean;
+  publicListingPermission: boolean;
+  notes: string | null;
+  updatedAt: string | null;
+};
+
+type YachtAccessResponse = {
+  success: boolean;
+  error?: string;
+  profiles?: YachtAccessProfile[];
+  profile?: YachtAccessProfile;
+};
+
+type YachtAccessForm = {
+  accessType: YachtAccessType;
+  calendarAuthority: CalendarAuthority;
+  bookingModel: BookingModel;
+  clientProposalPermission: boolean;
+  publicListingPermission: boolean;
+  notes: string;
+};
+
 type CheckEditor = {
   yachtId: string;
   source: AvailabilityCheckSource;
@@ -218,6 +267,8 @@ export function InquiryMatchActions({
   const [matches, setMatches] = useState<YachtMatch[]>([]);
   const [checks, setChecks] = useState<AvailabilityCheck[]>([]);
   const [contacts, setContacts] = useState<ManagerContact[]>([]);
+  const [accessProfiles, setAccessProfiles] =
+    useState<YachtAccessProfile[]>([]);
   const [selectedYachtId, setSelectedYachtId] =
     useState<string | null>(null);
 
@@ -248,6 +299,22 @@ export function InquiryMatchActions({
   const [savingContact, setSavingContact] =
     useState(false);
 
+  const [accessEditorYachtId, setAccessEditorYachtId] =
+    useState<string | null>(null);
+
+  const [accessForm, setAccessForm] =
+    useState<YachtAccessForm>({
+      accessType: "broker_access",
+      calendarAuthority: "unknown",
+      bookingModel: "owner_approval_required",
+      clientProposalPermission: true,
+      publicListingPermission: false,
+      notes: "",
+    });
+
+  const [savingAccess, setSavingAccess] =
+    useState(false);
+
   const [emailingYachtId, setEmailingYachtId] =
     useState<string | null>(null);
 
@@ -276,6 +343,7 @@ export function InquiryMatchActions({
         setIsOpen(false);
         setEditor(null);
         setContactEditorYachtId(null);
+        setAccessEditorYachtId(null);
       }
     };
 
@@ -325,6 +393,16 @@ export function InquiryMatchActions({
 
     return map;
   }, [contacts]);
+
+  const accessByYacht = useMemo(() => {
+    const map = new Map<string, YachtAccessProfile>();
+
+    for (const profile of accessProfiles) {
+      map.set(profile.yachtId, profile);
+    }
+
+    return map;
+  }, [accessProfiles]);
 
   async function openMatcher() {
     setIsOpen((current) => !current);
@@ -413,24 +491,42 @@ export function InquiryMatchActions({
       );
 
       let loadedContacts: ManagerContact[] = [];
+      let loadedAccessProfiles: YachtAccessProfile[] = [];
 
       if (rankedMatches.length > 0) {
         const yachtIds = rankedMatches
           .map((match) => match.yacht.id)
           .join(",");
 
-        const contactsResponse = await fetch(
-          `/api/yacht-contacts?yachtIds=${encodeURIComponent(
-            yachtIds
-          )}`,
-          {
-            method: "GET",
-            cache: "no-store",
-          }
-        );
+        const [
+          contactsResponse,
+          accessResponse,
+        ] = await Promise.all([
+          fetch(
+            `/api/yacht-contacts?yachtIds=${encodeURIComponent(
+              yachtIds
+            )}`,
+            {
+              method: "GET",
+              cache: "no-store",
+            }
+          ),
+          fetch(
+            `/api/yacht-access?yachtIds=${encodeURIComponent(
+              yachtIds
+            )}`,
+            {
+              method: "GET",
+              cache: "no-store",
+            }
+          ),
+        ]);
 
         const contactsPayload =
           (await contactsResponse.json()) as ManagerContactsResponse;
+
+        const accessPayload =
+          (await accessResponse.json()) as YachtAccessResponse;
 
         if (
           !contactsResponse.ok ||
@@ -442,12 +538,24 @@ export function InquiryMatchActions({
           );
         }
 
+        if (
+          !accessResponse.ok ||
+          !accessPayload.success
+        ) {
+          throw new Error(
+            accessPayload.error ??
+              "Could not load yacht access settings."
+          );
+        }
+
         loadedContacts = contactsPayload.contacts ?? [];
+        loadedAccessProfiles = accessPayload.profiles ?? [];
       }
 
       setMatches(rankedMatches);
       setChecks(checksPayload.checks ?? []);
       setContacts(loadedContacts);
+      setAccessProfiles(loadedAccessProfiles);
       setHasLoaded(true);
     } catch (caughtError) {
       setError(
@@ -458,6 +566,7 @@ export function InquiryMatchActions({
       setMatches([]);
       setChecks([]);
       setContacts([]);
+      setAccessProfiles([]);
     } finally {
       setIsLoading(false);
     }
@@ -551,6 +660,149 @@ export function InquiryMatchActions({
       );
     } finally {
       setSavingCheck(false);
+    }
+  }
+
+  function openAccessEditor(
+    yachtId: string
+  ) {
+    const existing =
+      accessByYacht.get(yachtId) ?? null;
+
+    setAccessEditorYachtId(yachtId);
+
+    setAccessForm(
+      existing
+        ? {
+            accessType: existing.accessType,
+            calendarAuthority:
+              existing.calendarAuthority,
+            bookingModel: existing.bookingModel,
+            clientProposalPermission:
+              existing.clientProposalPermission,
+            publicListingPermission:
+              existing.publicListingPermission,
+            notes: existing.notes ?? "",
+          }
+        : {
+            accessType: "broker_access",
+            calendarAuthority: "unknown",
+            bookingModel:
+              "owner_approval_required",
+            clientProposalPermission: true,
+            publicListingPermission: false,
+            notes: "",
+          }
+    );
+  }
+
+  function updateAccessType(
+    value: YachtAccessType
+  ) {
+    const defaults =
+      getAccessDefaults(value);
+
+    setAccessForm((current) => ({
+      ...current,
+      accessType: value,
+      ...defaults,
+    }));
+
+    setError(null);
+  }
+
+  function updateAccessField<
+    K extends keyof YachtAccessForm
+  >(
+    field: K,
+    value: YachtAccessForm[K]
+  ) {
+    setAccessForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    setError(null);
+  }
+
+  async function saveAccessProfile(
+    yachtId: string
+  ) {
+    setSavingAccess(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        "/api/yacht-access",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            yachtId,
+            accessType: accessForm.accessType,
+            calendarAuthority:
+              accessForm.calendarAuthority,
+            bookingModel:
+              accessForm.bookingModel,
+            clientProposalPermission:
+              accessForm.clientProposalPermission,
+            publicListingPermission:
+              accessForm.publicListingPermission,
+            notes:
+              accessForm.notes.trim() || null,
+          }),
+        }
+      );
+
+      const payload =
+        (await response.json()) as YachtAccessResponse;
+
+      if (
+        !response.ok ||
+        !payload.success ||
+        !payload.profile
+      ) {
+        throw new Error(
+          payload.error ??
+            "Could not save yacht access settings."
+        );
+      }
+
+      setAccessProfiles((current) => {
+        const withoutCurrent =
+          current.filter(
+            (profile) =>
+              profile.yachtId !==
+              payload.profile!.yachtId
+          );
+
+        return [
+          payload.profile!,
+          ...withoutCurrent,
+        ];
+      });
+
+      if (
+        !payload.profile.clientProposalPermission
+      ) {
+        setSelectedYachtId((current) =>
+          current === yachtId
+            ? null
+            : current
+        );
+      }
+
+      setAccessEditorYachtId(null);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not save yacht access settings."
+      );
+    } finally {
+      setSavingAccess(false);
     }
   }
 
@@ -858,6 +1110,7 @@ export function InquiryMatchActions({
           setIsOpen(false);
           setEditor(null);
           setContactEditorYachtId(null);
+          setAccessEditorYachtId(null);
         }}
         className="absolute inset-0 bg-black/55 backdrop-blur-[3px]"
       />
@@ -896,6 +1149,7 @@ export function InquiryMatchActions({
                 setIsOpen(false);
                 setEditor(null);
                 setContactEditorYachtId(null);
+                setAccessEditorYachtId(null);
               }}
               className="ui-secondary-button apple-transition inline-flex size-11 shrink-0 items-center justify-center rounded-xl p-0 hover:bg-accent"
               aria-label="Close yacht matcher"
@@ -958,18 +1212,32 @@ export function InquiryMatchActions({
                 const effective =
                   getEffectiveAvailability(yachtChecks);
 
+                const accessProfile =
+                  accessByYacht.get(match.yacht.id) ??
+                  null;
+
+                const accessPolicy =
+                  getAccessPolicy(accessProfile);
+
                 const blocked =
                   effective?.status === "booked" ||
-                  effective?.status === "unavailable";
+                  effective?.status === "unavailable" ||
+                  !accessPolicy.clientProposalAllowed;
 
                 const isSelected =
                   selectedYachtId === match.yacht.id;
 
                 const needsManagerConfirmation =
-                  shouldRecommendManagerConfirmation(
-                    inquiry.startDate,
-                    managerCheck
-                  );
+                  accessPolicy.alwaysRequireApproval
+                    ? !isFreshAvailableManagerCheck(
+                        managerCheck
+                      )
+                    : accessPolicy.requiresVerification
+                      ? shouldRecommendManagerConfirmation(
+                          inquiry.startDate,
+                          managerCheck
+                        )
+                      : false;
 
                 const managerContact =
                   contactsByYacht.get(match.yacht.id) ??
@@ -980,6 +1248,7 @@ export function InquiryMatchActions({
                     yachtfolioCheck,
                     managerCheck,
                     needsManagerConfirmation,
+                    accessProfile,
                   });
 
                 const editorOpen =
@@ -1091,6 +1360,52 @@ export function InquiryMatchActions({
                         </div>
                       </div>
 
+                      <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border bg-background/45 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background/60 text-muted-foreground">
+                            <KeyRound className="size-4" />
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                              Yacht relationship
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-foreground">
+                              {accessProfile
+                                ? accessTypeLabel(
+                                    accessProfile.accessType
+                                  )
+                                : "Unclassified"}
+                            </p>
+
+                            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                              {accessProfile
+                                ? `${calendarAuthorityLabel(
+                                    accessProfile.calendarAuthority
+                                  )} · ${bookingModelLabel(
+                                    accessProfile.bookingModel
+                                  )}`
+                                : "Current verification workflow remains active until you classify this yacht."}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openAccessEditor(
+                              match.yacht.id
+                            )
+                          }
+                          className="ui-secondary-button apple-transition min-h-9 shrink-0 px-3 text-[11px] font-semibold hover:bg-accent"
+                        >
+                          {accessProfile
+                            ? "Edit access"
+                            : "Classify yacht"}
+                        </button>
+                      </div>
+
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         <EvidenceCard
                           eyebrow="Source availability"
@@ -1104,56 +1419,96 @@ export function InquiryMatchActions({
                         />
 
                         <EvidenceCard
-                          eyebrow="Yachtfolio check"
+                          eyebrow={
+                            accessPolicy.controlled
+                              ? "External network check"
+                              : "Yachtfolio check"
+                          }
                           title={
-                            yachtfolioCheck
-                              ? formatStatus(
-                                  yachtfolioCheck.status
-                                )
-                              : "Not recorded"
+                            accessPolicy.referenceOnly
+                              ? "Reference signal"
+                              : yachtfolioCheck
+                                ? formatStatus(
+                                    yachtfolioCheck.status
+                                  )
+                                : accessPolicy.controlled
+                                  ? "Optional"
+                                  : "Not recorded"
                           }
                           detail={
                             yachtfolioCheck
                               ? `Checked ${formatRelativeTime(
                                   yachtfolioCheck.checkedAt
                                 )}`
-                              : "Record the broker's Yachtfolio result"
+                              : accessPolicy.controlled
+                                ? "Your controlled calendar is the primary authority"
+                                : accessPolicy.referenceOnly
+                                  ? "Do not treat reference data as confirmed availability"
+                                  : "Record the broker's Yachtfolio result"
                           }
-                          tone={statusTone(
-                            yachtfolioCheck?.status
-                          )}
+                          tone={
+                            accessPolicy.referenceOnly
+                              ? "neutral"
+                              : statusTone(
+                                  yachtfolioCheck?.status
+                                )
+                          }
                         />
 
                         <EvidenceCard
-                          eyebrow="Manager verification"
+                          eyebrow={
+                            accessPolicy.controlled
+                              ? "Booking authority"
+                              : accessPolicy.managed
+                                ? "Owner approval"
+                                : accessPolicy.referenceOnly
+                                  ? "Representation"
+                                  : "Manager verification"
+                          }
                           title={
-                            managerCheck
-                              ? formatStatus(
-                                  managerCheck.status
-                                )
-                              : needsManagerConfirmation
-                                ? "Recommended"
-                                : "Not required yet"
+                            accessPolicy.controlled
+                              ? "Your company"
+                              : accessPolicy.referenceOnly
+                                ? "Not cleared"
+                                : managerCheck
+                                  ? formatStatus(
+                                      managerCheck.status
+                                    )
+                                  : needsManagerConfirmation
+                                    ? accessPolicy.managed
+                                      ? "Required"
+                                      : "Recommended"
+                                    : "Not required yet"
                           }
                           detail={
-                            managerCheck
-                              ? `${sourceLabel(
-                                  managerCheck.source
-                                )} · ${formatRelativeTime(
-                                  managerCheck.checkedAt
-                                )}`
-                              : needsManagerConfirmation
-                                ? "Near-term charter needs a fresh confirmation"
-                                : "No direct confirmation recorded"
+                            accessPolicy.controlled
+                              ? "No external availability confirmation is required for this controlled yacht"
+                              : accessPolicy.referenceOnly
+                                ? "Reference-only yacht cannot be proposed until access is upgraded"
+                                : managerCheck
+                                  ? `${sourceLabel(
+                                      managerCheck.source
+                                    )} · ${formatRelativeTime(
+                                      managerCheck.checkedAt
+                                    )}`
+                                  : needsManagerConfirmation
+                                    ? accessPolicy.managed
+                                      ? "Owner or Charter Manager approval is still required"
+                                      : "Near-term charter needs a fresh confirmation"
+                                    : "No direct confirmation recorded"
                           }
                           tone={
-                            managerCheck
-                              ? statusTone(
-                                  managerCheck.status
-                                )
-                              : needsManagerConfirmation
+                            accessPolicy.controlled
+                              ? "positive"
+                              : accessPolicy.referenceOnly
                                 ? "warning"
-                                : "neutral"
+                                : managerCheck
+                                  ? statusTone(
+                                      managerCheck.status
+                                    )
+                                  : needsManagerConfirmation
+                                    ? "warning"
+                                    : "neutral"
                           }
                         />
 
@@ -1165,7 +1520,8 @@ export function InquiryMatchActions({
                         />
                       </div>
 
-                      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-background/45 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      {!accessPolicy.controlled ? (
+                        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-background/45 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 items-start gap-3">
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background/60 text-muted-foreground">
                             <Building2 className="size-4" />
@@ -1214,6 +1570,8 @@ export function InquiryMatchActions({
                         </button>
                       </div>
 
+                      ) : null}
+
                       {effective ? (
                         <div
                           className={`mt-4 rounded-2xl border px-4 py-3 text-xs ${
@@ -1251,68 +1609,82 @@ export function InquiryMatchActions({
                       ) : null}
 
                       <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openCheckEditor(
-                              match.yacht.id,
-                              "yachtfolio"
-                            )
-                          }
-                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
-                        >
-                          <Radio className="size-3.5" />
-                          Record Yachtfolio check
-                        </button>
+                        {!accessPolicy.controlled ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openCheckEditor(
+                                match.yacht.id,
+                                "yachtfolio"
+                              )
+                            }
+                            className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
+                          >
+                            <Radio className="size-3.5" />
+                            Record Yachtfolio check
+                          </button>
+                        ) : null}
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void emailManager(match)
-                          }
-                          disabled={
-                            emailingYachtId ===
-                            match.yacht.id
-                          }
-                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {emailingYachtId ===
-                          match.yacht.id ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <Mail className="size-3.5" />
-                          )}
-                          {managerContact
-                            ? "Create email draft"
-                            : "Add manager contact"}
-                        </button>
+                        {!accessPolicy.controlled ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void emailManager(match)
+                            }
+                            disabled={
+                              emailingYachtId ===
+                              match.yacht.id
+                            }
+                            className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {emailingYachtId ===
+                            match.yacht.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Mail className="size-3.5" />
+                            )}
+                            {managerContact
+                              ? accessPolicy.managed
+                                ? "Request owner approval"
+                                : "Create email draft"
+                              : "Add manager contact"}
+                          </button>
+                        ) : null}
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openCheckEditor(
-                              match.yacht.id,
-                              "manager_email"
-                            )
-                          }
-                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                          Record manager reply
-                        </button>
+                        {!accessPolicy.controlled ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openCheckEditor(
+                                match.yacht.id,
+                                "manager_email"
+                              )
+                            }
+                            className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            {accessPolicy.managed
+                              ? "Record owner reply"
+                              : "Record manager reply"}
+                          </button>
+                        ) : null}
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void copyVerificationRequest(match)
-                          }
-                          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
-                        >
-                          <Clipboard className="size-3.5" />
-                          {copiedYachtId === match.yacht.id
-                            ? "Copied"
-                            : "Copy request"}
-                        </button>
+                        {!accessPolicy.controlled ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void copyVerificationRequest(match)
+                            }
+                            className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-3 text-xs font-semibold hover:bg-accent"
+                          >
+                            <Clipboard className="size-3.5" />
+                            {copiedYachtId === match.yacht.id
+                              ? "Copied"
+                              : accessPolicy.managed
+                                ? "Copy approval request"
+                                : "Copy request"}
+                          </button>
+                        ) : null}
 
                         <button
                           type="button"
@@ -1320,13 +1692,235 @@ export function InquiryMatchActions({
                           onClick={() => selectYacht(match)}
                           className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 sm:col-span-2"
                         >
-                          {blocked
-                            ? "Do not offer"
-                            : isSelected
-                              ? "Selected"
-                              : "Select yacht"}
+                          {!accessPolicy.clientProposalAllowed
+                            ? "Reference only"
+                            : blocked
+                              ? "Do not offer"
+                              : isSelected
+                                ? "Selected"
+                                : accessPolicy.controlled
+                                  ? "Select controlled yacht"
+                                  : "Select yacht"}
                         </button>
                       </div>
+
+                      {accessEditorYachtId ===
+                      match.yacht.id ? (
+                        <div className="mt-5 rounded-[20px] border border-border bg-background/60 p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                Yacht access & control
+                              </p>
+
+                              <p className="mt-1 text-sm font-semibold text-foreground">
+                                {match.yacht.name}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAccessEditorYachtId(
+                                  null
+                                )
+                              }
+                              className="rounded-xl p-2 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                              aria-label="Close yacht access editor"
+                            >
+                              <X className="size-4" />
+                            </button>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Access type
+                              </span>
+
+                              <select
+                                value={
+                                  accessForm.accessType
+                                }
+                                onChange={(event) =>
+                                  updateAccessType(
+                                    event.target
+                                      .value as YachtAccessType
+                                  )
+                                }
+                                className="ui-input mt-2 h-11 w-full rounded-xl px-3 text-xs"
+                              >
+                                <option value="controlled">
+                                  Controlled fleet
+                                </option>
+                                <option value="managed">
+                                  Managed yacht
+                                </option>
+                                <option value="broker_access">
+                                  Broker access
+                                </option>
+                                <option value="reference">
+                                  Reference only
+                                </option>
+                              </select>
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Calendar authority
+                              </span>
+
+                              <select
+                                value={
+                                  accessForm.calendarAuthority
+                                }
+                                onChange={(event) =>
+                                  updateAccessField(
+                                    "calendarAuthority",
+                                    event.target
+                                      .value as CalendarAuthority
+                                  )
+                                }
+                                className="ui-input mt-2 h-11 w-full rounded-xl px-3 text-xs"
+                              >
+                                <option value="our_company">
+                                  Our company
+                                </option>
+                                <option value="owner">
+                                  Owner
+                                </option>
+                                <option value="charter_manager">
+                                  Charter Manager
+                                </option>
+                                <option value="operator">
+                                  Third-party operator
+                                </option>
+                                <option value="unknown">
+                                  Unknown
+                                </option>
+                              </select>
+                            </label>
+
+                            <label className="block sm:col-span-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Booking model
+                              </span>
+
+                              <select
+                                value={
+                                  accessForm.bookingModel
+                                }
+                                onChange={(event) =>
+                                  updateAccessField(
+                                    "bookingModel",
+                                    event.target
+                                      .value as BookingModel
+                                  )
+                                }
+                                className="ui-input mt-2 h-11 w-full rounded-xl px-3 text-xs"
+                              >
+                                <option value="direct">
+                                  Direct booking / controlled calendar
+                                </option>
+                                <option value="confirmation_required">
+                                  Confirmation required
+                                </option>
+                                <option value="owner_approval_required">
+                                  Owner approval required
+                                </option>
+                                <option value="reference_only">
+                                  Reference only
+                                </option>
+                              </select>
+                            </label>
+
+                            <label className="flex items-start gap-3 rounded-xl border border-border bg-background/45 p-3">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  accessForm.clientProposalPermission
+                                }
+                                onChange={(event) =>
+                                  updateAccessField(
+                                    "clientProposalPermission",
+                                    event.target.checked
+                                  )
+                                }
+                                disabled={
+                                  accessForm.accessType ===
+                                  "reference"
+                                }
+                                className="mt-0.5 size-4"
+                              />
+
+                              <span>
+                                <span className="block text-xs font-semibold text-foreground">
+                                  Client proposal permitted
+                                </span>
+                                <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                                  This yacht may appear in a client-facing proposal.
+                                </span>
+                              </span>
+                            </label>
+
+                            <label className="flex items-start gap-3 rounded-xl border border-border bg-background/45 p-3">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  accessForm.publicListingPermission
+                                }
+                                onChange={(event) =>
+                                  updateAccessField(
+                                    "publicListingPermission",
+                                    event.target.checked
+                                  )
+                                }
+                                className="mt-0.5 size-4"
+                              />
+
+                              <span>
+                                <span className="block text-xs font-semibold text-foreground">
+                                  Public listing permitted
+                                </span>
+                                <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                                  Only enable when the brokerage has explicit permission to publish it publicly.
+                                </span>
+                              </span>
+                            </label>
+                          </div>
+
+                          <textarea
+                            value={accessForm.notes}
+                            onChange={(event) =>
+                              updateAccessField(
+                                "notes",
+                                event.target.value
+                              )
+                            }
+                            rows={3}
+                            placeholder="Optional internal note about access, representation rights or approval rules."
+                            className="ui-input mt-3 w-full resize-y rounded-xl px-3 py-3 text-xs leading-5"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void saveAccessProfile(
+                                match.yacht.id
+                              )
+                            }
+                            disabled={savingAccess}
+                            className="ui-primary-button apple-transition mt-4 inline-flex min-h-10 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {savingAccess ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <ShieldCheck className="size-3.5" />
+                            )}
+                            Save yacht access
+                          </button>
+                        </div>
+                      ) : null}
 
                       {contactEditorYachtId ===
                       match.yacht.id ? (
@@ -1600,6 +2194,7 @@ export function InquiryMatchActions({
                 setIsOpen(false);
                 setEditor(null);
                 setContactEditorYachtId(null);
+                setAccessEditorYachtId(null);
               }}
               className="ui-secondary-button apple-transition min-h-11 px-5 text-sm font-semibold hover:bg-accent"
             >
@@ -1655,14 +2250,164 @@ export function InquiryMatchActions({
   );
 }
 
+function getAccessDefaults(
+  accessType: YachtAccessType
+): Pick<
+  YachtAccessForm,
+  | "calendarAuthority"
+  | "bookingModel"
+  | "clientProposalPermission"
+  | "publicListingPermission"
+> {
+  if (accessType === "controlled") {
+    return {
+      calendarAuthority: "our_company",
+      bookingModel: "direct",
+      clientProposalPermission: true,
+      publicListingPermission: false,
+    };
+  }
+
+  if (accessType === "managed") {
+    return {
+      calendarAuthority: "owner",
+      bookingModel: "owner_approval_required",
+      clientProposalPermission: true,
+      publicListingPermission: false,
+    };
+  }
+
+  if (accessType === "reference") {
+    return {
+      calendarAuthority: "unknown",
+      bookingModel: "reference_only",
+      clientProposalPermission: false,
+      publicListingPermission: false,
+    };
+  }
+
+  return {
+    calendarAuthority: "unknown",
+    bookingModel: "owner_approval_required",
+    clientProposalPermission: true,
+    publicListingPermission: false,
+  };
+}
+
+function getAccessPolicy(
+  profile: YachtAccessProfile | null
+) {
+  const accessType =
+    profile?.accessType ?? "broker_access";
+
+  return {
+    accessType,
+    controlled:
+      accessType === "controlled",
+    managed:
+      accessType === "managed",
+    brokerAccess:
+      accessType === "broker_access",
+    referenceOnly:
+      accessType === "reference",
+    clientProposalAllowed:
+      profile
+        ? profile.clientProposalPermission
+        : true,
+    requiresVerification:
+      accessType === "broker_access",
+    alwaysRequireApproval:
+      accessType === "managed",
+  };
+}
+
+function isFreshAvailableManagerCheck(
+  managerCheck: AvailabilityCheck | null
+): boolean {
+  if (
+    !managerCheck ||
+    managerCheck.status !== "available"
+  ) {
+    return false;
+  }
+
+  const checkedAt =
+    new Date(managerCheck.checkedAt);
+
+  if (Number.isNaN(checkedAt.getTime())) {
+    return false;
+  }
+
+  const ageHours =
+    (Date.now() - checkedAt.getTime()) /
+    3_600_000;
+
+  return ageHours <= 24;
+}
+
+function accessTypeLabel(
+  value: YachtAccessType
+): string {
+  const labels: Record<
+    YachtAccessType,
+    string
+  > = {
+    controlled: "Controlled fleet",
+    managed: "Managed yacht",
+    broker_access: "Broker access",
+    reference: "Reference only",
+  };
+
+  return labels[value];
+}
+
+function calendarAuthorityLabel(
+  value: CalendarAuthority
+): string {
+  const labels: Record<
+    CalendarAuthority,
+    string
+  > = {
+    our_company: "Calendar controlled by your company",
+    owner: "Calendar controlled by owner",
+    charter_manager:
+      "Calendar controlled by Charter Manager",
+    operator:
+      "Calendar controlled by operator",
+    unknown: "Calendar authority unknown",
+  };
+
+  return labels[value];
+}
+
+function bookingModelLabel(
+  value: BookingModel
+): string {
+  const labels: Record<
+    BookingModel,
+    string
+  > = {
+    direct: "Direct booking",
+    confirmation_required:
+      "Confirmation required",
+    owner_approval_required:
+      "Owner approval required",
+    reference_only: "Reference only",
+  };
+
+  return labels[value];
+}
+
 function getAvailabilityConfidence({
   yachtfolioCheck,
   managerCheck,
   needsManagerConfirmation,
+  accessProfile,
 }: {
   yachtfolioCheck: AvailabilityCheck | null;
   managerCheck: AvailabilityCheck | null;
   needsManagerConfirmation: boolean;
+  accessProfile: YachtAccessProfile | null;
 }): {
   label: string;
   detail: string;
@@ -1672,6 +2417,27 @@ function getAvailabilityConfidence({
     | "negative"
     | "neutral";
 } {
+  const policy =
+    getAccessPolicy(accessProfile);
+
+  if (policy.referenceOnly) {
+    return {
+      label: "Reference only",
+      detail:
+        "This yacht is for internal discovery until representation or proposal rights are confirmed.",
+      tone: "neutral",
+    };
+  }
+
+  if (policy.controlled) {
+    return {
+      label: "Controlled",
+      detail:
+        "The workspace controls this yacht/calendar, so the connected source can be treated as the primary booking signal.",
+      tone: "positive",
+    };
+  }
+
   if (
     managerCheck?.status === "booked" ||
     managerCheck?.status === "unavailable"
@@ -1689,27 +2455,27 @@ function getAvailabilityConfidence({
     !needsManagerConfirmation
   ) {
     return {
-      label: "Verified",
-      detail:
-        "Fresh direct manager confirmation is on record.",
+      label: policy.managed
+        ? "Pre-approved"
+        : "Verified",
+      detail: policy.managed
+        ? "Availability has been approved for this inquiry. Final contract acceptance may still be required."
+        : "Fresh direct manager confirmation is on record.",
       tone: "positive",
     };
   }
 
-  if (
-    managerCheck?.status === "pending"
-  ) {
+  if (managerCheck?.status === "pending") {
     return {
       label: "Pending",
-      detail:
-        "A fresh confirmation request is awaiting a reply.",
+      detail: policy.managed
+        ? "Owner or Charter Manager approval is awaiting a reply."
+        : "A fresh confirmation request is awaiting a reply.",
       tone: "warning",
     };
   }
 
-  if (
-    managerCheck?.status === "option"
-  ) {
+  if (managerCheck?.status === "option") {
     return {
       label: "Caution",
       detail:
@@ -1719,13 +2485,16 @@ function getAvailabilityConfidence({
   }
 
   if (
-    managerCheck?.status === "available" &&
+    yachtfolioCheck?.status === "available" &&
     needsManagerConfirmation
   ) {
     return {
-      label: "Reconfirm",
-      detail:
-        "The last direct confirmation is now outside the freshness rule.",
+      label: policy.managed
+        ? "Owner approval needed"
+        : "Medium",
+      detail: policy.managed
+        ? "Source availability is positive, but owner approval is still required."
+        : "Yachtfolio says available, but a near-term manager confirmation is recommended.",
       tone: "warning",
     };
   }
@@ -1743,18 +2512,6 @@ function getAvailabilityConfidence({
   }
 
   if (
-    yachtfolioCheck?.status === "available" &&
-    needsManagerConfirmation
-  ) {
-    return {
-      label: "Medium",
-      detail:
-        "Yachtfolio says available, but a near-term manager confirmation is recommended.",
-      tone: "warning",
-    };
-  }
-
-  if (
     yachtfolioCheck?.status === "booked" ||
     yachtfolioCheck?.status === "unavailable"
   ) {
@@ -1768,10 +2525,14 @@ function getAvailabilityConfidence({
 
   return {
     label: needsManagerConfirmation
-      ? "Needs confirmation"
+      ? policy.managed
+        ? "Owner approval needed"
+        : "Needs confirmation"
       : "Source only",
     detail: needsManagerConfirmation
-      ? "The source suggests availability, but fresh direct evidence is missing."
+      ? policy.managed
+        ? "The yacht may fit, but owner or Charter Manager approval is still missing."
+        : "The source suggests availability, but fresh direct evidence is missing."
       : "Only the connected source is currently supporting availability.",
     tone: needsManagerConfirmation
       ? "warning"

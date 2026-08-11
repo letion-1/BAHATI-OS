@@ -72,7 +72,7 @@ const navigation = [
     icon: MessageSquareText,
   },
   {
-    name: "Fleet",
+    name: "Yachts",
     href: "/fleet",
     icon: Ship,
   },
@@ -570,3 +570,4 @@ export function AppShell({
     </div>
   );
 }
+
