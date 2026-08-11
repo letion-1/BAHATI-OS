@@ -138,6 +138,10 @@ function isPublicRoute(
   pathname: string
 ) {
   return (
+    pathname === "/onboarding" ||
+    pathname.startsWith("/onboarding/") ||
+    pathname === "/sign-up" ||
+    pathname.startsWith("/sign-up/") ||
     pathname === "/login" ||
     pathname.startsWith(
       "/login/"
@@ -570,4 +574,6 @@ export function AppShell({
     </div>
   );
 }
+
+
 

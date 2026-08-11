@@ -3,11 +3,9 @@
 import { useActionState } from "react";
 import {
   ArrowRight,
-  BriefcaseBusiness,
   LoaderCircle,
   LockKeyhole,
   Mail,
-  UserRound,
 } from "lucide-react";
 
 import { login } from "@/app/login/actions";
@@ -42,28 +40,6 @@ export function LoginForm({
         type="hidden"
         name="next"
         value={nextPath}
-      />
-
-      <Field
-        id="fullName"
-        name="fullName"
-        label="Full name"
-        placeholder="Letion Ketienya"
-        autoComplete="name"
-        icon={UserRound}
-        disabled={isPending}
-        required
-      />
-
-      <Field
-        id="role"
-        name="role"
-        label="Role"
-        placeholder="Charter Broker"
-        autoComplete="organization-title"
-        icon={BriefcaseBusiness}
-        disabled={isPending}
-        required
       />
 
       <Field
@@ -153,7 +129,7 @@ function Field({
   minLength?: number;
   required?: boolean;
   disabled?: boolean;
-  icon: typeof UserRound;
+  icon: typeof Mail;
 }) {
   return (
     <div className="space-y-2">

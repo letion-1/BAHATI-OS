@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -10,18 +9,20 @@ type LoginActionState = {
   message: string | null;
 };
 
+type MembershipRow = {
+  company_id: string;
+  created_at: string;
+};
+
+type CompanyOnboardingRow = {
+  onboarding_completed_at: string | null;
+  operating_model: string | null;
+};
+
 export async function login(
   _previousState: LoginActionState,
   formData: FormData
 ): Promise<LoginActionState> {
-  const fullName = readString(
-    formData.get("fullName")
-  );
-
-  const displayRole = readString(
-    formData.get("role")
-  );
-
   const email = readString(
     formData.get("email")
   ).toLowerCase();
@@ -33,21 +34,6 @@ export async function login(
   const nextPath = normalizeNextPath(
     formData.get("next")
   );
-
-  if (fullName.length < 2) {
-    return {
-      status: "error",
-      message: "Enter your full name.",
-    };
-  }
-
-  if (displayRole.length < 2) {
-    return {
-      status: "error",
-      message:
-        "Enter your role, for example Charter Broker or Operations Manager.",
-    };
-  }
 
   if (!isValidEmail(email)) {
     return {
@@ -65,50 +51,113 @@ export async function login(
 
   const supabase = await createClient();
 
-  const { error: signInError } =
+  const {
+    data: signInData,
+    error: signInError,
+  } =
     await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-  if (signInError) {
+  if (signInError || !signInData.user) {
     console.error(
       "Supabase sign-in failed:",
-      signInError.message
+      signInError?.message
     );
 
     return {
       status: "error",
       message:
-        signInError.status === 429
+        signInError?.status === 429
           ? "Too many sign-in attempts. Wait a moment and try again."
           : "The email or password is incorrect.",
     };
   }
 
-  const { error: metadataError } =
-    await supabase.auth.updateUser({
-      data: {
-        full_name: fullName,
-        display_name: fullName,
-        role_title: displayRole,
-      },
-    });
+  const {
+    data: membershipData,
+    error: membershipError,
+  } = await supabase
+    .from("company_members")
+    .select("company_id, created_at")
+    .eq("user_id", signInData.user.id)
+    .order("created_at", {
+      ascending: true,
+    })
+    .limit(1);
 
-  if (metadataError) {
+  if (membershipError) {
     console.error(
-      "Could not update account metadata:",
-      metadataError.message
+      "Could not resolve workspace membership:",
+      membershipError.message
+    );
+
+    await supabase.auth.signOut();
+
+    return {
+      status: "error",
+      message:
+        "Your account signed in, but Yacht OS could not load its company workspace.",
+    };
+  }
+
+  const membership =
+    (
+      membershipData ?? []
+    )[0] as MembershipRow | undefined;
+
+  if (!membership?.company_id) {
+    await supabase.auth.signOut();
+
+    return {
+      status: "error",
+      message:
+        "This account is not connected to a Yacht OS company workspace yet.",
+    };
+  }
+
+  const {
+    data: companyData,
+    error: companyError,
+  } = await supabase
+    .from("companies")
+    .select(
+      "onboarding_completed_at, operating_model"
+    )
+    .eq("id", membership.company_id)
+    .maybeSingle();
+
+  if (companyError) {
+    console.error(
+      "Could not inspect workspace onboarding:",
+      companyError.message
     );
 
     return {
       status: "error",
       message:
-        "You were signed in, but your profile could not be updated. Try again.",
+        "You were signed in, but Yacht OS could not load the workspace setup state.",
     };
   }
 
-  revalidatePath("/", "layout");
+  const company =
+    companyData as unknown as
+      | CompanyOnboardingRow
+      | null;
+
+  const needsOnboarding =
+    !company?.onboarding_completed_at ||
+    !company?.operating_model;
+
+  if (needsOnboarding) {
+    redirect(
+      `/onboarding?next=${encodeURIComponent(
+        nextPath
+      )}`
+    );
+  }
+
   redirect(nextPath);
 }
 
@@ -133,10 +182,11 @@ function normalizeNextPath(
     typeof value === "string" &&
     value.startsWith("/") &&
     !value.startsWith("//") &&
-    !value.startsWith("/login")
+    !value.startsWith("/login") &&
+    !value.startsWith("/onboarding")
   ) {
     return value;
   }
 
-  return "/";
+  return "/availability";
 }

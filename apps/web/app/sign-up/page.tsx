@@ -1,5 +1,6 @@
 import {
   Anchor,
+  Building2,
   Database,
   ShieldCheck,
   Waves,
@@ -7,25 +8,25 @@ import {
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { LoginForm } from "@/app/login/login-form";
+import { SignUpForm } from "@/app/sign-up/sign-up-form";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-type LoginPageProps = {
+type SignUpPageProps = {
   searchParams: Promise<{
-    next?: string | string[];
+    authError?: string | string[];
   }>;
 };
 
-export default async function LoginPage({
+export default async function SignUpPage({
   searchParams,
-}: LoginPageProps) {
+}: SignUpPageProps) {
   const params = await searchParams;
 
-  const nextPath =
-    normalizeNextPath(
-      params.next
+  const authError =
+    readQueryValue(
+      params.authError
     );
 
   const supabase =
@@ -35,7 +36,7 @@ export default async function LoginPage({
     await supabase.auth.getClaims();
 
   if (data?.claims?.sub) {
-    redirect(nextPath);
+    redirect("/");
   }
 
   return (
@@ -52,28 +53,34 @@ export default async function LoginPage({
           <div className="max-w-xl pb-12">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/55 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-xl">
               <Waves className="size-3.5" />
-              Connected charter operations
+              Start a protected charter workspace
             </div>
 
             <h1 className="mt-7 text-balance text-6xl leading-[0.98] tracking-[0.05em] text-foreground xl:text-7xl">
-              Your yachts, availability and inquiries in one calm command deck.
+              Create the operating layer for your charter business.
             </h1>
 
             <p className="mt-6 max-w-lg text-base leading-7 text-muted-foreground">
-              Sign in to your protected Yacht OS company workspace. Company membership keeps each brokerage's operational data isolated.
+              Verify your work email, create your company workspace and configure Yacht OS around the way your brokerage actually operates.
             </p>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-2">
               <Feature
-                icon={Database}
-                title="One operating workspace"
-                description="Yachts, availability, inquiries and communications stay connected."
+                icon={Building2}
+                title="Your own company workspace"
+                description="A verified signup provisions a new isolated Yacht OS company."
               />
 
               <Feature
                 icon={ShieldCheck}
+                title="Owner from day one"
+                description="The signup account becomes the workspace owner automatically."
+              />
+
+              <Feature
+                icon={Database}
                 title="Tenant-isolated data"
-                description="Company membership is verified on protected workspace queries."
+                description="Yachts, inquiries and communications remain scoped to the company."
               />
             </div>
           </div>
@@ -91,33 +98,24 @@ export default async function LoginPage({
 
             <div className="ui-panel rounded-[2rem] p-6 backdrop-blur-xl sm:p-8">
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                Welcome back
+                New company workspace
               </p>
 
               <h2 className="mt-3 text-4xl leading-none tracking-[0.05em] text-foreground">
-                Sign in to Yacht OS
+                Create Yacht OS account
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Enter the email and password attached to your Yacht OS account.
+                Start with your company name, work email and a secure password. We will verify the email before provisioning the workspace.
               </p>
 
-              <LoginForm
-                nextPath={nextPath}
-              />
+              {authError ? (
+                <div className="mt-6 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-200">
+                  {authError}
+                </div>
+              ) : null}
 
-              <div className="mt-6 border-t border-border pt-5 text-center">
-                <p className="text-xs text-muted-foreground">
-                  New brokerage?
-                </p>
-
-                <Link
-                  href="/sign-up"
-                  className="ui-secondary-button mt-3 inline-flex min-h-10 w-full items-center justify-center px-4 text-xs font-semibold"
-                >
-                  Create a Yacht OS account
-                </Link>
-              </div>
+              <SignUpForm />
             </div>
           </div>
         </section>
@@ -170,27 +168,12 @@ function Feature({
   );
 }
 
-function normalizeNextPath(
-  value:
-    | string
-    | string[]
-    | undefined
+function readQueryValue(
+  value: string | string[] | undefined
 ) {
-  const candidate =
-    Array.isArray(value)
-      ? value[0]
-      : value;
-
-  if (
-    candidate &&
-    candidate.startsWith("/") &&
-    !candidate.startsWith("//") &&
-    !candidate.startsWith("/login") &&
-    !candidate.startsWith("/sign-up") &&
-    !candidate.startsWith("/onboarding")
-  ) {
-    return candidate;
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
   }
 
-  return "/availability";
+  return value ?? null;
 }
