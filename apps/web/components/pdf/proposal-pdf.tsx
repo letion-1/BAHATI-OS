@@ -10,6 +10,31 @@ import {
   View,
 } from "@react-pdf/renderer";
 
+export type ProposalPdfYacht = {
+  id: string | null;
+  position: number;
+  name: string;
+  weeklyRate: number | null;
+  estimatedTotal: number | null;
+  currency: string;
+  availabilityStatus: string | null;
+  verificationStatus: string | null;
+  accessType: string | null;
+  bookingModel: string | null;
+  brokerNote: string | null;
+  heroImageUrl: string | null;
+  yachtType: string | null;
+  builder: string | null;
+  model: string | null;
+  buildYear: number | null;
+  lengthMeters: number | null;
+  guestCapacity: number | null;
+  sleepingGuests: number | null;
+  cabinCount: number | null;
+  homePort: string | null;
+  cruisingRegions: string[];
+};
+
 export type ProposalPdfData = {
   reference: string;
   createdAt: string | null;
@@ -18,20 +43,24 @@ export type ProposalPdfData = {
     email: string | null;
     phone: string | null;
   };
-  yacht: {
-    name: string;
-  };
   charter: {
     startDate: string | null;
     endDate: string | null;
     guests: number | null;
+    destination?: string | null;
   };
-  commercial: {
+  yachts: ProposalPdfYacht[];
+  notes: string | null;
+
+  // Legacy compatibility while older saved proposals still exist.
+  yacht?: {
+    name: string;
+  };
+  commercial?: {
     weeklyRate: number | null;
     estimatedTotal: number | null;
     currency: string;
   };
-  notes: string | null;
 };
 
 type ProposalPdfProps = {
@@ -39,7 +68,7 @@ type ProposalPdfProps = {
   companyName?: string;
 };
 
-function imageDataUri(fileName: string): string {
+function imageDataUri(fileName: string): string | null {
   const absolutePath = path.join(
     process.cwd(),
     "public",
@@ -48,23 +77,18 @@ function imageDataUri(fileName: string): string {
   );
 
   if (!fs.existsSync(absolutePath)) {
-    throw new Error(
-      `Proposal image is missing: ${absolutePath}. Run the image compression script first.`
-    );
+    return null;
   }
 
   const file = fs.readFileSync(absolutePath);
   return `data:image/jpeg;base64,${file.toString("base64")}`;
 }
 
-const images = {
-  hero: imageDataUri("hero-exterior.jpg"),
-  salon: imageDataUri("salon.jpg"),
-  cabin: imageDataUri("master-cabin.jpg"),
-  beach: imageDataUri("beach-club.jpg"),
-  aerial: imageDataUri("aerial-view.jpg"),
-  jacuzzi: imageDataUri("jacuzzi-deck.jpg"),
-};
+const fallbackImages = [
+  imageDataUri("hero-exterior.jpg"),
+  imageDataUri("aerial-view.jpg"),
+  imageDataUri("jacuzzi-deck.jpg"),
+].filter((value): value is string => Boolean(value));
 
 const palette = {
   ink: "#0B1220",
@@ -77,6 +101,8 @@ const palette = {
   pale: "#F5F7FA",
   line: "#D8DEE8",
   green: "#1F9D74",
+  amber: "#B7791F",
+  red: "#C2413B",
 };
 
 const styles = StyleSheet.create({
@@ -87,7 +113,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     paddingBottom: 42,
   },
-
   cover: {
     position: "relative",
     minHeight: "100%",
@@ -108,7 +133,7 @@ const styles = StyleSheet.create({
     left: 0,
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(8,18,32,0.58)",
+    backgroundColor: "rgba(8,18,32,0.64)",
   },
   coverContent: {
     minHeight: "100%",
@@ -132,8 +157,8 @@ const styles = StyleSheet.create({
     color: "#D7E0EC",
   },
   coverMiddle: {
-    marginTop: 90,
-    maxWidth: 450,
+    marginTop: 110,
+    maxWidth: 470,
   },
   eyebrow: {
     fontSize: 10,
@@ -143,14 +168,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   coverTitle: {
-    fontSize: 42,
+    fontSize: 39,
     fontWeight: 700,
     lineHeight: 1.05,
     marginBottom: 14,
   },
   coverSubtitle: {
-    fontSize: 16,
-    lineHeight: 1.45,
+    fontSize: 15,
+    lineHeight: 1.5,
     color: "#EDF3FA",
   },
   coverRule: {
@@ -185,7 +210,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: palette.sky,
   },
-
   header: {
     paddingHorizontal: 42,
     paddingTop: 28,
@@ -227,219 +251,142 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 1.5,
     color: palette.slate,
-    maxWidth: 430,
+    maxWidth: 470,
   },
-  wideImage: {
-    width: "100%",
-    height: 150,
-    objectFit: "cover",
-    borderRadius: 10,
-    marginTop: 16,
+  shortlistGrid: {
+    marginTop: 22,
+    gap: 14,
   },
-
-  statusPill: {
-    alignSelf: "flex-start",
-    marginTop: 16,
-    backgroundColor: "#E7F7F1",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  statusText: {
-    color: palette.green,
-    fontSize: 8,
-    fontWeight: 700,
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-  },
-  summaryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 16,
-    gap: 10,
-  },
-  summaryCard: {
-    width: "48.5%",
-    backgroundColor: palette.pale,
+  shortlistCard: {
     borderWidth: 1,
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 10,
+    overflow: "hidden",
+    flexDirection: "row",
+    minHeight: 126,
+  },
+  shortlistImage: {
+    width: 170,
+    minHeight: 126,
+    objectFit: "cover",
+    backgroundColor: palette.navySoft,
+  },
+  shortlistBody: {
+    flex: 1,
     padding: 15,
   },
-  summaryLabel: {
+  optionLabel: {
     fontSize: 8,
+    color: palette.blue,
+    letterSpacing: 1.3,
     textTransform: "uppercase",
-    letterSpacing: 1.2,
-    color: palette.slate,
-    marginBottom: 7,
+    marginBottom: 5,
   },
-  summaryValue: {
-    fontSize: 15,
+  shortlistName: {
+    fontSize: 18,
     fontWeight: 700,
     color: palette.ink,
   },
-  timeline: {
+  shortlistMeta: {
+    marginTop: 5,
+    fontSize: 9,
+    color: palette.slate,
+  },
+  shortlistBottom: {
+    marginTop: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  shortlistRate: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: palette.ink,
+  },
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: "#E8EEF6",
+  },
+  statusPositive: {
+    backgroundColor: "#E7F7F1",
+  },
+  statusWarning: {
+    backgroundColor: "#FFF6E5",
+  },
+  statusNegative: {
+    backgroundColor: "#FDECEC",
+  },
+  statusText: {
+    fontSize: 7.5,
+    fontWeight: 700,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: palette.slate,
+  },
+  statusTextPositive: {
+    color: palette.green,
+  },
+  statusTextWarning: {
+    color: palette.amber,
+  },
+  statusTextNegative: {
+    color: palette.red,
+  },
+  yachtHero: {
+    width: "100%",
+    height: 220,
+    objectFit: "cover",
     marginTop: 16,
+    borderRadius: 10,
+    backgroundColor: palette.navySoft,
+  },
+  yachtNumber: {
+    fontSize: 9,
+    color: palette.blue,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    marginBottom: 7,
+  },
+  yachtTitle: {
+    fontSize: 30,
+    fontWeight: 700,
+    color: palette.ink,
+  },
+  yachtMeta: {
+    marginTop: 6,
+    fontSize: 10,
+    color: palette.slate,
+  },
+  specGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 16,
+  },
+  specCard: {
+    width: "31.5%",
     borderWidth: 1,
     borderColor: palette.line,
-    borderRadius: 10,
-    padding: 18,
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: palette.pale,
   },
-  timelineRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  timelineDate: {
-    width: 120,
-  },
-  timelineDateLabel: {
-    fontSize: 8,
+  specLabel: {
+    fontSize: 7.5,
     textTransform: "uppercase",
-    letterSpacing: 1.2,
+    letterSpacing: 1,
     color: palette.slate,
     marginBottom: 5,
   },
-  timelineDateValue: {
-    fontSize: 14,
+  specValue: {
+    fontSize: 12,
     fontWeight: 700,
+    color: palette.ink,
   },
-  timelineLine: {
-    flexGrow: 1,
-    height: 2,
-    backgroundColor: palette.sky,
-    marginHorizontal: 14,
-  },
-  nightsBox: {
-    marginTop: 18,
-    backgroundColor: palette.navy,
-    color: palette.white,
-    borderRadius: 8,
-    padding: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  nightsLabel: {
-    color: "#B7C3D3",
-    fontSize: 9,
-  },
-  nightsValue: {
-    fontSize: 13,
-    fontWeight: 700,
-  },
-
-  galleryLead: {
-    width: "100%",
-    height: 195,
-    objectFit: "cover",
-    borderRadius: 10,
-    marginTop: 16,
-  },
-  galleryRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 12,
-  },
-  galleryCard: {
-    width: "50%",
-  },
-  galleryImage: {
-    width: "100%",
-    height: 120,
-    objectFit: "cover",
-    borderRadius: 8,
-  },
-  galleryCaption: {
-    marginTop: 7,
-    fontSize: 9,
-    color: palette.slate,
-  },
-
-  featurePage: {
-    backgroundColor: palette.navy,
-    color: palette.white,
-    minHeight: "100%",
-    paddingBottom: 42,
-  },
-  featureHeader: {
-    paddingHorizontal: 42,
-    paddingTop: 28,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#31435C",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  featureHeaderBrand: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: 1.8,
-    color: palette.sky,
-  },
-  featureHeaderRef: {
-    fontSize: 8,
-    color: "#AAB6C7",
-  },
-  featureContent: {
-    paddingHorizontal: 42,
-    paddingTop: 24,
-  },
-  featureLabel: {
-    fontSize: 9,
-    color: palette.sky,
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  featureTitle: {
-    fontSize: 27,
-    fontWeight: 700,
-    marginBottom: 8,
-  },
-  featureSubtitle: {
-    fontSize: 11,
-    lineHeight: 1.5,
-    color: "#C8D3E1",
-    maxWidth: 430,
-  },
-  featureHero: {
-    width: "100%",
-    height: 185,
-    objectFit: "cover",
-    borderRadius: 10,
-    marginTop: 16,
-  },
-  featureGrid: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 12,
-  },
-  featureCard: {
-    width: "50%",
-    backgroundColor: palette.navySoft,
-    borderRadius: 9,
-    overflow: "hidden",
-  },
-  featureImage: {
-    width: "100%",
-    height: 105,
-    objectFit: "cover",
-  },
-  featureTextBox: {
-    padding: 12,
-  },
-  featureCardTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    marginBottom: 4,
-  },
-  featureCardText: {
-    fontSize: 8.5,
-    lineHeight: 1.45,
-    color: "#C8D3E1",
-  },
-
   pricingTable: {
-    marginTop: 24,
+    marginTop: 18,
     borderWidth: 1,
     borderColor: palette.line,
     borderRadius: 10,
@@ -449,57 +396,95 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: palette.line,
   },
-  pricingRowFinal: {
+  pricingFinal: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 15,
     backgroundColor: palette.navy,
     color: palette.white,
   },
   pricingLabel: {
     color: palette.slate,
-    fontSize: 10,
+    fontSize: 9.5,
   },
   pricingValue: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 700,
   },
   pricingFinalLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: "#C6D0DE",
     textTransform: "uppercase",
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
   },
   pricingFinalValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 700,
   },
-  notesBox: {
-    marginTop: 24,
-    padding: 18,
+  noteBox: {
+    marginTop: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: 9,
     backgroundColor: palette.pale,
+  },
+  noteTitle: {
+    fontSize: 9,
+    fontWeight: 700,
+    marginBottom: 6,
+  },
+  noteText: {
+    fontSize: 9,
+    color: palette.slate,
+    lineHeight: 1.5,
+  },
+  comparisonTable: {
+    marginTop: 20,
     borderWidth: 1,
     borderColor: palette.line,
     borderRadius: 10,
+    overflow: "hidden",
   },
-  notesTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    marginBottom: 9,
+  comparisonRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: palette.line,
   },
-  notesText: {
+  comparisonRowFinal: {
+    flexDirection: "row",
+  },
+  comparisonLabelCell: {
+    width: "22%",
+    padding: 10,
+    backgroundColor: palette.pale,
+  },
+  comparisonCell: {
+    flex: 1,
+    padding: 10,
+    borderLeftWidth: 1,
+    borderLeftColor: palette.line,
+  },
+  comparisonHead: {
+    fontSize: 8,
     color: palette.slate,
-    lineHeight: 1.55,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  comparisonValue: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: palette.ink,
   },
   termsGrid: {
     flexDirection: "row",
     gap: 16,
-    marginTop: 24,
+    marginTop: 22,
   },
   termsColumn: {
     width: "50%",
@@ -522,29 +507,8 @@ const styles = StyleSheet.create({
     flex: 1,
     color: palette.slate,
     lineHeight: 1.45,
+    fontSize: 9,
   },
-  signature: {
-    marginTop: 30,
-    paddingTop: 18,
-    borderTopWidth: 1,
-    borderTopColor: palette.line,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  signatureBlock: {
-    width: "47%",
-  },
-  signatureLine: {
-    height: 1,
-    backgroundColor: palette.line,
-    marginTop: 28,
-    marginBottom: 7,
-  },
-  signatureLabel: {
-    color: palette.slate,
-    fontSize: 8,
-  },
-
   footer: {
     position: "absolute",
     bottom: 18,
@@ -555,48 +519,41 @@ const styles = StyleSheet.create({
     color: palette.slate,
     fontSize: 8,
   },
-  darkFooter: {
-    position: "absolute",
-    bottom: 18,
-    left: 42,
-    right: 42,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    color: "#9FB0C4",
-    fontSize: 8,
-  },
 });
 
 export function ProposalPdf({
   proposal,
   companyName = "Intrigue Yacht OS",
 }: ProposalPdfProps) {
+  const yachts = normalizeYachts(proposal);
+  const firstYacht = yachts[0];
+  const coverImage =
+    getYachtImage(firstYacht, 0) ?? fallbackImages[0] ?? null;
+
   const startDate = formatDate(proposal.charter.startDate);
   const endDate = formatDate(proposal.charter.endDate);
   const nights = calculateNights(
     proposal.charter.startDate,
     proposal.charter.endDate
   );
-  const weeklyRate = formatCurrency(
-    proposal.commercial.weeklyRate,
-    proposal.commercial.currency
-  );
-  const estimatedTotal = formatCurrency(
-    proposal.commercial.estimatedTotal,
-    proposal.commercial.currency
-  );
+
+  const title =
+    yachts.length > 1
+      ? `${proposal.reference} - Private Charter Selection`
+      : `${proposal.reference} - ${firstYacht?.name ?? "Charter Proposal"}`;
 
   return (
     <Document
-      title={`${proposal.reference} - ${proposal.yacht.name}`}
+      title={title}
       author={companyName}
-      subject="Luxury yacht charter proposal"
+      subject="Private yacht charter selection"
       creator={companyName}
     >
       <Page size="A4" style={styles.cover} wrap={false}>
-        <Image src={images.hero} style={styles.coverImage} />
+        {coverImage ? (
+          <Image src={coverImage} style={styles.coverImage} />
+        ) : null}
         <View style={styles.coverOverlay} />
-
         <View style={styles.coverContent}>
           <View>
             <View style={styles.coverTop}>
@@ -610,16 +567,23 @@ export function ProposalPdf({
 
             <View style={styles.coverMiddle}>
               <Text style={styles.eyebrow}>
-                Luxury charter proposal
+                Private charter selection
               </Text>
               <Text style={styles.coverTitle}>
-                {proposal.yacht.name}
+                {yachts.length > 1
+                  ? `${yachts.length} yachts selected for your journey`
+                  : firstYacht?.name ?? "Your charter proposal"}
               </Text>
               <Text style={styles.coverSubtitle}>
-                A private charter experience prepared exclusively
-                for your journey.
+                A curated collection of yacht options prepared for
+                {proposal.charter.destination
+                  ? ` ${proposal.charter.destination}`
+                  : " your requested charter"}
+                .
               </Text>
+
               <View style={styles.coverRule} />
+
               <Text style={styles.preparedLabel}>
                 Prepared for
               </Text>
@@ -632,8 +596,10 @@ export function ProposalPdf({
           <View style={styles.coverBottom}>
             <View>
               <Text style={styles.coverDate}>
-                {formatDate(proposal.createdAt) ||
-                  "Proposal date unavailable"}
+                {startDate && endDate
+                  ? `${startDate} to ${endDate}`
+                  : formatDate(proposal.createdAt) ||
+                    "Proposal date unavailable"}
               </Text>
               <Text style={[styles.coverDate, { marginTop: 5 }]}>
                 Confidential charter document
@@ -651,79 +617,61 @@ export function ProposalPdf({
         />
 
         <View style={styles.content}>
-          <Text style={styles.sectionLabel}>Charter overview</Text>
-          <Text style={styles.title}>{proposal.yacht.name}</Text>
+          <Text style={styles.sectionLabel}>
+            Curated shortlist
+          </Text>
+          <Text style={styles.title}>
+            Your yacht selection
+          </Text>
           <Text style={styles.subtitle}>
-            A concise overview of the selected yacht, charter period
-            and guest requirements.
+            Compare the shortlisted yachts below. Rates and availability
+            reflect the information recorded in the broker workspace when
+            this proposal was generated.
           </Text>
 
-          <Image src={images.aerial} style={styles.wideImage} />
+          <View style={styles.shortlistGrid}>
+            {yachts.map((yacht, index) => {
+              const image = getYachtImage(yacht, index);
 
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>
-              Prepared proposal
-            </Text>
-          </View>
+              return (
+                <View key={`${yacht.position}-${yacht.name}`} style={styles.shortlistCard}>
+                  {image ? (
+                    <Image src={image} style={styles.shortlistImage} />
+                  ) : (
+                    <View style={styles.shortlistImage} />
+                  )}
 
-          <View style={styles.summaryGrid}>
-            <SummaryCard
-              label="Client"
-              value={proposal.client.name}
-            />
-            <SummaryCard
-              label="Guests"
-              value={
-                proposal.charter.guests
-                  ? String(proposal.charter.guests)
-                  : "To be confirmed"
-              }
-            />
-            <SummaryCard
-              label="Weekly rate"
-              value={weeklyRate}
-            />
-            <SummaryCard
-              label="Estimated total"
-              value={estimatedTotal}
-            />
-          </View>
+                  <View style={styles.shortlistBody}>
+                    <Text style={styles.optionLabel}>
+                      Option {yacht.position}
+                    </Text>
+                    <Text style={styles.shortlistName}>
+                      {yacht.name}
+                    </Text>
+                    <Text style={styles.shortlistMeta}>
+                      {buildYachtMeta(yacht)}
+                    </Text>
 
-          <View style={styles.timeline}>
-            <View style={styles.timelineRow}>
-              <View style={styles.timelineDate}>
-                <Text style={styles.timelineDateLabel}>
-                  Embarkation
-                </Text>
-                <Text style={styles.timelineDateValue}>
-                  {startDate || "To be confirmed"}
-                </Text>
-              </View>
-
-              <View style={styles.timelineLine} />
-
-              <View style={styles.timelineDate}>
-                <Text style={styles.timelineDateLabel}>
-                  Disembarkation
-                </Text>
-                <Text style={styles.timelineDateValue}>
-                  {endDate || "To be confirmed"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.nightsBox}>
-              <Text style={styles.nightsLabel}>
-                Charter duration
-              </Text>
-              <Text style={styles.nightsValue}>
-                {nights === null
-                  ? "To be confirmed"
-                  : `${nights} ${
-                      nights === 1 ? "night" : "nights"
-                    }`}
-              </Text>
-            </View>
+                    <View style={styles.shortlistBottom}>
+                      <View>
+                        <Text style={styles.specLabel}>
+                          Weekly charter rate
+                        </Text>
+                        <Text style={styles.shortlistRate}>
+                          {formatCurrency(
+                            yacht.weeklyRate,
+                            yacht.currency
+                          )}
+                        </Text>
+                      </View>
+                      <AvailabilityStatus
+                        status={yacht.availabilityStatus}
+                      />
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -733,115 +681,164 @@ export function ProposalPdf({
         />
       </Page>
 
-      <Page size="A4" style={styles.page} wrap={false}>
-        <PdfHeader
-          companyName={companyName}
-          reference={proposal.reference}
-        />
+      {yachts.map((yacht, index) => {
+        const image = getYachtImage(yacht, index);
 
-        <View style={styles.content}>
-          <Text style={styles.sectionLabel}>Onboard spaces</Text>
-          <Text style={styles.title}>Interior gallery</Text>
-          <Text style={styles.subtitle}>
-            Refined living spaces designed for privacy, comfort and
-            effortless time at sea.
-          </Text>
+        return (
+          <Page
+            key={`${yacht.position}-${yacht.id ?? yacht.name}`}
+            size="A4"
+            style={styles.page}
+            wrap={false}
+          >
+            <PdfHeader
+              companyName={companyName}
+              reference={proposal.reference}
+            />
 
-          <Image src={images.salon} style={styles.galleryLead} />
-
-          <View style={styles.galleryRow}>
-            <View style={styles.galleryCard}>
-              <Image
-                src={images.cabin}
-                style={styles.galleryImage}
-              />
-              <Text style={styles.galleryCaption}>
-                Master suite with panoramic sea views
+            <View style={styles.content}>
+              <Text style={styles.yachtNumber}>
+                Yacht option {String(yacht.position).padStart(2, "0")}
               </Text>
-            </View>
-
-            <View style={styles.galleryCard}>
-              <Image
-                src={images.hero}
-                style={styles.galleryImage}
-              />
-              <Text style={styles.galleryCaption}>
-                Contemporary exterior profile
+              <Text style={styles.yachtTitle}>
+                {yacht.name}
               </Text>
-            </View>
-          </View>
-        </View>
+              <Text style={styles.yachtMeta}>
+                {buildYachtMeta(yacht)}
+              </Text>
 
-        <PdfFooter
-          companyName={companyName}
-          reference={proposal.reference}
-        />
-      </Page>
+              {image ? (
+                <Image src={image} style={styles.yachtHero} />
+              ) : (
+                <View style={styles.yachtHero} />
+              )}
 
-      <Page size="A4" style={styles.featurePage} wrap={false}>
-        <DarkPdfHeader
-          companyName={companyName}
-          reference={proposal.reference}
-        />
+              <View style={styles.specGrid}>
+                <SpecCard
+                  label="Length"
+                  value={
+                    yacht.lengthMeters !== null
+                      ? `${formatNumber(yacht.lengthMeters)} m`
+                      : "To be confirmed"
+                  }
+                />
+                <SpecCard
+                  label="Guests"
+                  value={
+                    yacht.sleepingGuests ??
+                    yacht.guestCapacity ??
+                    proposal.charter.guests ??
+                    null
+                      ? String(
+                          yacht.sleepingGuests ??
+                            yacht.guestCapacity ??
+                            proposal.charter.guests
+                        )
+                      : "To be confirmed"
+                  }
+                />
+                <SpecCard
+                  label="Cabins"
+                  value={
+                    yacht.cabinCount !== null
+                      ? String(yacht.cabinCount)
+                      : "To be confirmed"
+                  }
+                />
+                <SpecCard
+                  label="Builder"
+                  value={yacht.builder ?? "To be confirmed"}
+                />
+                <SpecCard
+                  label="Home port"
+                  value={yacht.homePort ?? "Flexible"}
+                />
+                <SpecCard
+                  label="Availability"
+                  value={availabilityLabel(
+                    yacht.availabilityStatus
+                  )}
+                />
+              </View>
 
-        <View style={styles.featureContent}>
-          <Text style={styles.featureLabel}>
-            The yacht experience
-          </Text>
-          <Text style={styles.featureTitle}>
-            Life beyond the shoreline
-          </Text>
-          <Text style={styles.featureSubtitle}>
-            Open-air relaxation, direct access to the sea and
-            carefully designed spaces for every moment of the
-            charter.
-          </Text>
+              <View style={styles.pricingTable}>
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>
+                    Weekly charter rate
+                  </Text>
+                  <Text style={styles.pricingValue}>
+                    {formatCurrency(
+                      yacht.weeklyRate,
+                      yacht.currency
+                    )}
+                  </Text>
+                </View>
 
-          <Image
-            src={images.jacuzzi}
-            style={styles.featureHero}
-          />
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>
+                    Charter period
+                  </Text>
+                  <Text style={styles.pricingValue}>
+                    {startDate && endDate
+                      ? `${startDate} to ${endDate}`
+                      : "To be confirmed"}
+                  </Text>
+                </View>
 
-          <View style={styles.featureGrid}>
-            <View style={styles.featureCard}>
-              <Image
-                src={images.beach}
-                style={styles.featureImage}
-              />
-              <View style={styles.featureTextBox}>
-                <Text style={styles.featureCardTitle}>
-                  Beach club
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>
+                    Charter duration
+                  </Text>
+                  <Text style={styles.pricingValue}>
+                    {nights === null
+                      ? "To be confirmed"
+                      : `${nights} ${
+                          nights === 1 ? "night" : "nights"
+                        }`}
+                  </Text>
+                </View>
+
+                <View style={styles.pricingFinal}>
+                  <Text style={styles.pricingFinalLabel}>
+                    Estimated charter total
+                  </Text>
+                  <Text style={styles.pricingFinalValue}>
+                    {formatCurrency(
+                      yacht.estimatedTotal,
+                      yacht.currency
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.noteBox}>
+                <Text style={styles.noteTitle}>
+                  Booking position
                 </Text>
-                <Text style={styles.featureCardText}>
-                  A private waterside lounge with effortless access
-                  to swimming, tenders and water activities.
+                <Text style={styles.noteText}>
+                  {availabilityDisclosure(yacht)}
                 </Text>
               </View>
+
+              {yacht.brokerNote ? (
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteTitle}>
+                    Broker note
+                  </Text>
+                  <Text style={styles.noteText}>
+                    {yacht.brokerNote}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
-            <View style={styles.featureCard}>
-              <Image
-                src={images.aerial}
-                style={styles.featureImage}
-              />
-              <View style={styles.featureTextBox}>
-                <Text style={styles.featureCardTitle}>
-                  Expansive deck living
-                </Text>
-                <Text style={styles.featureCardText}>
-                  Multiple outdoor areas designed for sun, dining,
-                  conversation and uninterrupted coastal views.
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <DarkPdfFooter
-          companyName={companyName}
-          reference={proposal.reference}
-        />
-      </Page>
+            <PdfFooter
+              companyName={companyName}
+              reference={proposal.reference}
+            />
+          </Page>
+        );
+      })}
 
       <Page size="A4" style={styles.page} wrap={false}>
         <PdfHeader
@@ -851,57 +848,74 @@ export function ProposalPdf({
 
         <View style={styles.content}>
           <Text style={styles.sectionLabel}>
-            Commercial summary
+            Side-by-side comparison
           </Text>
-          <Text style={styles.title}>Charter investment</Text>
+          <Text style={styles.title}>
+            Compare your options
+          </Text>
           <Text style={styles.subtitle}>
-            The values below reflect the proposal information
-            currently stored in the broker workspace.
+            A simple commercial and specification overview of the
+            shortlisted yachts.
           </Text>
 
-          <View style={styles.pricingTable}>
-            <View style={styles.pricingRow}>
-              <Text style={styles.pricingLabel}>
-                Weekly charter rate
-              </Text>
-              <Text style={styles.pricingValue}>
-                {weeklyRate}
-              </Text>
-            </View>
-
-            <View style={styles.pricingRow}>
-              <Text style={styles.pricingLabel}>
-                Charter duration
-              </Text>
-              <Text style={styles.pricingValue}>
-                {nights === null
-                  ? "To be confirmed"
-                  : `${nights} ${
-                      nights === 1 ? "night" : "nights"
-                    }`}
-              </Text>
-            </View>
-
-            <View style={styles.pricingRow}>
-              <Text style={styles.pricingLabel}>Currency</Text>
-              <Text style={styles.pricingValue}>
-                {proposal.commercial.currency || "EUR"}
-              </Text>
-            </View>
-
-            <View style={styles.pricingRowFinal}>
-              <Text style={styles.pricingFinalLabel}>
-                Estimated charter total
-              </Text>
-              <Text style={styles.pricingFinalValue}>
-                {estimatedTotal}
-              </Text>
-            </View>
+          <View style={styles.comparisonTable}>
+            <ComparisonRow
+              label="Yacht"
+              values={yachts.map((yacht) => yacht.name)}
+              header
+            />
+            <ComparisonRow
+              label="Length"
+              values={yachts.map((yacht) =>
+                yacht.lengthMeters !== null
+                  ? `${formatNumber(yacht.lengthMeters)} m`
+                  : "TBC"
+              )}
+            />
+            <ComparisonRow
+              label="Guests"
+              values={yachts.map((yacht) =>
+                String(
+                  yacht.sleepingGuests ??
+                    yacht.guestCapacity ??
+                    proposal.charter.guests ??
+                    "TBC"
+                )
+              )}
+            />
+            <ComparisonRow
+              label="Cabins"
+              values={yachts.map((yacht) =>
+                yacht.cabinCount !== null
+                  ? String(yacht.cabinCount)
+                  : "TBC"
+              )}
+            />
+            <ComparisonRow
+              label="Weekly rate"
+              values={yachts.map((yacht) =>
+                formatCurrency(
+                  yacht.weeklyRate,
+                  yacht.currency
+                )
+              )}
+            />
+            <ComparisonRow
+              label="Availability"
+              values={yachts.map((yacht) =>
+                availabilityLabel(
+                  yacht.availabilityStatus
+                )
+              )}
+              final
+            />
           </View>
 
-          <View style={styles.notesBox}>
-            <Text style={styles.notesTitle}>Broker notes</Text>
-            <Text style={styles.notesText}>
+          <View style={styles.noteBox}>
+            <Text style={styles.noteTitle}>
+              Broker notes
+            </Text>
+            <Text style={styles.noteText}>
               {proposal.notes?.trim() ||
                 "No additional notes were included with this proposal."}
             </Text>
@@ -928,28 +942,6 @@ export function ProposalPdf({
               <Bullet text="Any service not listed in the final charter agreement." />
             </View>
           </View>
-
-          <View style={styles.signature}>
-            <View style={styles.signatureBlock}>
-              <Text style={styles.signatureLabel}>
-                Prepared by
-              </Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureLabel}>
-                {companyName}
-              </Text>
-            </View>
-
-            <View style={styles.signatureBlock}>
-              <Text style={styles.signatureLabel}>
-                Client acknowledgement
-              </Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureLabel}>
-                {proposal.client.name}
-              </Text>
-            </View>
-          </View>
         </View>
 
         <PdfFooter
@@ -958,6 +950,253 @@ export function ProposalPdf({
         />
       </Page>
     </Document>
+  );
+}
+
+function normalizeYachts(
+  proposal: ProposalPdfData
+): ProposalPdfYacht[] {
+  if (proposal.yachts.length > 0) {
+    return [...proposal.yachts]
+      .sort((left, right) => left.position - right.position)
+      .slice(0, 3);
+  }
+
+  if (!proposal.yacht) {
+    return [];
+  }
+
+  return [
+    {
+      id: null,
+      position: 1,
+      name: proposal.yacht.name,
+      weeklyRate:
+        proposal.commercial?.weeklyRate ?? null,
+      estimatedTotal:
+        proposal.commercial?.estimatedTotal ?? null,
+      currency:
+        proposal.commercial?.currency ?? "EUR",
+      availabilityStatus: "unverified",
+      verificationStatus: "not_checked",
+      accessType: null,
+      bookingModel: null,
+      brokerNote: null,
+      heroImageUrl: null,
+      yachtType: null,
+      builder: null,
+      model: null,
+      buildYear: null,
+      lengthMeters: null,
+      guestCapacity: null,
+      sleepingGuests: null,
+      cabinCount: null,
+      homePort: null,
+      cruisingRegions: [],
+    },
+  ];
+}
+
+function getYachtImage(
+  yacht: ProposalPdfYacht | undefined,
+  index: number
+): string | null {
+  const candidate = yacht?.heroImageUrl?.trim();
+
+  if (
+    candidate &&
+    (/^https?:\/\//i.test(candidate) ||
+      /^data:image\//i.test(candidate))
+  ) {
+    return candidate;
+  }
+
+  return (
+    fallbackImages[index % Math.max(fallbackImages.length, 1)] ??
+    fallbackImages[0] ??
+    null
+  );
+}
+
+function buildYachtMeta(
+  yacht: ProposalPdfYacht
+): string {
+  return [
+    yacht.yachtType,
+    yacht.lengthMeters !== null
+      ? `${formatNumber(yacht.lengthMeters)} m`
+      : null,
+    yacht.builder,
+    yacht.buildYear !== null
+      ? String(yacht.buildYear)
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ") || "Luxury charter yacht";
+}
+
+function availabilityLabel(
+  status: string | null
+): string {
+  const normalized =
+    status?.trim().toLowerCase() ?? "";
+
+  const labels: Record<string, string> = {
+    available: "Available",
+    subject_to_confirmation: "Subject to confirmation",
+    owner_approval_required: "Owner approval required",
+    unverified: "Subject to verification",
+    unavailable: "Unavailable",
+    provisional: "Provisional",
+    option: "Option",
+    booked: "Booked",
+  };
+
+  return labels[normalized] ?? "Subject to verification";
+}
+
+function availabilityDisclosure(
+  yacht: ProposalPdfYacht
+): string {
+  const status =
+    yacht.availabilityStatus?.trim().toLowerCase();
+
+  if (status === "available" && yacht.accessType === "controlled") {
+    return "The yacht is shown as available in the controlled fleet calendar for the requested charter period.";
+  }
+
+  if (
+    status === "owner_approval_required" ||
+    yacht.bookingModel === "owner_approval_required" ||
+    yacht.accessType === "managed"
+  ) {
+    return "Availability is presented subject to owner or Charter Manager approval. Final acceptance is not guaranteed until confirmed.";
+  }
+
+  if (
+    status === "subject_to_confirmation" ||
+    yacht.accessType === "broker_access"
+  ) {
+    return "Availability is subject to fresh Charter Manager confirmation before contract.";
+  }
+
+  if (status === "unavailable") {
+    return "This yacht is currently recorded as unavailable for the requested dates.";
+  }
+
+  return "Availability remains subject to verification and final charter acceptance.";
+}
+
+function AvailabilityStatus({
+  status,
+}: {
+  status: string | null;
+}) {
+  const normalized =
+    status?.trim().toLowerCase() ?? "";
+
+  const positive = normalized === "available";
+  const negative =
+    normalized === "unavailable" ||
+    normalized === "booked";
+  const warning =
+    normalized === "owner_approval_required" ||
+    normalized === "subject_to_confirmation" ||
+    normalized === "option" ||
+    normalized === "provisional";
+
+  return (
+    <View
+      style={[
+        styles.statusPill,
+        positive
+          ? styles.statusPositive
+          : negative
+            ? styles.statusNegative
+            : warning
+              ? styles.statusWarning
+              : {},
+      ]}
+    >
+      <Text
+        style={[
+          styles.statusText,
+          positive
+            ? styles.statusTextPositive
+            : negative
+              ? styles.statusTextNegative
+              : warning
+                ? styles.statusTextWarning
+                : {},
+        ]}
+      >
+        {availabilityLabel(status)}
+      </Text>
+    </View>
+  );
+}
+
+function ComparisonRow({
+  label,
+  values,
+  header = false,
+  final = false,
+}: {
+  label: string;
+  values: string[];
+  header?: boolean;
+  final?: boolean;
+}) {
+  return (
+    <View
+      style={
+        final
+          ? styles.comparisonRowFinal
+          : styles.comparisonRow
+      }
+    >
+      <View style={styles.comparisonLabelCell}>
+        <Text style={styles.comparisonHead}>
+          {label}
+        </Text>
+      </View>
+
+      {values.map((value, index) => (
+        <View
+          key={`${label}-${index}`}
+          style={styles.comparisonCell}
+        >
+          <Text
+            style={
+              header
+                ? styles.comparisonHead
+                : styles.comparisonValue
+            }
+          >
+            {value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function SpecCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.specCard}>
+      <Text style={styles.specLabel}>
+        {label}
+      </Text>
+      <Text style={styles.specValue}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -973,24 +1212,9 @@ function PdfHeader({
       <Text style={styles.headerBrand}>
         {companyName.toUpperCase()}
       </Text>
-      <Text style={styles.headerRef}>{reference}</Text>
-    </View>
-  );
-}
-
-function DarkPdfHeader({
-  companyName,
-  reference,
-}: {
-  companyName: string;
-  reference: string;
-}) {
-  return (
-    <View style={styles.featureHeader}>
-      <Text style={styles.featureHeaderBrand}>
-        {companyName.toUpperCase()}
+      <Text style={styles.headerRef}>
+        {reference}
       </Text>
-      <Text style={styles.featureHeaderRef}>{reference}</Text>
     </View>
   );
 }
@@ -1015,46 +1239,17 @@ function PdfFooter({
   );
 }
 
-function DarkPdfFooter({
-  companyName,
-  reference,
+function Bullet({
+  text,
 }: {
-  companyName: string;
-  reference: string;
+  text: string;
 }) {
-  return (
-    <View style={styles.darkFooter} fixed>
-      <Text>{companyName}</Text>
-      <Text>{reference}</Text>
-      <Text
-        render={({ pageNumber, totalPages }) =>
-          `${pageNumber} / ${totalPages}`
-        }
-      />
-    </View>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Bullet({ text }: { text: string }) {
   return (
     <View style={styles.bulletRow}>
       <Text style={styles.bullet}>•</Text>
-      <Text style={styles.bulletText}>{text}</Text>
+      <Text style={styles.bulletText}>
+        {text}
+      </Text>
     </View>
   );
 }
@@ -1063,7 +1258,10 @@ function formatCurrency(
   value: number | null,
   currency: string
 ): string {
-  if (value === null || !Number.isFinite(value)) {
+  if (
+    value === null ||
+    !Number.isFinite(value)
+  ) {
     return "Rate on request";
   }
 
@@ -1078,7 +1276,9 @@ function formatCurrency(
   }
 }
 
-function formatDate(value: string | null): string {
+function formatDate(
+  value: string | null
+): string {
   if (!value) {
     return "";
   }
@@ -1124,4 +1324,12 @@ function calculateNights(
   return Math.round(
     (end.getTime() - start.getTime()) / 86_400_000
   );
+}
+
+function formatNumber(
+  value: number
+): string {
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(1);
 }

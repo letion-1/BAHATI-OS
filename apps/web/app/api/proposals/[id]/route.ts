@@ -36,7 +36,7 @@ type ProposalRow = {
   status: string | null;
   company_id: string;
   assigned_to: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, unknown> | null;
   yacht_id: string | null;
   yacht_name: string | null;
   weekly_rate: number | null;
@@ -44,6 +44,26 @@ type ProposalRow = {
   proposal_pdf: string | null;
   proposal_created_at: string | null;
   proposal_sent_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type ProposalYachtRow = {
+  id: string;
+  proposal_id: string;
+  fleet_id: string | null;
+  position: number;
+  yacht_name: string;
+  weekly_rate: number | null;
+  estimated_total: number | null;
+  currency: string;
+  broker_note: string | null;
+  availability_status: string;
+  verification_status: string;
+  access_type: string | null;
+  calendar_authority: string | null;
+  booking_model: string | null;
+  snapshot: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -101,35 +121,7 @@ export async function GET(
     const proposalResult = await supabase
       .from("inquiries")
       .select(
-        [
-          "id",
-          "reference",
-          "client_name",
-          "email",
-          "phone",
-          "destination",
-          "start_date",
-          "end_date",
-          "guests",
-          "budget_min",
-          "budget_max",
-          "currency",
-          "preferences",
-          "source",
-          "status",
-          "company_id",
-          "assigned_to",
-          "metadata",
-          "yacht_id",
-          "yacht_name",
-          "weekly_rate",
-          "proposal_status",
-          "proposal_pdf",
-          "proposal_created_at",
-          "proposal_sent_at",
-          "created_at",
-          "updated_at",
-        ].join(",")
+        proposalSelect()
       )
       .eq("company_id", workspace.companyId)
       .eq("id", proposalId)
@@ -157,10 +149,20 @@ export async function GET(
     const proposal =
       proposalResult.data as unknown as ProposalRow;
 
+    const proposalYachts =
+      await loadProposalYachts(
+        supabase,
+        workspace.companyId,
+        proposal.id
+      );
+
     return NextResponse.json(
       {
         success: true,
-        proposal: serializeProposal(proposal),
+        proposal: serializeProposal(
+          proposal,
+          proposalYachts
+        ),
       },
       {
         status: 200,
@@ -217,15 +219,21 @@ export async function PATCH(
       );
     }
 
-    let body: { status?: unknown };
+    let body: {
+      status?: unknown;
+    };
 
     try {
-      body = (await request.json()) as { status?: unknown };
+      body =
+        (await request.json()) as {
+          status?: unknown;
+        };
     } catch {
       return NextResponse.json(
         {
           success: false,
-          error: "The request body must be valid JSON.",
+          error:
+            "The request body must be valid JSON.",
         },
         {
           status: 400,
@@ -233,13 +241,15 @@ export async function PATCH(
       );
     }
 
-    const status = normalizeRequestedStatus(body.status);
+    const status =
+      normalizeRequestedStatus(body.status);
 
     if (!status) {
       return NextResponse.json(
         {
           success: false,
-          error: "Select a valid proposal status.",
+          error:
+            "Select a valid proposal status.",
         },
         {
           status: 400,
@@ -247,7 +257,8 @@ export async function PATCH(
       );
     }
 
-    const now = new Date().toISOString();
+    const now =
+      new Date().toISOString();
 
     const updatePayload: {
       proposal_status: ProposalStatus;
@@ -259,11 +270,11 @@ export async function PATCH(
     };
 
     if (status === "Sent") {
-      updatePayload.proposal_sent_at = now;
-    }
-
-    if (status !== "Sent") {
-      updatePayload.proposal_sent_at = null;
+      updatePayload.proposal_sent_at =
+        now;
+    } else {
+      updatePayload.proposal_sent_at =
+        null;
     }
 
     const updateResult = await supabase
@@ -273,35 +284,7 @@ export async function PATCH(
       .eq("assigned_to", user.id)
       .eq("id", proposalId)
       .select(
-        [
-          "id",
-          "reference",
-          "client_name",
-          "email",
-          "phone",
-          "destination",
-          "start_date",
-          "end_date",
-          "guests",
-          "budget_min",
-          "budget_max",
-          "currency",
-          "preferences",
-          "source",
-          "status",
-          "company_id",
-          "assigned_to",
-          "metadata",
-          "yacht_id",
-          "yacht_name",
-          "weekly_rate",
-          "proposal_status",
-          "proposal_pdf",
-          "proposal_created_at",
-          "proposal_sent_at",
-          "created_at",
-          "updated_at",
-        ].join(",")
+        proposalSelect()
       )
       .maybeSingle();
 
@@ -315,7 +298,8 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          error: "Proposal not found or cannot be updated.",
+          error:
+            "Proposal not found or cannot be updated.",
         },
         {
           status: 404,
@@ -326,10 +310,20 @@ export async function PATCH(
     const proposal =
       updateResult.data as unknown as ProposalRow;
 
+    const proposalYachts =
+      await loadProposalYachts(
+        supabase,
+        workspace.companyId,
+        proposal.id
+      );
+
     return NextResponse.json(
       {
         success: true,
-        proposal: serializeProposal(proposal),
+        proposal: serializeProposal(
+          proposal,
+          proposalYachts
+        ),
       },
       {
         status: 200,
@@ -346,9 +340,114 @@ export async function PATCH(
   }
 }
 
-function serializeProposal(proposal: ProposalRow) {
-  const metadata = readRecord(proposal.metadata);
-  const commercial = readRecord(metadata.commercial);
+async function loadProposalYachts(
+  supabase: Awaited<
+    ReturnType<typeof createClient>
+  >,
+  companyId: string,
+  proposalId: string
+): Promise<ProposalYachtRow[]> {
+  const result = await supabase
+    .from("proposal_yachts")
+    .select(
+      [
+        "id",
+        "proposal_id",
+        "fleet_id",
+        "position",
+        "yacht_name",
+        "weekly_rate",
+        "estimated_total",
+        "currency",
+        "broker_note",
+        "availability_status",
+        "verification_status",
+        "access_type",
+        "calendar_authority",
+        "booking_model",
+        "snapshot",
+        "created_at",
+        "updated_at",
+      ].join(",")
+    )
+    .eq("company_id", companyId)
+    .eq("proposal_id", proposalId)
+    .order("position", {
+      ascending: true,
+    });
+
+  if (result.error) {
+    throw new Error(
+      `Could not load proposal yachts: ${result.error.message}`
+    );
+  }
+
+  return (
+    (result.data ??
+      []) as unknown as ProposalYachtRow[]
+  );
+}
+
+function proposalSelect(): string {
+  return [
+    "id",
+    "reference",
+    "client_name",
+    "email",
+    "phone",
+    "destination",
+    "start_date",
+    "end_date",
+    "guests",
+    "budget_min",
+    "budget_max",
+    "currency",
+    "preferences",
+    "source",
+    "status",
+    "company_id",
+    "assigned_to",
+    "metadata",
+    "yacht_id",
+    "yacht_name",
+    "weekly_rate",
+    "proposal_status",
+    "proposal_pdf",
+    "proposal_created_at",
+    "proposal_sent_at",
+    "created_at",
+    "updated_at",
+  ].join(",");
+}
+
+function serializeProposal(
+  proposal: ProposalRow,
+  proposalYachts: ProposalYachtRow[]
+) {
+  const metadata =
+    readRecord(proposal.metadata);
+
+  const commercial =
+    readRecord(metadata.commercial);
+
+  const serializedYachts =
+    proposalYachts.length > 0
+      ? [...proposalYachts]
+          .sort(
+            (left, right) =>
+              left.position -
+              right.position
+          )
+          .map(
+            serializeProposalYacht
+          )
+      : buildLegacyYachtFallback(
+          proposal,
+          commercial
+        );
+
+  const primary =
+    serializedYachts[0] ?? null;
 
   return {
     id: proposal.id,
@@ -360,35 +459,137 @@ function serializeProposal(proposal: ProposalRow) {
       phone: proposal.phone,
     },
 
+    // Kept for compatibility with current proposal pages.
     yacht: {
-      id: proposal.yacht_id,
-      name: proposal.yacht_name,
+      id:
+        primary?.fleetId ??
+        proposal.yacht_id,
+      name:
+        primary?.name ??
+        proposal.yacht_name,
     },
+
+    // New multi-yacht payload.
+    yachts: serializedYachts,
+    yachtCount:
+      serializedYachts.length,
 
     charter: {
       startDate: proposal.start_date,
       endDate: proposal.end_date,
       guests: proposal.guests,
-      destination: proposal.destination,
+      destination:
+        proposal.destination ??
+        readOptionalString(
+          readRecord(
+            metadata.charter
+          ).destination
+        ),
     },
 
     commercial: {
-      weeklyRate: proposal.weekly_rate,
+      weeklyRate:
+        primary?.weeklyRate ??
+        proposal.weekly_rate,
       estimatedTotal:
-        readNullableNumber(commercial.estimated_total) ??
+        primary?.estimatedTotal ??
+        readNullableNumber(
+          commercial.estimated_total
+        ) ??
         proposal.budget_max,
-      currency: proposal.currency ?? "EUR",
+      currency:
+        primary?.currency ??
+        proposal.currency ??
+        "EUR",
     },
 
     notes: proposal.preferences,
     source: proposal.source,
-    status: normalizeProposalStatus(proposal.proposal_status),
+    status:
+      normalizeProposalStatus(
+        proposal.proposal_status
+      ),
     pdfUrl: proposal.proposal_pdf,
     createdAt:
-      proposal.proposal_created_at ?? proposal.created_at,
-    sentAt: proposal.proposal_sent_at,
+      proposal.proposal_created_at ??
+      proposal.created_at,
+    sentAt:
+      proposal.proposal_sent_at,
     updatedAt: proposal.updated_at,
   };
+}
+
+function serializeProposalYacht(
+  yacht: ProposalYachtRow
+) {
+  return {
+    id: yacht.id,
+    fleetId: yacht.fleet_id,
+    position: yacht.position,
+    name: yacht.yacht_name,
+    weeklyRate: yacht.weekly_rate,
+    estimatedTotal:
+      yacht.estimated_total,
+    currency: yacht.currency,
+    brokerNote: yacht.broker_note,
+    availabilityStatus:
+      yacht.availability_status,
+    verificationStatus:
+      yacht.verification_status,
+    accessType:
+      yacht.access_type,
+    calendarAuthority:
+      yacht.calendar_authority,
+    bookingModel:
+      yacht.booking_model,
+    snapshot:
+      yacht.snapshot ?? {},
+  };
+}
+
+function buildLegacyYachtFallback(
+  proposal: ProposalRow,
+  commercial: Record<
+    string,
+    unknown
+  >
+) {
+  if (
+    !proposal.yacht_id &&
+    !proposal.yacht_name
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      id: null,
+      fleetId:
+        proposal.yacht_id,
+      position: 1,
+      name:
+        proposal.yacht_name ??
+        "Selected yacht",
+      weeklyRate:
+        proposal.weekly_rate,
+      estimatedTotal:
+        readNullableNumber(
+          commercial.estimated_total
+        ) ??
+        proposal.budget_max,
+      currency:
+        proposal.currency ?? "EUR",
+      brokerNote: null,
+      availabilityStatus:
+        "unverified",
+      verificationStatus:
+        "not_checked",
+      accessType: null,
+      calendarAuthority: null,
+      bookingModel: null,
+      snapshot: {},
+    },
+  ];
 }
 
 function normalizeRequestedStatus(
@@ -398,9 +599,13 @@ function normalizeRequestedStatus(
     return null;
   }
 
-  const normalized = value.trim().toLowerCase();
+  const normalized =
+    value.trim().toLowerCase();
 
-  const statuses: Record<string, ProposalStatus> = {
+  const statuses: Record<
+    string,
+    ProposalStatus
+  > = {
     draft: "Draft",
     ready: "Ready",
     sent: "Sent",
@@ -415,7 +620,10 @@ function normalizeRequestedStatus(
 function normalizeProposalStatus(
   value: string | null
 ): ProposalStatus {
-  return normalizeRequestedStatus(value) ?? "Draft";
+  return (
+    normalizeRequestedStatus(value) ??
+    "Draft"
+  );
 }
 
 function readRecord(
@@ -426,13 +634,31 @@ function readRecord(
     typeof value === "object" &&
     !Array.isArray(value)
   ) {
-    return value as Record<string, unknown>;
+    return value as Record<
+      string,
+      unknown
+    >;
   }
 
   return {};
 }
 
-function readNullableNumber(value: unknown): number | null {
+function readOptionalString(
+  value: unknown
+): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized =
+    value.trim();
+
+  return normalized || null;
+}
+
+function readNullableNumber(
+  value: unknown
+): number | null {
   if (
     typeof value === "number" &&
     Number.isFinite(value)
@@ -445,7 +671,10 @@ function readNullableNumber(value: unknown): number | null {
     value.trim().length > 0
   ) {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+
+    return Number.isFinite(parsed)
+      ? parsed
+      : null;
   }
 
   return null;
@@ -455,7 +684,11 @@ function handleRouteError(
   error: unknown,
   fallbackMessage: string
 ) {
-  if (isAuthenticationRequiredError(error)) {
+  if (
+    isAuthenticationRequiredError(
+      error
+    )
+  ) {
     return NextResponse.json(
       {
         success: false,
@@ -467,7 +700,9 @@ function handleRouteError(
     );
   }
 
-  if (isWorkspaceAccessError(error)) {
+  if (
+    isWorkspaceAccessError(error)
+  ) {
     return NextResponse.json(
       {
         success: false,
@@ -480,9 +715,14 @@ function handleRouteError(
   }
 
   const message =
-    error instanceof Error ? error.message : fallbackMessage;
+    error instanceof Error
+      ? error.message
+      : fallbackMessage;
 
-  console.error("Proposal detail API error:", error);
+  console.error(
+    "Proposal detail API error:",
+    error
+  );
 
   return NextResponse.json(
     {
