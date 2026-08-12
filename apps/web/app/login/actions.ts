@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  provisionWorkspaceForUser,
+} from "@/lib/workspace/provision-workspace";
 
 type LoginActionState = {
   status: "idle" | "error";
@@ -66,6 +69,23 @@ export async function login(
       signInError?.message
     );
 
+    const normalizedMessage =
+      (
+        signInError?.message ?? ""
+      ).toLowerCase();
+
+    if (
+      normalizedMessage.includes(
+        "email not confirmed"
+      )
+    ) {
+      return {
+        status: "error",
+        message:
+          "Your email address has not been confirmed yet. Open the latest Yacht OS confirmation email before signing in.",
+      };
+    }
+
     return {
       status: "error",
       message:
@@ -102,19 +122,59 @@ export async function login(
     };
   }
 
-  const membership =
+  let membership =
     (
       membershipData ?? []
     )[0] as MembershipRow | undefined;
 
   if (!membership?.company_id) {
-    await supabase.auth.signOut();
+    const metadata =
+      isRecord(
+        signInData.user.user_metadata
+      )
+        ? signInData.user.user_metadata
+        : {};
 
-    return {
-      status: "error",
-      message:
-        "This account is not connected to a Yacht OS company workspace yet.",
-    };
+    const companyName =
+      readMetadataString(
+        metadata,
+        "pending_company_name"
+      );
+
+    try {
+      const provisioned =
+        await provisionWorkspaceForUser({
+          userId: signInData.user.id,
+          email: signInData.user.email,
+          companyName,
+        });
+
+      membership = {
+        company_id:
+          provisioned.companyId,
+        created_at:
+          new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error(
+        "Could not repair missing Yacht OS workspace:",
+        error
+      );
+
+      await supabase.auth.signOut();
+
+      return {
+        status: "error",
+        message:
+          "Your account is verified, but Yacht OS could not finish creating its company workspace. Please try again.",
+      };
+    }
+
+    redirect(
+      `/onboarding?next=${encodeURIComponent(
+        nextPath
+      )}`
+    );
   }
 
   const {
@@ -125,7 +185,10 @@ export async function login(
     .select(
       "onboarding_completed_at, operating_model"
     )
-    .eq("id", membership.company_id)
+    .eq(
+      "id",
+      membership.company_id
+    )
     .maybeSingle();
 
   if (companyError) {
@@ -169,7 +232,9 @@ function readString(
     : "";
 }
 
-function isValidEmail(value: string) {
+function isValidEmail(
+  value: string
+) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
     value
   );
@@ -183,10 +248,39 @@ function normalizeNextPath(
     value.startsWith("/") &&
     !value.startsWith("//") &&
     !value.startsWith("/login") &&
+    !value.startsWith("/sign-up") &&
+    !value.startsWith("/auth/") &&
     !value.startsWith("/onboarding")
   ) {
     return value;
   }
 
   return "/";
+}
+
+function isRecord(
+  value: unknown
+): value is Record<
+  string,
+  unknown
+> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
+
+function readMetadataString(
+  record: Record<
+    string,
+    unknown
+  >,
+  key: string
+) {
+  const value = record[key];
+
+  return typeof value === "string"
+    ? value.trim()
+    : null;
 }

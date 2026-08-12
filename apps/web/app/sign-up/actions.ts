@@ -1,7 +1,9 @@
 ﻿"use server";
 
 import { redirect } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   provisionWorkspaceForUser,
@@ -34,7 +36,10 @@ export async function signUp(
     formData.get("confirmPassword")
   );
 
-  const fieldErrors: Record<string, string> = {};
+  const fieldErrors: Record<
+    string,
+    string
+  > = {};
 
   if (companyName.length < 2) {
     fieldErrors.companyName =
@@ -56,12 +61,40 @@ export async function signUp(
       "The passwords do not match.";
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
+  if (
+    Object.keys(fieldErrors).length >
+    0
+  ) {
     return {
       status: "error",
       message:
         "Check the highlighted account details.",
       fieldErrors,
+    };
+  }
+
+  const existingUser =
+    await findAuthUserByEmail(email);
+
+  if (existingUser) {
+    const isConfirmed =
+      Boolean(
+        existingUser.email_confirmed_at
+      ) ||
+      Boolean(
+        existingUser.confirmed_at
+      );
+
+    return {
+      status: "error",
+      message: isConfirmed
+        ? "A Yacht OS account already exists with this email. Sign in instead."
+        : "An account already exists with this email and is waiting for email confirmation. Open the latest confirmation email before signing in.",
+      fieldErrors: {
+        email: isConfirmed
+          ? "Account already exists."
+          : "Confirmation is still pending.",
+      },
     };
   }
 
@@ -91,22 +124,25 @@ export async function signUp(
       error.message
     );
 
+    const normalizedMessage =
+      error.message.toLowerCase();
+
     return {
       status: "error",
       message:
         error.status === 429
           ? "Too many signup attempts. Wait a moment and try again."
-          : "Yacht OS could not create the account. Check the details and try again.",
+          : normalizedMessage.includes(
+                "already registered"
+              ) ||
+              normalizedMessage.includes(
+                "already exists"
+              )
+            ? "A Yacht OS account already exists with this email. Sign in instead."
+            : "Yacht OS could not create the account. Check the details and try again.",
     };
   }
 
-  /*
-   * Hosted production has email confirmation enabled, so normally
-   * signUp returns a user with no session.
-   *
-   * This branch keeps local/dev projects working if confirmation
-   * has intentionally been disabled.
-   */
   if (data.user && data.session) {
     await provisionWorkspaceForUser({
       userId: data.user.id,
@@ -115,7 +151,9 @@ export async function signUp(
       companyName,
     });
 
-    redirect("/onboarding?next=%2F");
+    redirect(
+      "/onboarding?next=%2F"
+    );
   }
 
   return {
@@ -124,6 +162,61 @@ export async function signUp(
       "Check your inbox and confirm your email address to finish creating your Yacht OS workspace.",
     email,
   };
+}
+
+async function findAuthUserByEmail(
+  email: string
+): Promise<User | null> {
+  const admin =
+    createAdminClient();
+
+  const target =
+    email.trim().toLowerCase();
+
+  const perPage = 1000;
+  let page = 1;
+
+  while (page <= 100) {
+    const {
+      data,
+      error,
+    } =
+      await admin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+
+    if (error) {
+      console.error(
+        "Could not inspect existing Supabase Auth users:",
+        error.message
+      );
+
+      return null;
+    }
+
+    const found =
+      data.users.find(
+        (user) =>
+          user.email
+            ?.trim()
+            .toLowerCase() === target
+      );
+
+    if (found) {
+      return found;
+    }
+
+    if (
+      data.users.length < perPage
+    ) {
+      return null;
+    }
+
+    page += 1;
+  }
+
+  return null;
 }
 
 function readString(
