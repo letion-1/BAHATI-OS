@@ -44,13 +44,13 @@ import {
 } from "@/components/app-shell/notifications-panel";
 
 import {
+  WorkspaceUserIdentity,
+} from "@/components/app-shell/workspace-user-identity";
+
+import {
   ThemeToggle,
 } from "@/components/theme-toggle";
 
-import {
-  Avatar,
-  AvatarFallback,
-} from "@/components/ui/avatar";
 
 import {
   Button,
@@ -245,25 +245,7 @@ function SidebarFooter({
       </Link>
 
       <div className="mt-4 rounded-2xl border border-sidebar-border bg-card/60 p-3 shadow-sm backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarFallback className="bg-secondary text-secondary-foreground">
-              LK
-            </AvatarFallback>
-          </Avatar>
-
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
-              Letion
-              Ketienya
-            </p>
-
-            <p className="truncate text-xs text-muted-foreground">
-              Workspace
-              owner
-            </p>
-          </div>
-        </div>
+        <WorkspaceUserIdentity />
 
         <form
           action={
@@ -574,6 +556,3 @@ export function AppShell({
     </div>
   );
 }
-
-
-
