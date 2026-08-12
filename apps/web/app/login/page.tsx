@@ -1,4 +1,4 @@
-import {
+﻿import {
   Anchor,
   Database,
   ShieldCheck,
@@ -79,7 +79,7 @@ export default async function LoginPage({
           </div>
 
           <p className="text-xs text-muted-foreground/70">
-            Intrigue Studios · Yacht OS
+            Intrigue Studios Â· Yacht OS
           </p>
         </section>
 
@@ -192,5 +192,5 @@ function normalizeNextPath(
     return candidate;
   }
 
-  return "/availability";
+  return "/";
 }

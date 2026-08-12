@@ -1,4 +1,4 @@
-import {
+﻿import {
   Anchor,
   Building2,
   Compass,
@@ -272,5 +272,5 @@ function normalizeNextPath(
     return candidate;
   }
 
-  return "/availability";
+  return "/";
 }

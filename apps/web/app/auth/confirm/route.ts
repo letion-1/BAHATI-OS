@@ -1,4 +1,8 @@
-﻿import { NextResponse } from "next/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
+import {
+  type NextRequest,
+  NextResponse,
+} from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -9,36 +13,28 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  request: Request
+  request: NextRequest
 ) {
-  const url = new URL(request.url);
-  const origin = url.origin;
+  const { searchParams, origin } =
+    new URL(request.url);
 
-  const code =
-    url.searchParams.get("code");
+  const tokenHash =
+    searchParams.get("token_hash");
 
-  const providerError =
-    url.searchParams.get(
-      "error_description"
-    ) ??
-    url.searchParams.get("error");
+  const type =
+    searchParams.get(
+      "type"
+    ) as EmailOtpType | null;
 
   const next =
     normalizeNextPath(
-      url.searchParams.get("next")
+      searchParams.get("next")
     );
 
-  if (providerError) {
+  if (!tokenHash || !type) {
     return redirectToSignupError(
       origin,
-      providerError
-    );
-  }
-
-  if (!code) {
-    return redirectToSignupError(
-      origin,
-      "The verification link is missing its authentication code. Request a new signup email and try again."
+      "The verification link is missing required confirmation details."
     );
   }
 
@@ -46,15 +42,17 @@ export async function GET(
     await createClient();
 
   const {
-    error: exchangeError,
+    error: verifyError,
   } =
-    await supabase.auth
-      .exchangeCodeForSession(code);
+    await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type,
+    });
 
-  if (exchangeError) {
+  if (verifyError) {
     console.error(
-      "Supabase signup callback exchange failed:",
-      exchangeError.message
+      "Supabase email verification failed:",
+      verifyError.message
     );
 
     return redirectToSignupError(
@@ -69,10 +67,7 @@ export async function GET(
   } =
     await supabase.auth.getUser();
 
-  if (
-    userError ||
-    !user
-  ) {
+  if (userError || !user) {
     console.error(
       "Verified signup user could not be loaded:",
       userError?.message
@@ -150,7 +145,8 @@ function normalizeNextPath(
     !value.startsWith("//") &&
     !value.startsWith("/login") &&
     !value.startsWith("/sign-up") &&
-    !value.startsWith("/auth/")
+    !value.startsWith("/auth/") &&
+    !value.startsWith("/onboarding")
   ) {
     return value;
   }

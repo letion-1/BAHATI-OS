@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -76,7 +76,7 @@ export async function signUp(
       options: {
         emailRedirectTo:
           `${origin}/auth/callback?next=${encodeURIComponent(
-            "/availability"
+            "/"
           )}`,
         data: {
           pending_company_name:

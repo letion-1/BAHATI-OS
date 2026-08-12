@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -284,5 +284,5 @@ function normalizeNextPath(
     return value;
   }
 
-  return "/availability";
+  return "/";
 }
