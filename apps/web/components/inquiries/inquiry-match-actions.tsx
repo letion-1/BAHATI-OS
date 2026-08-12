@@ -269,7 +269,10 @@ export function InquiryMatchActions({
   const [contacts, setContacts] = useState<ManagerContact[]>([]);
   const [accessProfiles, setAccessProfiles] =
     useState<YachtAccessProfile[]>([]);
-  const [selectedYachtId, setSelectedYachtId] =
+  const [selectedYachtIds, setSelectedYachtIds] =
+    useState<string[]>([]);
+
+  const [selectionNotice, setSelectionNotice] =
     useState<string | null>(null);
 
   const [editor, setEditor] =
@@ -355,13 +358,25 @@ export function InquiryMatchActions({
     };
   }, [isOpen]);
 
-  const selectedMatch = useMemo(
+  const selectedMatches = useMemo(
     () =>
-      matches.find(
-        (match) => match.yacht.id === selectedYachtId
-      ) ?? null,
-    [matches, selectedYachtId]
+      selectedYachtIds
+        .map(
+          (yachtId) =>
+            matches.find(
+              (match) =>
+                match.yacht.id === yachtId
+            ) ?? null
+        )
+        .filter(
+          (match): match is YachtMatch =>
+            match !== null
+        ),
+    [matches, selectedYachtIds]
   );
+
+  const selectedMatch =
+    selectedMatches[0] ?? null;
 
   const checksByYacht = useMemo(() => {
     const map =
@@ -425,7 +440,8 @@ export function InquiryMatchActions({
 
     setIsLoading(true);
     setError(null);
-    setSelectedYachtId(null);
+    setSelectedYachtIds([]);
+    setSelectionNotice(null);
 
     try {
       const availabilityParams = new URLSearchParams({
@@ -643,10 +659,11 @@ export function InquiryMatchActions({
         editorStatus === "booked" ||
         editorStatus === "unavailable"
       ) {
-        setSelectedYachtId((current) =>
-          current === editor.yachtId
-            ? null
-            : current
+        setSelectedYachtIds((current) =>
+          current.filter(
+            (yachtId) =>
+              yachtId !== editor.yachtId
+          )
         );
       }
 
@@ -787,10 +804,11 @@ export function InquiryMatchActions({
       if (
         !payload.profile.clientProposalPermission
       ) {
-        setSelectedYachtId((current) =>
-          current === yachtId
-            ? null
-            : current
+        setSelectedYachtIds((current) =>
+          current.filter(
+            (selectedId) =>
+              selectedId !== yachtId
+          )
         );
       }
 
@@ -1044,28 +1062,72 @@ export function InquiryMatchActions({
       return;
     }
 
-    setSelectedYachtId(match.yacht.id);
-  }
+    const accessProfile =
+      accessByYacht.get(match.yacht.id) ??
+      null;
 
-  function buildProposal() {
-    if (!selectedMatch) {
+    const accessPolicy =
+      getAccessPolicy(accessProfile);
+
+    if (!accessPolicy.clientProposalAllowed) {
       return;
     }
 
+    setSelectedYachtIds((current) => {
+      const alreadySelected =
+        current.includes(match.yacht.id);
+
+      if (alreadySelected) {
+        setSelectionNotice(null);
+
+        return current.filter(
+          (yachtId) =>
+            yachtId !== match.yacht.id
+        );
+      }
+
+      if (current.length >= 3) {
+        setSelectionNotice(
+          "A client proposal can contain up to 3 yachts. Remove one from the shortlist before adding another."
+        );
+
+        return current;
+      }
+
+      setSelectionNotice(null);
+
+      return [
+        ...current,
+        match.yacht.id,
+      ];
+    });
+  }
+
+  function buildProposal() {
+    if (selectedMatches.length === 0) {
+      return;
+    }
+
+    const primaryMatch =
+      selectedMatches[0];
+
     const params = new URLSearchParams({
       inquiryId: inquiry.id,
-      yachtId: selectedMatch.yacht.id,
-      yachtName: selectedMatch.yacht.name,
+      yachtIds: selectedMatches
+        .map((match) => match.yacht.id)
+        .join(","),
+      yachtId: primaryMatch.yacht.id,
+      yachtName: primaryMatch.yacht.name,
       currency:
-        selectedMatch.currency ||
+        primaryMatch.currency ||
         inquiry.currency ||
         "EUR",
     });
 
-    if (selectedMatch.weeklyRate !== null) {
+    if (primaryMatch.weeklyRate !== null) {
       params.set(
         "weeklyRate",
-        String(selectedMatch.weeklyRate)
+        String(primaryMatch.weeklyRate)
       );
     }
 
@@ -1225,7 +1287,22 @@ export function InquiryMatchActions({
                   !accessPolicy.clientProposalAllowed;
 
                 const isSelected =
-                  selectedYachtId === match.yacht.id;
+                  selectedYachtIds.includes(
+                    match.yacht.id
+                  );
+
+                const shortlistPosition =
+                  selectedYachtIds.indexOf(
+                    match.yacht.id
+                  ) + 1;
+
+                const shortlistFull =
+                  selectedYachtIds.length >= 3;
+
+                const selectionDisabled =
+                  blocked ||
+                  (!isSelected &&
+                    shortlistFull);
 
                 const needsManagerConfirmation =
                   accessPolicy.alwaysRequireApproval
@@ -1279,8 +1356,11 @@ export function InquiryMatchActions({
                           )}
 
                           {isSelected ? (
-                            <span className="absolute inset-0 flex items-center justify-center bg-cyan-950/65 text-white">
-                              <Check className="size-6" />
+                            <span className="absolute inset-0 flex flex-col items-center justify-center bg-cyan-950/65 text-white">
+                              <Check className="size-5" />
+                              <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.12em]">
+                                {shortlistPosition}/3
+                              </span>
                             </span>
                           ) : null}
                         </div>
@@ -1688,7 +1768,7 @@ export function InquiryMatchActions({
 
                         <button
                           type="button"
-                          disabled={blocked}
+                          disabled={selectionDisabled}
                           onClick={() => selectYacht(match)}
                           className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-4 text-xs font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 sm:col-span-2"
                         >
@@ -1697,10 +1777,12 @@ export function InquiryMatchActions({
                             : blocked
                               ? "Do not offer"
                               : isSelected
-                                ? "Selected"
-                                : accessPolicy.controlled
-                                  ? "Select controlled yacht"
-                                  : "Select yacht"}
+                                ? `Shortlist ${shortlistPosition}/3 · Remove`
+                                : shortlistFull
+                                  ? "Shortlist full · 3/3"
+                                  : accessPolicy.controlled
+                                    ? "Add controlled yacht to shortlist"
+                                    : "Add yacht to shortlist"}
                         </button>
                       </div>
 
@@ -2173,16 +2255,27 @@ export function InquiryMatchActions({
         <div className="flex flex-col gap-3 border-t border-border bg-card/90 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">
-              {selectedMatch
-                ? "Selected yacht"
+              {selectedMatches.length > 0
+                ? `${selectedMatches.length} of 3 yachts selected`
                 : `${matches.length} matching yacht${
                     matches.length === 1 ? "" : "s"
                   }`}
             </p>
 
-            {selectedMatch ? (
+            {selectedMatches.length > 0 ? (
               <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                {selectedMatch.yacht.name}
+                {selectedMatches
+                  .map(
+                    (match) =>
+                      match.yacht.name
+                  )
+                  .join(" · ")}
+              </p>
+            ) : null}
+
+            {selectionNotice ? (
+              <p className="mt-1 text-[11px] leading-4 text-amber-700 dark:text-amber-300">
+                {selectionNotice}
               </p>
             ) : null}
           </div>
@@ -2204,13 +2297,19 @@ export function InquiryMatchActions({
             <button
               type="button"
               onClick={buildProposal}
-              disabled={!selectedMatch}
+              disabled={
+                selectedMatches.length === 0
+              }
               className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
             >
               <FileText className="size-4" />
-              {selectedMatch
-                ? `Build proposal for ${selectedMatch.yacht.name}`
-                : "Select a yacht first"}
+              {selectedMatches.length > 0
+                ? `Build proposal with ${selectedMatches.length} yacht${
+                    selectedMatches.length === 1
+                      ? ""
+                      : "s"
+                  }`
+                : "Select up to 3 yachts"}
             </button>
           </div>
         </div>
@@ -2234,13 +2333,19 @@ export function InquiryMatchActions({
       <button
         type="button"
         onClick={buildProposal}
-        disabled={!selectedMatch}
+        disabled={
+          selectedMatches.length === 0
+        }
         className="ui-secondary-button apple-transition flex min-h-12 w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold hover:bg-accent disabled:cursor-not-allowed disabled:opacity-35"
       >
         <FileText className="size-4" />
-        {selectedMatch
-          ? `Build proposal for ${selectedMatch.yacht.name}`
-          : "Select a yacht to build proposal"}
+        {selectedMatches.length > 0
+          ? `Build proposal with ${selectedMatches.length} yacht${
+              selectedMatches.length === 1
+                ? ""
+                : "s"
+            }`
+          : "Select up to 3 yachts to build proposal"}
       </button>
 
       {portalReady && matcherModal
@@ -3340,4 +3445,4 @@ function formatDateRange(
   )} – ${formatShortDate(
     endDate
   )}`;
-} 
+}
