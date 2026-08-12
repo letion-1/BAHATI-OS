@@ -359,7 +359,7 @@ export default function FleetPage() {
             onChange={(value) => setSort(value as SortOption)}
             ariaLabel="Sort yachts"
           >
-            <option value="name">Name Aâ€“Z</option>
+            <option value="name">Name A-Z</option>
             <option value="status">Status</option>
             <option value="availability">Next availability</option>
             <option value="rate-low">Rate: low to high</option>
@@ -501,7 +501,7 @@ function YachtCard({
             className="apple-transition inline-flex items-center gap-2 text-sm font-semibold text-cyan-700 hover:opacity-75 dark:text-cyan-300"
           >
             Open yacht
-            <span className="transition group-hover:translate-x-1">â†’</span>
+            <span className="transition group-hover:translate-x-1">→</span>
           </Link>
         </div>
       </div>
@@ -762,7 +762,7 @@ function formatDateRange(
   return `${start.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
-  })} â€“ ${end.toLocaleDateString("en-GB", {
+  })} – ${end.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",

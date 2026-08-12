@@ -79,7 +79,7 @@ export default async function LoginPage({
           </div>
 
           <p className="text-xs text-muted-foreground/70">
-            Intrigue Studios Â· Yacht OS
+            Intrigue Studios · Yacht OS
           </p>
         </section>
 

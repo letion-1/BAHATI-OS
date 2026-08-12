@@ -3340,4 +3340,4 @@ function formatDateRange(
   )} – ${formatShortDate(
     endDate
   )}`;
-}
+} 
