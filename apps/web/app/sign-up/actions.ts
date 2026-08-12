@@ -1,6 +1,5 @@
 ﻿"use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -66,18 +65,17 @@ export async function signUp(
     };
   }
 
-  const supabase = await createClient();
-  const origin = await getRequestOrigin();
+  const supabase =
+    await createClient();
 
-  const { data, error } =
+  const {
+    data,
+    error,
+  } =
     await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo:
-          `${origin}/auth/callback?next=${encodeURIComponent(
-            "/"
-          )}`,
         data: {
           pending_company_name:
             companyName,
@@ -102,8 +100,13 @@ export async function signUp(
     };
   }
 
-  // Supabase normally returns no session while email confirmation is enabled.
-  // If confirmation is disabled in a development environment, provision now.
+  /*
+   * Hosted production has email confirmation enabled, so normally
+   * signUp returns a user with no session.
+   *
+   * This branch keeps local/dev projects working if confirmation
+   * has intentionally been disabled.
+   */
   if (data.user && data.session) {
     await provisionWorkspaceForUser({
       userId: data.user.id,
@@ -112,7 +115,7 @@ export async function signUp(
       companyName,
     });
 
-    redirect("/onboarding");
+    redirect("/onboarding?next=%2F");
   }
 
   return {
@@ -121,49 +124,6 @@ export async function signUp(
       "Check your inbox and confirm your email address to finish creating your Yacht OS workspace.",
     email,
   };
-}
-
-async function getRequestOrigin() {
-  const requestHeaders =
-    await headers();
-
-  const forwardedHost =
-    requestHeaders
-      .get("x-forwarded-host")
-      ?.split(",")[0]
-      ?.trim();
-
-  const host =
-    forwardedHost ||
-    requestHeaders.get("host")?.trim();
-
-  const forwardedProto =
-    requestHeaders
-      .get("x-forwarded-proto")
-      ?.split(",")[0]
-      ?.trim();
-
-  if (host) {
-    const protocol =
-      forwardedProto ||
-      (host.startsWith("localhost") ||
-      host.startsWith("127.0.0.1")
-        ? "http"
-        : "https");
-
-    return `${protocol}://${host}`;
-  }
-
-  const configured =
-    process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (configured) {
-    return configured.replace(/\/+$/, "");
-  }
-
-  throw new Error(
-    "Could not resolve the Yacht OS application URL."
-  );
 }
 
 function readString(
