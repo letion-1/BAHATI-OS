@@ -227,7 +227,7 @@ export function NotificationsPanel() {
         onClick={() =>
           setIsOpen((current) => !current)
         }
-        className="relative hidden size-9 items-center justify-center rounded-md border border-white/10 bg-transparent text-zinc-300 transition hover:bg-white/5 hover:text-white sm:inline-flex"
+        className="relative hidden size-9 items-center justify-center rounded-md border border-border bg-card/50 text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white sm:inline-flex"
         aria-label="Open notifications"
         title="Notifications"
       >
@@ -243,13 +243,13 @@ export function NotificationsPanel() {
       </button>
 
       {isOpen ? (
-        <section className="absolute right-0 top-12 z-50 w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f16] shadow-2xl shadow-black/60">
-          <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] p-4">
+        <section className="ui-panel absolute right-0 top-12 z-50 w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card/95 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0f16] dark:shadow-2xl dark:shadow-black/60">
+          <div className="flex items-center justify-between gap-4 border-b border-border p-4 dark:border-white/[0.08]">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-400">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
                 Workspace alerts
               </p>
-              <h2 className="mt-1 font-semibold">
+              <h2 className="mt-1 font-semibold text-foreground dark:text-white">
                 Notifications
               </h2>
             </div>
@@ -259,7 +259,7 @@ export function NotificationsPanel() {
                 type="button"
                 onClick={() => void markAllRead()}
                 disabled={unreadCount === 0}
-                className="flex size-9 items-center justify-center rounded-lg border border-white/[0.08] text-slate-500 transition hover:bg-white/[0.04] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:text-slate-500 dark:hover:bg-white/[0.04] dark:hover:text-white"
                 aria-label="Mark all read"
                 title="Mark all read"
               >
@@ -269,7 +269,7 @@ export function NotificationsPanel() {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="flex size-9 items-center justify-center rounded-lg border border-white/[0.08] text-slate-500 transition hover:bg-white/[0.04] hover:text-white"
+                className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/[0.08] dark:text-slate-500 dark:hover:bg-white/[0.04] dark:hover:text-white"
                 aria-label="Close notifications"
               >
                 <X className="size-4" />
@@ -285,7 +285,7 @@ export function NotificationsPanel() {
                   (_, index) => (
                     <div
                       key={index}
-                      className="h-24 animate-pulse rounded-xl bg-white/[0.04]"
+                      className="h-24 animate-pulse rounded-xl bg-muted/70 dark:bg-white/[0.04]"
                     />
                   )
                 )}
@@ -293,7 +293,7 @@ export function NotificationsPanel() {
             ) : null}
 
             {error ? (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-100">
                 {error}
               </div>
             ) : null}
@@ -301,12 +301,12 @@ export function NotificationsPanel() {
             {!isLoading &&
             !error &&
             notifications.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-5 py-12 text-center">
-                <Bell className="mx-auto size-5 text-slate-600" />
-                <p className="mt-4 text-sm font-semibold text-slate-300">
+              <div className="rounded-xl border border-dashed border-border bg-background/45 px-5 py-12 text-center dark:border-white/10 dark:bg-black/20">
+                <Bell className="mx-auto size-5 text-muted-foreground dark:text-slate-600" />
+                <p className="mt-4 text-sm font-semibold text-foreground dark:text-slate-300">
                   You’re all caught up
                 </p>
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-muted-foreground dark:text-slate-600">
                   New inquiry, proposal and system
                   alerts will appear here.
                 </p>
@@ -333,7 +333,7 @@ export function NotificationsPanel() {
             </div>
           </div>
 
-          <div className="border-t border-white/[0.08] px-4 py-3 text-xs text-slate-700">
+          <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground dark:border-white/[0.08] dark:text-slate-700">
             Refreshes automatically every minute
           </div>
         </section>
@@ -355,14 +355,14 @@ function NotificationCard({
     <div
       className={`rounded-xl border p-4 transition ${
         notification.readAt
-          ? "border-white/[0.05] bg-black/20"
-          : "border-sky-400/20 bg-sky-400/[0.06]"
+          ? "border-border bg-background/45 dark:border-white/[0.05] dark:bg-black/20"
+          : "border-cyan-500/25 bg-cyan-500/[0.07] dark:border-sky-400/20 dark:bg-sky-400/[0.06]"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-400">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
               {humanize(notification.type)}
             </p>
 
@@ -371,17 +371,17 @@ function NotificationCard({
             />
           </div>
 
-          <h3 className="mt-2 text-sm font-semibold text-white">
+          <h3 className="mt-2 text-sm font-semibold text-foreground dark:text-white">
             {notification.title}
           </h3>
 
           {notification.message ? (
-            <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-500">
+            <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground dark:text-slate-500">
               {notification.message}
             </p>
           ) : null}
 
-          <p className="mt-3 text-[11px] text-slate-700">
+          <p className="mt-3 text-[11px] text-muted-foreground dark:text-slate-700">
             {formatRelativeTime(
               notification.createdAt
             )}
@@ -395,7 +395,7 @@ function NotificationCard({
             event.stopPropagation();
             onDelete();
           }}
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-700 transition hover:bg-red-500/10 hover:text-red-300"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-red-500/10 hover:text-red-700 dark:text-slate-700 dark:hover:text-red-300"
           aria-label="Delete notification"
           title="Delete notification"
         >
@@ -442,8 +442,8 @@ function PriorityBadge({
 
   const classes =
     priority === "critical"
-      ? "border-red-400/20 bg-red-400/10 text-red-300"
-      : "border-amber-400/20 bg-amber-400/10 text-amber-300";
+      ? "border-red-500/20 bg-red-500/10 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-300"
+      : "border-amber-500/20 bg-amber-500/10 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300";
 
   return (
     <span

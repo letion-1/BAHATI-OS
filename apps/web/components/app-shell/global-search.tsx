@@ -238,7 +238,7 @@ export function GlobalSearch() {
         onClick={() =>
           setIsOpen(true)
         }
-        className="hidden size-9 items-center justify-center rounded-md border border-white/10 bg-transparent text-zinc-300 transition hover:bg-white/5 hover:text-white sm:inline-flex"
+        className="hidden size-9 items-center justify-center rounded-md border border-border bg-card/50 text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white sm:inline-flex"
         aria-label="Open global search"
         title="Search (Ctrl+K)"
       >
@@ -247,7 +247,7 @@ export function GlobalSearch() {
 
       {isOpen ? (
         <div
-          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/80 px-4 py-16 backdrop-blur-sm sm:py-20"
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-foreground/20 px-4 py-16 backdrop-blur-sm dark:bg-black/80 sm:py-20"
           onMouseDown={(
             event
           ) => {
@@ -263,10 +263,10 @@ export function GlobalSearch() {
             role="dialog"
             aria-modal="true"
             aria-label="Global search"
-            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f16] shadow-2xl shadow-black/60"
+            className="ui-panel w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card/95 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0f16] dark:shadow-2xl dark:shadow-black/60"
           >
-            <div className="flex items-center gap-3 border-b border-white/[0.08] p-4">
-              <Search className="size-5 shrink-0 text-slate-500" />
+            <div className="flex items-center gap-3 border-b border-border p-4 dark:border-white/[0.08]">
+              <Search className="size-5 shrink-0 text-muted-foreground dark:text-slate-500" />
 
               <input
                 ref={inputRef}
@@ -279,18 +279,18 @@ export function GlobalSearch() {
                   )
                 }
                 placeholder="Search anything in the workspace..."
-                className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-700"
+                className="h-11 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60 dark:text-white dark:placeholder:text-slate-700"
                 aria-label="Search workspace"
               />
 
-              <div className="hidden rounded-md border border-white/[0.08] bg-black/20 px-2 py-1 text-[10px] font-semibold text-slate-600 sm:block">
+              <div className="hidden rounded-md border border-border bg-background/55 px-2 py-1 text-[10px] font-semibold text-muted-foreground dark:border-white/[0.08] dark:bg-black/20 dark:text-slate-600 sm:block">
                 Ctrl K
               </div>
 
               <button
                 type="button"
                 onClick={closeSearch}
-                className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] text-slate-500 transition hover:bg-white/[0.04] hover:text-white"
+                className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/[0.08] dark:text-slate-500 dark:hover:bg-white/[0.04] dark:hover:text-white"
                 aria-label="Close search"
               >
                 <X className="size-4" />
@@ -309,7 +309,7 @@ export function GlobalSearch() {
               ) : null}
 
               {error ? (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-700 dark:text-red-100">
                   {error}
                 </div>
               ) : null}
@@ -332,11 +332,11 @@ export function GlobalSearch() {
                 0 ? (
                 <div className="space-y-2">
                   <div className="mb-3 flex items-center justify-between px-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground dark:text-slate-700">
                       Search results
                     </p>
 
-                    <span className="text-xs text-slate-600">
+                    <span className="text-xs text-muted-foreground dark:text-slate-600">
                       {
                         results.length
                       }{" "}
@@ -367,7 +367,7 @@ export function GlobalSearch() {
               warnings.length >
                 0 ? (
                 <details className="mt-4 rounded-xl border border-amber-500/15 bg-amber-500/[0.05] p-4">
-                  <summary className="cursor-pointer text-xs font-semibold text-amber-200">
+                  <summary className="cursor-pointer text-xs font-semibold text-amber-800 dark:text-amber-200">
                     Some sources
                     could not be
                     searched
@@ -381,7 +381,7 @@ export function GlobalSearch() {
                       ) => (
                         <p
                           key={`${warning}-${index}`}
-                          className="text-xs leading-5 text-amber-100/60"
+                          className="text-xs leading-5 text-amber-700/80 dark:text-amber-100/60"
                         >
                           {
                             warning
@@ -394,7 +394,7 @@ export function GlobalSearch() {
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] px-4 py-3 text-[11px] text-slate-700">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-[11px] text-muted-foreground dark:border-white/[0.08] dark:text-slate-700">
               <span>
                 Searches all
                 available workspace
@@ -423,27 +423,27 @@ function SearchResultCard({
     <Link
       href={result.href}
       onClick={onOpen}
-      className="group block rounded-xl border border-white/[0.06] bg-black/20 p-4 transition hover:-translate-y-0.5 hover:border-sky-400/25 hover:bg-white/[0.03]"
+      className="group block rounded-xl border border-border bg-background/55 p-4 transition hover:-translate-y-0.5 hover:border-cyan-500/30 hover:bg-accent/60 dark:border-white/[0.06] dark:bg-black/20 dark:hover:border-sky-400/25 dark:hover:bg-white/[0.03]"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700 dark:text-sky-400">
             {humanize(
               result.type
             )}
           </p>
 
-          <h3 className="mt-2 truncate text-sm font-semibold text-white">
+          <h3 className="mt-2 truncate text-sm font-semibold text-foreground dark:text-white">
             {result.title}
           </h3>
 
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground dark:text-slate-500">
             {result.subtitle ||
               "Open record"}
           </p>
         </div>
 
-        <span className="mt-1 shrink-0 text-slate-700 transition group-hover:translate-x-0.5 group-hover:text-sky-400">
+        <span className="mt-1 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-cyan-700 dark:text-slate-700 dark:group-hover:text-sky-400">
           →
         </span>
       </div>
@@ -453,16 +453,16 @@ function SearchResultCard({
 
 function SearchEmptyState() {
   return (
-    <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-5 py-12 text-center">
-      <div className="mx-auto flex size-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03]">
-        <Search className="size-5 text-slate-500" />
+    <div className="rounded-xl border border-dashed border-border bg-background/45 px-5 py-12 text-center dark:border-white/10 dark:bg-black/20">
+      <div className="mx-auto flex size-11 items-center justify-center rounded-xl border border-border bg-card/70 dark:border-white/[0.08] dark:bg-white/[0.03]">
+        <Search className="size-5 text-muted-foreground dark:text-slate-500" />
       </div>
 
-      <p className="mt-4 text-sm font-semibold text-slate-300">
+      <p className="mt-4 text-sm font-semibold text-foreground dark:text-slate-300">
         Search the entire OS
       </p>
 
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground dark:text-slate-600">
         Search client names,
         yacht specifications,
         inquiry notes,
@@ -483,7 +483,7 @@ function SearchEmptyState() {
           (suggestion) => (
             <span
               key={suggestion}
-              className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1 text-xs text-slate-600"
+              className="rounded-full border border-border bg-card/70 px-3 py-1 text-xs text-muted-foreground dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-slate-600"
             >
               {suggestion}
             </span>
@@ -500,14 +500,14 @@ function NoResults({
   query: string;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-5 py-12 text-center">
-      <p className="text-sm font-semibold text-slate-300">
+    <div className="rounded-xl border border-dashed border-border bg-background/45 px-5 py-12 text-center dark:border-white/10 dark:bg-black/20">
+      <p className="text-sm font-semibold text-foreground dark:text-slate-300">
         No matching records
       </p>
 
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground dark:text-slate-600">
         Nothing matched
-        <span className="font-semibold text-slate-400">
+        <span className="font-semibold text-foreground/80 dark:text-slate-400">
           {" "}
           “{query.trim()}”
         </span>
@@ -527,7 +527,7 @@ function SearchSkeleton() {
       }).map((_, index) => (
         <div
           key={index}
-          className="h-24 animate-pulse rounded-xl bg-white/[0.04]"
+          className="h-24 animate-pulse rounded-xl bg-muted/70 dark:bg-white/[0.04]"
         />
       ))}
     </div>
