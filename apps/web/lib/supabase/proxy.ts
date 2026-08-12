@@ -10,6 +10,7 @@ import {
 const PUBLIC_ROUTES = [
   "/login",
   "/logout",
+  "/sign-up",
 ];
 
 function isPublicRoute(
@@ -207,4 +208,5 @@ export async function updateSupabaseSession(
 
   return response;
 }
+
 
