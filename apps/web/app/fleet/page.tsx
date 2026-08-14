@@ -13,6 +13,7 @@ import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { getYachtPlaceholderMedia } from "@/lib/yachts/placeholder-media";
 
 type AvailabilityStatus =
   | "available"
@@ -424,11 +425,22 @@ function YachtCard({
 }: {
   yacht: FleetResponse["yachts"][number];
 }) {
+  const placeholderMedia =
+    getYachtPlaceholderMedia(
+      yacht.id
+    );
+
   return (
     <article className="ui-panel apple-transition group overflow-hidden rounded-[26px] hover:-translate-y-1 hover:border-ring/25">
-      <div className="relative flex h-44 items-center justify-center overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))]">
-        <div className="absolute h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
-        <YachtIllustration />
+      <div className="relative h-44 overflow-hidden border-b border-border bg-muted">
+        <img
+          src={placeholderMedia.hero}
+          alt={yacht.name}
+          className="absolute inset-0 size-full object-cover transition duration-500 group-hover:scale-[1.03]"
+          loading="lazy"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-black/10" />
 
         <div className="absolute left-4 top-4">
           <StatusBadge status={yacht.status} />
@@ -646,41 +658,6 @@ function RefreshIcon({
     >
       <path d="M20 11a8 8 0 1 0-2.34 5.66" />
       <path d="M20 4v7h-7" />
-    </svg>
-  );
-}
-
-function YachtIllustration() {
-  return (
-    <svg
-      viewBox="0 0 260 120"
-      fill="none"
-      className="relative h-28 w-64 text-slate-500 transition duration-500 group-hover:scale-105 group-hover:text-sky-300"
-      aria-hidden="true"
-    >
-      <path
-        d="M30 80h200l-18 24H55L30 80Z"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-
-      <path
-        d="M75 80V45h90l38 35"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-
-      <path
-        d="M98 45V25h45v20"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-
-      <path
-        d="M0 111c28-8 46-8 74 0 28 8 46 8 74 0 28-8 46-8 74 0 14 4 25 5 38 4"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
     </svg>
   );
 }

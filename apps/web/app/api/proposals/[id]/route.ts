@@ -48,6 +48,15 @@ type ProposalRow = {
   updated_at: string | null;
 };
 
+type ClientSelectionRow = {
+  id: string;
+  proposal_yacht_id: string;
+  fleet_id: string | null;
+  yacht_name: string;
+  selected_at: string;
+  updated_at: string;
+};
+
 type ProposalYachtRow = {
   id: string;
   proposal_id: string;
@@ -156,12 +165,20 @@ export async function GET(
         proposal.id
       );
 
+    const clientSelection =
+      await loadClientSelection(
+        supabase,
+        workspace.companyId,
+        proposal.id
+      );
+
     return NextResponse.json(
       {
         success: true,
         proposal: serializeProposal(
           proposal,
-          proposalYachts
+          proposalYachts,
+          clientSelection
         ),
       },
       {
@@ -317,12 +334,20 @@ export async function PATCH(
         proposal.id
       );
 
+    const clientSelection =
+      await loadClientSelection(
+        supabase,
+        workspace.companyId,
+        proposal.id
+      );
+
     return NextResponse.json(
       {
         success: true,
         proposal: serializeProposal(
           proposal,
-          proposalYachts
+          proposalYachts,
+          clientSelection
         ),
       },
       {
@@ -338,6 +363,40 @@ export async function PATCH(
       "Could not update proposal."
     );
   }
+}
+
+async function loadClientSelection(
+  supabase: Awaited<
+    ReturnType<typeof createClient>
+  >,
+  companyId: string,
+  proposalId: string
+): Promise<ClientSelectionRow | null> {
+  const result = await supabase
+    .from("proposal_client_selections")
+    .select(
+      [
+        "id",
+        "proposal_yacht_id",
+        "fleet_id",
+        "yacht_name",
+        "selected_at",
+        "updated_at",
+      ].join(",")
+    )
+    .eq("company_id", companyId)
+    .eq("proposal_id", proposalId)
+    .maybeSingle();
+
+  if (result.error) {
+    throw new Error(
+      `Could not load client yacht selection: ${result.error.message}`
+    );
+  }
+
+  return result.data
+    ? (result.data as unknown as ClientSelectionRow)
+    : null;
 }
 
 async function loadProposalYachts(
@@ -422,7 +481,8 @@ function proposalSelect(): string {
 
 function serializeProposal(
   proposal: ProposalRow,
-  proposalYachts: ProposalYachtRow[]
+  proposalYachts: ProposalYachtRow[],
+  clientSelection: ClientSelectionRow | null
 ) {
   const metadata =
     readRecord(proposal.metadata);
@@ -474,6 +534,12 @@ function serializeProposal(
     yachtCount:
       serializedYachts.length,
 
+    clientSelection:
+      serializeClientSelection(
+        clientSelection,
+        serializedYachts
+      ),
+
     charter: {
       startDate: proposal.start_date,
       endDate: proposal.end_date,
@@ -516,6 +582,82 @@ function serializeProposal(
     sentAt:
       proposal.proposal_sent_at,
     updatedAt: proposal.updated_at,
+  };
+}
+
+type SerializedProposalYachtForSelection = {
+  id: string | null;
+  fleetId: string | null;
+  position: number;
+  name: string;
+  weeklyRate: number | null;
+  estimatedTotal: number | null;
+  currency: string;
+  availabilityStatus: string | null;
+  verificationStatus: string | null;
+  accessType: string | null;
+  calendarAuthority: string | null;
+  bookingModel: string | null;
+};
+
+function serializeClientSelection(
+  selection: ClientSelectionRow | null,
+  serializedYachts: SerializedProposalYachtForSelection[]
+) {
+  if (!selection) {
+    return null;
+  }
+
+  const selectedYacht =
+    serializedYachts.find(
+      (yacht) =>
+        yacht.id ===
+        selection.proposal_yacht_id
+    ) ?? null;
+
+  return {
+    id: selection.id,
+    proposalYachtId:
+      selection.proposal_yacht_id,
+    fleetId:
+      selection.fleet_id ??
+      selectedYacht?.fleetId ??
+      null,
+    yachtName:
+      selection.yacht_name ??
+      selectedYacht?.name ??
+      "Selected yacht",
+    selectedAt:
+      selection.selected_at,
+    updatedAt:
+      selection.updated_at,
+    position:
+      selectedYacht?.position ??
+      null,
+    weeklyRate:
+      selectedYacht?.weeklyRate ??
+      null,
+    estimatedTotal:
+      selectedYacht?.estimatedTotal ??
+      null,
+    currency:
+      selectedYacht?.currency ??
+      "EUR",
+    availabilityStatus:
+      selectedYacht?.availabilityStatus ??
+      null,
+    verificationStatus:
+      selectedYacht?.verificationStatus ??
+      null,
+    accessType:
+      selectedYacht?.accessType ??
+      null,
+    calendarAuthority:
+      selectedYacht?.calendarAuthority ??
+      null,
+    bookingModel:
+      selectedYacht?.bookingModel ??
+      null,
   };
 }
 

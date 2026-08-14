@@ -13,6 +13,12 @@ const PUBLIC_ROUTES = [
   "/sign-up",
 ];
 
+const PUBLIC_ROUTE_PREFIXES = [
+  "/auth/",
+  "/proposal-review/",
+  "/api/public/proposals/",
+];
+
 function isPublicRoute(
   pathname: string
 ): boolean {
@@ -20,8 +26,13 @@ function isPublicRoute(
     PUBLIC_ROUTES.includes(
       pathname
     ) ||
-    pathname.startsWith(
-      "/auth/"
+    pathname ===
+      "/proposal-review" ||
+    PUBLIC_ROUTE_PREFIXES.some(
+      (prefix) =>
+        pathname.startsWith(
+          prefix
+        )
     )
   );
 }
@@ -208,5 +219,3 @@ export async function updateSupabaseSession(
 
   return response;
 }
-
-

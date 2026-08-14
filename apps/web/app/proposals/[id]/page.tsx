@@ -39,6 +39,43 @@ type ProposalDetailResponse = {
       name: string | null;
     };
 
+    yachts: Array<{
+      id: string;
+      fleetId: string | null;
+      position: number;
+      name: string;
+      weeklyRate: number | null;
+      estimatedTotal: number | null;
+      currency: string;
+      brokerNote: string | null;
+      availabilityStatus: string | null;
+      verificationStatus: string | null;
+      accessType: string | null;
+      calendarAuthority: string | null;
+      bookingModel: string | null;
+      snapshot: Record<string, unknown>;
+    }>;
+
+    yachtCount: number;
+
+    clientSelection: {
+      id: string;
+      proposalYachtId: string;
+      fleetId: string | null;
+      yachtName: string;
+      selectedAt: string;
+      updatedAt: string;
+      position: number | null;
+      weeklyRate: number | null;
+      estimatedTotal: number | null;
+      currency: string;
+      availabilityStatus: string | null;
+      verificationStatus: string | null;
+      accessType: string | null;
+      calendarAuthority: string | null;
+      bookingModel: string | null;
+    } | null;
+
     charter: {
       startDate: string | null;
       endDate: string | null;
@@ -63,6 +100,30 @@ type ProposalDetailResponse = {
   error?: string;
 };
 
+type ProposalShare = {
+  id: string;
+  proposalId: string;
+  active: boolean;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  lastOpenedAt: string | null;
+  openedCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ProposalShareResponse = {
+  success: boolean;
+  share?: ProposalShare | null;
+  error?: string;
+};
+
+type ProposalShareCreateResponse = ProposalShareResponse & {
+  share?: (ProposalShare & {
+    url?: string;
+  }) | null;
+};
+
 const proposalStatuses: ProposalStatus[] = [
   "Draft",
   "Ready",
@@ -81,9 +142,24 @@ export default function ProposalDetailPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] =
+    useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] =
     useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [share, setShare] =
+    useState<ProposalShare | null>(null);
+  const [generatedShareUrl, setGeneratedShareUrl] =
+    useState<string | null>(null);
+  const [isLoadingShare, setIsLoadingShare] =
+    useState(false);
+  const [isCreatingShare, setIsCreatingShare] =
+    useState(false);
+  const [isRevokingShare, setIsRevokingShare] =
+    useState(false);
+  const [shareNotice, setShareNotice] =
+    useState<string | null>(null);
 
   const loadProposal = useCallback(
     async (refreshing: boolean) => {
@@ -135,6 +211,122 @@ export default function ProposalDetailPage() {
   useEffect(() => {
     void loadProposal(false);
   }, [loadProposal]);
+
+  const refreshProposalSilently =
+    useCallback(async () => {
+      if (!proposalId) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/proposals/${encodeURIComponent(
+            proposalId
+          )}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+        const result =
+          (await response.json()) as ProposalDetailResponse;
+
+        if (
+          response.ok &&
+          result.success
+        ) {
+          setData(result);
+        }
+      } catch {
+        // Silent background refresh only.
+      }
+    }, [proposalId]);
+
+  useEffect(() => {
+    const interval =
+      window.setInterval(() => {
+        void refreshProposalSilently();
+      }, 20_000);
+
+    const onVisibilityChange = () => {
+      if (
+        document.visibilityState ===
+        "visible"
+      ) {
+        void refreshProposalSilently();
+      }
+    };
+
+    const onFocus = () => {
+      void refreshProposalSilently();
+    };
+
+    document.addEventListener(
+      "visibilitychange",
+      onVisibilityChange
+    );
+    window.addEventListener(
+      "focus",
+      onFocus
+    );
+
+    return () => {
+      window.clearInterval(
+        interval
+      );
+      document.removeEventListener(
+        "visibilitychange",
+        onVisibilityChange
+      );
+      window.removeEventListener(
+        "focus",
+        onFocus
+      );
+    };
+  }, [refreshProposalSilently]);
+
+  const loadShare = useCallback(async () => {
+    if (!proposalId) {
+      return;
+    }
+
+    try {
+      setIsLoadingShare(true);
+
+      const response = await fetch(
+        `/api/proposals/${encodeURIComponent(proposalId)}/share`,
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
+
+      const result =
+        (await response.json()) as ProposalShareResponse;
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error ??
+            "Could not load client sharing."
+        );
+      }
+
+      setShare(result.share ?? null);
+    } catch (shareError) {
+      setError(
+        shareError instanceof Error
+          ? shareError.message
+          : "Could not load client sharing."
+      );
+    } finally {
+      setIsLoadingShare(false);
+    }
+  }, [proposalId]);
+
+  useEffect(() => {
+    void loadShare();
+  }, [loadShare]);
 
   const charterDuration = useMemo(() => {
     if (!data?.proposal.charter.startDate || !data.proposal.charter.endDate) {
@@ -199,6 +391,126 @@ export default function ProposalDetailPage() {
     }
   }
 
+  async function generateClientLink() {
+    if (!proposalId) {
+      return;
+    }
+
+    try {
+      setIsCreatingShare(true);
+      setError(null);
+      setShareNotice(null);
+
+      const response = await fetch(
+        `/api/proposals/${encodeURIComponent(proposalId)}/share`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            expiresInDays: 30,
+          }),
+        }
+      );
+
+      const result =
+        (await response.json()) as ProposalShareCreateResponse;
+
+      if (!response.ok || !result.success || !result.share) {
+        throw new Error(
+          result.error ??
+            "Could not generate the client link."
+        );
+      }
+
+      setShare(result.share);
+
+      const url =
+        result.share.url?.trim() || null;
+
+      setGeneratedShareUrl(url);
+
+      setShareNotice(
+        url
+          ? "Secure client link created. Copy it now or open the client view."
+          : "Secure client link created."
+      );
+    } catch (shareError) {
+      setError(
+        shareError instanceof Error
+          ? shareError.message
+          : "Could not generate the client link."
+      );
+    } finally {
+      setIsCreatingShare(false);
+    }
+  }
+
+  async function revokeClientLink() {
+    if (!proposalId || !share?.active) {
+      return;
+    }
+
+    try {
+      setIsRevokingShare(true);
+      setError(null);
+      setShareNotice(null);
+
+      const response = await fetch(
+        `/api/proposals/${encodeURIComponent(proposalId)}/share`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result =
+        (await response.json()) as ProposalShareResponse;
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error ??
+            "Could not revoke the client link."
+        );
+      }
+
+      setGeneratedShareUrl(null);
+      setShareNotice(
+        "Client link revoked. The previous URL can no longer be used."
+      );
+
+      await loadShare();
+    } catch (shareError) {
+      setError(
+        shareError instanceof Error
+          ? shareError.message
+          : "Could not revoke the client link."
+      );
+    } finally {
+      setIsRevokingShare(false);
+    }
+  }
+
+  async function copyClientLink() {
+    if (!generatedShareUrl) {
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(
+        generatedShareUrl
+      );
+
+      setShareNotice(
+        "Client link copied to clipboard."
+      );
+    } catch {
+      setError(
+        "Could not copy the client link. Open the client view and copy the URL from the browser."
+      );
+    }
+  }
+
   if (isLoading) {
     return <ProposalDetailSkeleton />;
   }
@@ -236,6 +548,40 @@ export default function ProposalDetailPage() {
   }
 
   const proposal = data.proposal;
+
+  const proposalYachts =
+    Array.isArray(proposal.yachts)
+      ? [...proposal.yachts].sort(
+          (left, right) =>
+            left.position - right.position
+        )
+      : [];
+
+  const yachtCount =
+    proposal.yachtCount ??
+    proposalYachts.length ??
+    (proposal.yacht.name ? 1 : 0);
+
+  const multiYacht =
+    yachtCount > 1;
+
+  const proposalHeading =
+    multiYacht
+      ? `${yachtCount} YACHT OPTIONS`
+      : proposal.yacht.name ??
+        "Charter proposal";
+
+  const clientSelection =
+    proposal.clientSelection;
+
+  const selectedProposalYacht =
+    clientSelection
+      ? proposalYachts.find(
+          (yacht) =>
+            yacht.id ===
+            clientSelection.proposalYachtId
+        ) ?? null
+      : null;
 
   return (
     <PageContainer contentClassName="space-y-7">
@@ -282,20 +628,26 @@ export default function ProposalDetailPage() {
             </div>
 
             <h1 className="mt-6 text-balance text-6xl leading-none tracking-[0.055em] text-[var(--hero-foreground)] sm:text-7xl">
-              {proposal.yacht.name ??
-                "Charter proposal"}
+              {proposalHeading}
             </h1>
 
             <p className="ui-hero-muted mt-4 max-w-2xl text-sm leading-7 sm:text-base">
-              Prepared for {proposal.client.name}. Review the client, charter
-              and commercial details before generating the final PDF.
+              Prepared for {proposal.client.name}.{" "}
+              {multiYacht
+                ? `Review the ${yachtCount} shortlisted yacht options, charter details and individual commercial terms before sending the proposal.`
+                : "Review the client, charter and commercial details before generating the final PDF."}
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={async () => {
+                  if (isGeneratingPdf) {
+                    return;
+                  }
+
                   try {
+                    setIsGeneratingPdf(true);
                     setError(null);
 
                     const response = await fetch(
@@ -332,14 +684,32 @@ export default function ProposalDetailPage() {
                         ? pdfError.message
                         : "Could not generate proposal PDF."
                     );
+                  } finally {
+                    setIsGeneratingPdf(false);
                   }
                 }}
-                className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center px-5 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+                disabled={isGeneratingPdf}
+                aria-busy={isGeneratingPdf}
+                className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-wait disabled:opacity-70"
               >
-                Generate PDF
+                {isGeneratingPdf ? (
+                  <>
+                    <RefreshIcon spinning />
+                    Generating PDF...
+                  </>
+                ) : (
+                  "Generate PDF"
+                )}
               </button>
 
-              {proposal.yacht.id ? (
+              {multiYacht ? (
+                <a
+                  href="#proposal-yacht-options"
+                  className="apple-transition inline-flex min-h-11 items-center justify-center rounded-[0.9rem] border border-current/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-[var(--hero-foreground)] hover:-translate-y-0.5 hover:bg-white/10"
+                >
+                  View {yachtCount} yacht options
+                </a>
+              ) : proposal.yacht.id ? (
                 <Link
                   href={`/fleet/${proposal.yacht.id}`}
                   className="apple-transition inline-flex min-h-11 items-center justify-center rounded-[0.9rem] border border-current/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-[var(--hero-foreground)] hover:-translate-y-0.5 hover:bg-white/10"
@@ -391,24 +761,356 @@ export default function ProposalDetailPage() {
         </div>
       </section>
 
+      {clientSelection ? (
+        <section className="overflow-hidden rounded-[24px] border border-emerald-500/25 bg-emerald-500/[0.07]">
+          <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="flex items-start gap-4">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <CheckIcon />
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+                  Client preference
+                </p>
+
+                <h2 className="mt-2 font-heading text-3xl tracking-[0.04em] text-foreground">
+                  {clientSelection.yachtName}
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {proposal.client.name} selected this yacht from the{" "}
+                  {yachtCount}-option proposal on{" "}
+                  {formatDateTime(
+                    clientSelection.selectedAt
+                  )}.
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  This records the client's preferred yacht only. Final availability,
+                  manager or owner approval and charter confirmation remain separate.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              {clientSelection.fleetId ? (
+                <Link
+                  href={`/fleet/${clientSelection.fleetId}`}
+                  className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent"
+                >
+                  Open selected yacht
+                </Link>
+              ) : null}
+
+              <span className="inline-flex min-h-11 items-center justify-center rounded-[0.9rem] border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                Ready for final confirmation
+              </span>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {proposalYachts.length > 0 ? (
+        <section
+          id="proposal-yacht-options"
+          className="ui-panel scroll-mt-28 rounded-[24px] p-5 sm:p-6"
+        >
+          <SectionHeader
+            title={
+              multiYacht
+                ? `${yachtCount} yacht options`
+                : "Selected yacht"
+            }
+            subtitle={
+              clientSelection
+                ? `${clientSelection.yachtName} is the client's current preference; remaining yachts stay as alternatives`
+                : multiYacht
+                  ? "The ordered shortlist included in this proposal"
+                  : "The yacht included in this proposal"
+            }
+            className="mb-6"
+          />
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {proposalYachts.map((yacht) => {
+              const isClientSelected =
+                clientSelection?.proposalYachtId ===
+                yacht.id;
+
+              return (
+              <article
+                key={yacht.id}
+                className={`rounded-2xl border p-4 ${
+                  isClientSelected
+                    ? "border-emerald-500/35 bg-emerald-500/[0.07] ring-4 ring-emerald-500/[0.05]"
+                    : "border-border bg-card/40"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
+                        Option {yacht.position}
+                      </p>
+
+                      {clientSelection ? (
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em] ${
+                            isClientSelected
+                              ? "border-emerald-500/25 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
+                              : "border-border bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {isClientSelected
+                            ? "Client selected"
+                            : "Alternative"}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <h3 className="mt-2 truncate text-lg font-semibold text-foreground">
+                      {yacht.name}
+                    </h3>
+                  </div>
+
+                  <span className="shrink-0 rounded-full border border-border bg-background/50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {formatProposalAvailability(
+                      yacht.availabilityStatus
+                    )}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  <SummaryMetric
+                    label="Weekly rate"
+                    value={formatRate(
+                      yacht.weeklyRate,
+                      yacht.currency
+                    )}
+                  />
+
+                  <SummaryMetric
+                    label="Estimated total"
+                    value={formatRate(
+                      yacht.estimatedTotal,
+                      yacht.currency
+                    )}
+                  />
+                </div>
+
+                {yacht.fleetId ? (
+                  <Link
+                    href={`/fleet/${yacht.fleetId}`}
+                    className="ui-secondary-button apple-transition mt-4 inline-flex min-h-10 w-full items-center justify-center px-3 text-xs font-semibold hover:bg-accent"
+                  >
+                    Open yacht
+                  </Link>
+                ) : null}
+              </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="ui-panel rounded-[24px] p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-300">
+              Client sharing
+            </p>
+
+            <h2 className="mt-2 font-heading text-2xl tracking-[0.04em] text-foreground">
+              Interactive proposal link
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Create a secure client-facing link for this proposal. The client
+              will be able to review the yacht options and, in the next stage
+              of this workflow, select the yacht they would like the broker to
+              proceed with.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {!share?.active ? (
+              <button
+                type="button"
+                onClick={() => void generateClientLink()}
+                disabled={isCreatingShare || isLoadingShare}
+                className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCreatingShare
+                  ? "Generating..."
+                  : "Generate client link"}
+              </button>
+            ) : (
+              <>
+                {generatedShareUrl ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void copyClientLink()}
+                      className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+                    >
+                      Copy link
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          generatedShareUrl,
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                      className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:bg-accent"
+                    >
+                      Open client view
+                    </button>
+                  </>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => void generateClientLink()}
+                  disabled={isCreatingShare || isRevokingShare}
+                  className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreatingShare
+                    ? "Regenerating..."
+                    : "Regenerate link"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void revokeClientLink()}
+                  disabled={isRevokingShare || isCreatingShare}
+                  className="apple-transition inline-flex min-h-11 items-center justify-center rounded-[0.9rem] border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-800 hover:-translate-y-0.5 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-200"
+                >
+                  {isRevokingShare
+                    ? "Revoking..."
+                    : "Revoke link"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <ShareMetric
+            label="Status"
+            value={
+              isLoadingShare
+                ? "Loading..."
+                : share?.active
+                  ? "Active"
+                  : "Not shared"
+            }
+            accent={share?.active}
+          />
+
+          <ShareMetric
+            label="Expires"
+            value={
+              share?.active
+                ? formatDateTime(share.expiresAt)
+                : "Not available"
+            }
+          />
+
+          <ShareMetric
+            label="Proposal opens"
+            value={
+              share?.active
+                ? String(share.openedCount)
+                : "0"
+            }
+          />
+
+          <ShareMetric
+            label="Last opened"
+            value={
+              share?.active
+                ? formatDateTime(share.lastOpenedAt)
+                : "Not opened"
+            }
+          />
+        </div>
+
+        {share?.active && !generatedShareUrl ? (
+          <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-900 dark:text-amber-200">
+            A secure client link is active. For security, Yacht OS stores only
+            the token hash and cannot recover the original URL after this page
+            is reloaded. Regenerate the link if you need a new copyable URL.
+          </div>
+        ) : null}
+
+        {generatedShareUrl ? (
+          <div className="mt-4 rounded-2xl border border-border bg-background/55 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Secure client URL
+            </p>
+
+            <p className="mt-2 break-all font-mono text-xs leading-6 text-foreground/80">
+              {generatedShareUrl}
+            </p>
+          </div>
+        ) : null}
+
+        {shareNotice ? (
+          <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200">
+            {shareNotice}
+          </div>
+        ) : null}
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Estimated total"
-          value={formatRate(
-            proposal.commercial.estimatedTotal,
-            proposal.commercial.currency
-          )}
-          subtitle="Projected charter value"
+          label={
+            multiYacht
+              ? "Yacht options"
+              : "Estimated total"
+          }
+          value={
+            multiYacht
+              ? yachtCount
+              : formatRate(
+                  proposal.commercial.estimatedTotal,
+                  proposal.commercial.currency
+                )
+          }
+          subtitle={
+            multiYacht
+              ? "Shortlisted for this client"
+              : "Projected charter value"
+          }
           tone="emerald"
         />
 
         <StatCard
-          label="Weekly rate"
-          value={formatRate(
-            proposal.commercial.weeklyRate,
-            proposal.commercial.currency
-          )}
-          subtitle="Imported or custom offer"
+          label={
+            multiYacht
+              ? "Weekly rates"
+              : "Weekly rate"
+          }
+          value={
+            multiYacht
+              ? formatProposalRateRange(
+                  proposalYachts
+                )
+              : formatRate(
+                  proposal.commercial.weeklyRate,
+                  proposal.commercial.currency
+                )
+          }
+          subtitle={
+            multiYacht
+              ? "Across shortlisted options"
+              : "Imported or custom offer"
+          }
           tone="neutral"
         />
 
@@ -476,16 +1178,40 @@ export default function ProposalDetailPage() {
 
         <Panel
           title="Charter details"
-          description="Selected yacht, dates and party size"
+          description={
+            multiYacht
+              ? "Shortlisted yachts, dates and party size"
+              : "Selected yacht, dates and party size"
+          }
         >
           <div className="space-y-4">
             <DetailRow
-              label="Yacht"
+              label={
+                multiYacht
+                  ? "Yacht options"
+                  : "Yacht"
+              }
               value={
-                proposal.yacht.name ??
-                "Not selected"
+                proposalYachts.length > 0
+                  ? proposalYachts
+                      .map(
+                        (yacht) =>
+                          `${yacht.position}. ${yacht.name}`
+                      )
+                      .join(" · ")
+                  : proposal.yacht.name ??
+                    "Not selected"
               }
             />
+            {clientSelection ? (
+              <DetailRow
+                label="Client preference"
+                value={`${clientSelection.yachtName} · selected ${formatDateTime(
+                  clientSelection.selectedAt
+                )}`}
+              />
+            ) : null}
+
             <DetailRow
               label="Dates"
               value={formatDateRange(
@@ -524,43 +1250,84 @@ export default function ProposalDetailPage() {
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel
           title="Commercial summary"
-          description="Pricing details stored with this proposal"
+          description={
+            multiYacht
+              ? "Pricing stored for each shortlisted yacht"
+              : "Pricing details stored with this proposal"
+          }
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <CommercialCard
-              label="Weekly rate"
-              value={formatRate(
-                proposal.commercial.weeklyRate,
-                proposal.commercial.currency
+          {multiYacht ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {clientSelection ? (
+                <CommercialCard
+                  label="Client selected"
+                  value={`${clientSelection.yachtName} · ${formatRate(
+                    clientSelection.weeklyRate,
+                    clientSelection.currency
+                  )} / week`}
+                />
+              ) : null}
+              {proposalYachts.map(
+                (yacht) => (
+                  <CommercialCard
+                    key={yacht.id}
+                    label={`Option ${yacht.position} · ${yacht.name}`}
+                    value={`${formatRate(
+                      yacht.weeklyRate,
+                      yacht.currency
+                    )} / week`}
+                  />
+                )
               )}
-            />
 
-            <CommercialCard
-              label="Estimated total"
-              value={formatRate(
-                proposal.commercial.estimatedTotal,
-                proposal.commercial.currency
-              )}
-            />
+              <CommercialCard
+                label="Sent"
+                value={
+                  proposal.sentAt
+                    ? formatDateTime(
+                        proposal.sentAt
+                      )
+                    : "Not sent"
+                }
+              />
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CommercialCard
+                label="Weekly rate"
+                value={formatRate(
+                  proposal.commercial.weeklyRate,
+                  proposal.commercial.currency
+                )}
+              />
 
-            <CommercialCard
-              label="Currency"
-              value={
-                proposal.commercial.currency
-              }
-            />
+              <CommercialCard
+                label="Estimated total"
+                value={formatRate(
+                  proposal.commercial.estimatedTotal,
+                  proposal.commercial.currency
+                )}
+              />
 
-            <CommercialCard
-              label="Sent"
-              value={
-                proposal.sentAt
-                  ? formatDateTime(
-                      proposal.sentAt
-                    )
-                  : "Not sent"
-              }
-            />
-          </div>
+              <CommercialCard
+                label="Currency"
+                value={
+                  proposal.commercial.currency
+                }
+              />
+
+              <CommercialCard
+                label="Sent"
+                value={
+                  proposal.sentAt
+                    ? formatDateTime(
+                        proposal.sentAt
+                      )
+                    : "Not sent"
+                }
+              />
+            </div>
+          )}
         </Panel>
 
         <Panel
@@ -607,6 +1374,54 @@ function Panel({
 
       {children}
     </section>
+  );
+}
+
+function ShareMetric({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <article className="ui-panel-soft rounded-2xl p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+
+      <p
+        className={`mt-3 text-sm font-semibold ${
+          accent
+            ? "text-emerald-700 dark:text-emerald-300"
+            : "text-foreground"
+        }`}
+      >
+        {value}
+      </p>
+    </article>
+  );
+}
+
+function SummaryMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background/45 px-3 py-3">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm font-semibold text-foreground">
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -709,6 +1524,21 @@ function ProposalDetailSkeleton() {
   );
 }
 
+function CheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      className="size-5"
+      aria-hidden="true"
+    >
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
+}
+
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
     <svg
@@ -723,6 +1553,127 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
       <path d="M20 4v7h-7" />
     </svg>
   );
+}
+
+async function copyTextToClipboard(
+  value: string
+): Promise<void> {
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.clipboard &&
+    window.isSecureContext
+  ) {
+    await navigator.clipboard.writeText(
+      value
+    );
+    return;
+  }
+
+  const textarea =
+    document.createElement("textarea");
+
+  textarea.value = value;
+  textarea.setAttribute(
+    "readonly",
+    ""
+  );
+  textarea.style.position =
+    "fixed";
+  textarea.style.opacity = "0";
+
+  document.body.appendChild(
+    textarea
+  );
+
+  textarea.select();
+
+  const copied =
+    document.execCommand("copy");
+
+  document.body.removeChild(
+    textarea
+  );
+
+  if (!copied) {
+    throw new Error(
+      "Clipboard copy failed."
+    );
+  }
+}
+
+function formatProposalRateRange(
+  yachts: ProposalDetailResponse["proposal"]["yachts"]
+): string {
+  const priced =
+    yachts
+      .filter(
+        (yacht) =>
+          yacht.weeklyRate !== null &&
+          Number.isFinite(yacht.weeklyRate)
+      )
+      .map((yacht) => ({
+        amount: yacht.weeklyRate as number,
+        currency: yacht.currency || "EUR",
+      }));
+
+  if (priced.length === 0) {
+    return "Rate on request";
+  }
+
+  const currencies =
+    Array.from(
+      new Set(
+        priced.map(
+          (item) => item.currency
+        )
+      )
+    );
+
+  if (currencies.length !== 1) {
+    return `${priced.length} individual rates`;
+  }
+
+  const values =
+    priced.map(
+      (item) => item.amount
+    );
+
+  const minimum =
+    Math.min(...values);
+
+  const maximum =
+    Math.max(...values);
+
+  if (minimum === maximum) {
+    return formatRate(
+      minimum,
+      currencies[0]
+    );
+  }
+
+  return `${formatRate(
+    minimum,
+    currencies[0]
+  )} – ${formatRate(
+    maximum,
+    currencies[0]
+  )}`;
+}
+
+function formatProposalAvailability(
+  value: string | null
+): string {
+  if (!value) {
+    return "Unverified";
+  }
+
+  return value
+    .replaceAll("_", " ")
+    .replace(
+      /\b\w/g,
+      (character) =>
+        character.toUpperCase()
+    );
 }
 
 function formatRate(

@@ -138,6 +138,10 @@ function isPublicRoute(
   pathname: string
 ) {
   return (
+    pathname === "/proposal-review" ||
+    pathname.startsWith(
+      "/proposal-review/"
+    ) ||
     pathname === "/onboarding" ||
     pathname.startsWith("/onboarding/") ||
     pathname === "/sign-up" ||
@@ -519,31 +523,17 @@ export function AppShell({
             </div>
 
             <Link
-  href="/inquiries/new"
-  className="ui-primary-button apple-transition inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap px-4 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
-  aria-label="New inquiry"
-  title="New inquiry"
->
-  <Plus className="size-4 shrink-0" />
-
-  <span>New inquiry</span>
-</Link>
-
-            <form
-              action={
-                logout
-              }
-              className="shrink-0 lg:hidden"
+              href="/inquiries/new"
+              className="ui-primary-button apple-transition inline-flex size-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap px-0 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 sm:h-10 sm:w-auto sm:px-4"
+              aria-label="New inquiry"
+              title="New inquiry"
             >
-              <button
-                type="submit"
-                className="apple-transition inline-flex size-9 items-center justify-center rounded-xl border border-border bg-card/50 text-muted-foreground hover:bg-accent hover:text-foreground"
-                aria-label="Log out"
-                title="Log out"
-              >
-                <LogOut className="size-4" />
-              </button>
-            </form>
+              <Plus className="size-4 shrink-0" />
+
+              <span className="hidden sm:inline">
+                New inquiry
+              </span>
+            </Link>
           </div>
         </header>
 

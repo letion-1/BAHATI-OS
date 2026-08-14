@@ -14,6 +14,7 @@ import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { YachtProfileManager } from "@/components/fleet/yacht-profile-manager";
 
 type AvailabilityStatus =
   | "available"
@@ -346,6 +347,11 @@ export default function YachtDetailPage() {
           tone="cyan"
         />
       </section>
+
+      <YachtProfileManager
+        yachtId={yacht.id}
+        onUpdated={() => void loadYacht(true)}
+      />
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <DashboardPanel

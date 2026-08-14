@@ -227,7 +227,7 @@ export function NotificationsPanel() {
         onClick={() =>
           setIsOpen((current) => !current)
         }
-        className="relative hidden size-9 items-center justify-center rounded-md border border-border bg-card/50 text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white sm:inline-flex"
+        className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-card/50 text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white"
         aria-label="Open notifications"
         title="Notifications"
       >
