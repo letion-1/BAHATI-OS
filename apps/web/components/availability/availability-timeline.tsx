@@ -89,7 +89,9 @@ type TimelineBarData = {
   width: number;
 };
 
-const YACHT_COLUMN_WIDTH = 256;
+const DESKTOP_YACHT_COLUMN_WIDTH = 256;
+const TABLET_YACHT_COLUMN_WIDTH = 164;
+const MOBILE_YACHT_COLUMN_WIDTH = 124;
 const ROW_HEIGHT = 76;
 
 const DAY_WIDTHS: Record<
@@ -134,9 +136,50 @@ export function AvailabilityTimeline({
   const [selectedRecord, setSelectedRecord] =
     useState<TimelineAvailabilityRecord | null>(null);
 
+  const [yachtColumnWidth, setYachtColumnWidth] =
+    useState(DESKTOP_YACHT_COLUMN_WIDTH);
+
   useEffect(() => {
     setVisibleStart(initialDate);
   }, [initialDate]);
+
+  useEffect(() => {
+    function updateYachtColumnWidth() {
+      const width = window.innerWidth;
+
+      if (width <= 640) {
+        setYachtColumnWidth(
+          MOBILE_YACHT_COLUMN_WIDTH
+        );
+        return;
+      }
+
+      if (width <= 900) {
+        setYachtColumnWidth(
+          TABLET_YACHT_COLUMN_WIDTH
+        );
+        return;
+      }
+
+      setYachtColumnWidth(
+        DESKTOP_YACHT_COLUMN_WIDTH
+      );
+    }
+
+    updateYachtColumnWidth();
+
+    window.addEventListener(
+      "resize",
+      updateYachtColumnWidth
+    );
+
+    return () => {
+      window.removeEventListener(
+        "resize",
+        updateYachtColumnWidth
+      );
+    };
+  }, []);
 
   const dayWidth = DAY_WIDTHS[zoom];
 
@@ -172,7 +215,7 @@ export function AvailabilityTimeline({
     visibleDays.length * dayWidth;
 
   const fullGridWidth =
-    YACHT_COLUMN_WIDTH + timelineWidth;
+    yachtColumnWidth + timelineWidth;
 
   function moveTimeline(
     direction: -1 | 1
@@ -307,13 +350,16 @@ export function AvailabilityTimeline({
               timelineWidth={
                 timelineWidth
               }
+              yachtColumnWidth={
+                yachtColumnWidth
+              }
             />
 
             {yachtGroups.length === 0 ? (
               <div
                 className="grid min-h-64 border-t border-border"
                 style={{
-                  gridTemplateColumns: `${YACHT_COLUMN_WIDTH}px ${timelineWidth}px`,
+                  gridTemplateColumns: `${yachtColumnWidth}px ${timelineWidth}px`,
                 }}
               >
                 <div className="sticky left-0 z-20 border-r border-border bg-card" />
@@ -351,6 +397,9 @@ export function AvailabilityTimeline({
                     timelineWidth={
                       timelineWidth
                     }
+                    yachtColumnWidth={
+                      yachtColumnWidth
+                    }
                     onSelectRecord={
                       setSelectedRecord
                     }
@@ -379,22 +428,24 @@ function TimelineHeader({
   monthGroups,
   dayWidth,
   timelineWidth,
+  yachtColumnWidth,
 }: {
   days: TimelineDay[];
   monthGroups: TimelineMonthGroup[];
   dayWidth: number;
   timelineWidth: number;
+  yachtColumnWidth: number;
 }) {
   return (
     <div className="sticky top-0 z-30 bg-background">
       <div
         className="grid border-b border-border"
         style={{
-          gridTemplateColumns: `${YACHT_COLUMN_WIDTH}px ${timelineWidth}px`,
+          gridTemplateColumns: `${yachtColumnWidth}px ${timelineWidth}px`,
         }}
       >
-        <div className="sticky left-0 z-40 flex items-center border-r border-border bg-background/60 px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="sticky left-0 z-40 flex items-center border-r border-border bg-background/95 px-2 py-3 backdrop-blur sm:px-3 lg:px-4">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground sm:text-xs">
             Yacht
           </p>
         </div>
@@ -416,7 +467,7 @@ function TimelineHeader({
                     dayWidth,
                 }}
               >
-                <p className="truncate text-sm font-medium">
+                <p className="line-clamp-2 text-xs font-medium leading-4 sm:text-sm">
                   {group.label}
                 </p>
               </div>
@@ -428,11 +479,11 @@ function TimelineHeader({
       <div
         className="grid border-b border-border"
         style={{
-          gridTemplateColumns: `${YACHT_COLUMN_WIDTH}px ${timelineWidth}px`,
+          gridTemplateColumns: `${yachtColumnWidth}px ${timelineWidth}px`,
         }}
       >
-        <div className="sticky left-0 z-40 border-r border-border bg-background/60 px-4 py-2">
-          <p className="text-xs text-muted-foreground">
+        <div className="sticky left-0 z-40 border-r border-border bg-background/95 px-2 py-2 backdrop-blur sm:px-3 lg:px-4">
+          <p className="text-[10px] text-muted-foreground sm:text-xs">
             {days.length} day view
           </p>
         </div>
@@ -485,6 +536,7 @@ function TimelineRow({
   days,
   dayWidth,
   timelineWidth,
+  yachtColumnWidth,
   onSelectRecord,
 }: {
   group: TimelineYachtGroup;
@@ -493,6 +545,7 @@ function TimelineRow({
   days: TimelineDay[];
   dayWidth: number;
   timelineWidth: number;
+  yachtColumnWidth: number;
   onSelectRecord: (
     record: TimelineAvailabilityRecord
   ) => void;
@@ -517,17 +570,17 @@ function TimelineRow({
     <div
       className="grid border-b border-border"
       style={{
-        gridTemplateColumns: `${YACHT_COLUMN_WIDTH}px ${timelineWidth}px`,
+        gridTemplateColumns: `${yachtColumnWidth}px ${timelineWidth}px`,
         minHeight: ROW_HEIGHT,
       }}
     >
-      <div className="sticky left-0 z-20 flex min-w-0 items-center border-r border-border bg-card px-4 py-3 shadow-[8px_0_18px_rgba(70,45,28,0.08)] dark:shadow-[8px_0_18px_rgba(0,0,0,0.22)]">
+      <div className="sticky left-0 z-20 flex min-w-0 items-center border-r border-border bg-card px-2 py-3 shadow-[8px_0_18px_rgba(70,45,28,0.08)] sm:px-3 lg:px-4 dark:shadow-[8px_0_18px_rgba(0,0,0,0.22)]">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">
             {group.yachtName}
           </p>
 
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+          <p className="mt-1 truncate text-[10px] text-muted-foreground sm:text-xs">
             {group.records.length} window
             {group.records.length === 1
               ? ""
