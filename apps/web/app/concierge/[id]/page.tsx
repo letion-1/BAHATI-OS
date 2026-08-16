@@ -183,6 +183,13 @@ export default function CharterConciergePage() {
     setActiveCategory,
   ] =
     useState("all");
+  const [
+    viewMode,
+    setViewMode,
+  ] =
+    useState<"cards" | "timeline">(
+      "cards"
+    );
 
   const [
     showCreate,
@@ -304,6 +311,68 @@ export default function CharterConciergePage() {
       activeCategory,
       items,
     ]);
+
+  const timelineGroups =
+    useMemo(() => {
+      const scheduled =
+        filteredItems
+          .filter(
+            (item) =>
+              Boolean(
+                item.scheduledAt
+              )
+          )
+          .sort(
+            (left, right) =>
+              (
+                left.scheduledAt ??
+                ""
+              ).localeCompare(
+                right.scheduledAt ??
+                  ""
+              )
+          );
+
+      const groups =
+        new Map<
+          string,
+          ConciergeItem[]
+        >();
+
+      for (
+        const item of scheduled
+      ) {
+        const key =
+          timelineDateKey(
+            item.scheduledAt
+          );
+
+        const existing =
+          groups.get(key) ??
+          [];
+
+        existing.push(item);
+
+        groups.set(
+          key,
+          existing
+        );
+      }
+
+      const unscheduled =
+        filteredItems.filter(
+          (item) =>
+            !item.scheduledAt
+        );
+
+      return {
+        scheduled:
+          Array.from(
+            groups.entries()
+          ),
+        unscheduled,
+      };
+    }, [filteredItems]);
 
   const stats =
     useMemo(() => {
@@ -1085,87 +1154,137 @@ export default function CharterConciergePage() {
               </h2>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <FilterButton
-                active={
-                  activeCategory ===
-                  "all"
-                }
-                onClick={() =>
-                  setActiveCategory(
-                    "all"
-                  )
-                }
-              >
-                All
-              </FilterButton>
+            <div className="flex flex-col gap-3 xl:items-end">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewMode(
+                      "cards"
+                    )
+                  }
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    viewMode ===
+                    "cards"
+                      ? "border-cyan-500/35 bg-cyan-500/10 text-cyan-800 dark:text-cyan-200"
+                      : "border-border bg-background/40 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
+                >
+                  Cards
+                </button>
 
-              {categoryOptions.map(
-                (category) => (
-                  <FilterButton
-                    key={
-                      category.value
-                    }
-                    active={
-                      activeCategory ===
-                      category.value
-                    }
-                    onClick={() =>
-                      setActiveCategory(
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewMode(
+                      "timeline"
+                    )
+                  }
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    viewMode ===
+                    "timeline"
+                      ? "border-cyan-500/35 bg-cyan-500/10 text-cyan-800 dark:text-cyan-200"
+                      : "border-border bg-background/40 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
+                >
+                  Timeline
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <FilterButton
+                  active={
+                    activeCategory ===
+                    "all"
+                  }
+                  onClick={() =>
+                    setActiveCategory(
+                      "all"
+                    )
+                  }
+                >
+                  All
+                </FilterButton>
+
+                {categoryOptions.map(
+                  (category) => (
+                    <FilterButton
+                      key={
                         category.value
-                      )
-                    }
-                  >
-                    {
-                      category.label
-                    }
-                  </FilterButton>
-                )
-              )}
+                      }
+                      active={
+                        activeCategory ===
+                        category.value
+                      }
+                      onClick={() =>
+                        setActiveCategory(
+                          category.value
+                        )
+                      }
+                    >
+                      {
+                        category.label
+                      }
+                    </FilterButton>
+                  )
+                )}
+              </div>
             </div>
           </div>
 
           {filteredItems.length >
           0 ? (
-            <div className="mt-6 grid gap-4 xl:grid-cols-2">
-              {filteredItems.map(
-                (item) => (
-                  <ConciergeCard
-                    key={item.id}
-                    charterId={charter.id}
-                    item={item}
-                    busy={
-                      busyItemId ===
-                      item.id
-                    }
-                    onStatus={(
-                      status
-                    ) =>
-                      void updateItem(
-                        item,
-                        {
-                          status,
-                        }
-                      )
-                    }
-                    onToggleVisibility={() =>
-                      void updateItem(
-                        item,
-                        {
-                          clientVisible:
-                            !item.clientVisible,
-                        }
-                      )
-                    }
-                    onDelete={() =>
-                      void deleteItem(
-                        item
-                      )
-                    }
-                  />
-                )
-              )}
-            </div>
+            viewMode ===
+            "cards" ? (
+              <div className="mt-6 grid gap-4 xl:grid-cols-2">
+                {filteredItems.map(
+                  (item) => (
+                    <ConciergeCard
+                      key={item.id}
+                      charterId={charter.id}
+                      item={item}
+                      busy={
+                        busyItemId ===
+                        item.id
+                      }
+                      onStatus={(
+                        status
+                      ) =>
+                        void updateItem(
+                          item,
+                          {
+                            status,
+                          }
+                        )
+                      }
+                      onToggleVisibility={() =>
+                        void updateItem(
+                          item,
+                          {
+                            clientVisible:
+                              !item.clientVisible,
+                          }
+                        )
+                      }
+                      onDelete={() =>
+                        void deleteItem(
+                          item
+                        )
+                      }
+                    />
+                  )
+                )}
+              </div>
+            ) : (
+              <ConciergeTimeline
+                charterId={
+                  charter.id
+                }
+                groups={
+                  timelineGroups
+                }
+              />
+            )
           ) : (
             <div className="mt-6 rounded-2xl border border-dashed border-border bg-background/35 px-4 py-12 text-center text-sm leading-6 text-muted-foreground">
               No concierge items in this view yet.
@@ -1174,6 +1293,220 @@ export default function CharterConciergePage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function ConciergeTimeline({
+  charterId,
+  groups,
+}: {
+  charterId: string;
+  groups: {
+    scheduled: Array<
+      [
+        string,
+        ConciergeItem[]
+      ]
+    >;
+    unscheduled: ConciergeItem[];
+  };
+}) {
+  return (
+    <div className="mt-7 space-y-8">
+      {groups.scheduled.map(
+        ([
+          dateKey,
+          dayItems,
+        ]) => (
+          <section
+            key={dateKey}
+            className="relative"
+          >
+            <div className="sticky top-24 z-10 mb-4 flex items-center gap-3 bg-background/85 py-2 backdrop-blur-xl">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-500/25 bg-cyan-500/10 text-sm font-bold text-cyan-800 dark:text-cyan-200">
+                {timelineDayNumber(
+                  dateKey
+                )}
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Charter day
+                </p>
+                <h3 className="mt-0.5 text-base font-semibold text-foreground">
+                  {formatTimelineDate(
+                    dateKey
+                  )}
+                </h3>
+              </div>
+            </div>
+
+            <div className="relative ml-[1.35rem] border-l border-border pl-7 sm:ml-[1.4rem] sm:pl-8">
+              <div className="space-y-4">
+                {dayItems.map(
+                  (item) => (
+                    <TimelineItem
+                      key={
+                        item.id
+                      }
+                      charterId={
+                        charterId
+                      }
+                      item={
+                        item
+                      }
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          </section>
+        )
+      )}
+
+      {groups.unscheduled.length >
+      0 ? (
+        <section>
+          <div className="mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Needs scheduling
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-foreground">
+              Unscheduled requests
+            </h3>
+          </div>
+
+          <div className="grid gap-3 xl:grid-cols-2">
+            {groups.unscheduled.map(
+              (item) => (
+                <Link
+                  key={
+                    item.id
+                  }
+                  href={`/concierge/${encodeURIComponent(
+                    charterId
+                  )}/${encodeURIComponent(
+                    item.id
+                  )}`}
+                  className="ui-panel-soft apple-transition rounded-2xl p-4 hover:-translate-y-0.5 hover:bg-accent/40"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CategoryBadge
+                      value={
+                        item.category
+                      }
+                    />
+                    <StatusBadge
+                      value={
+                        item.status
+                      }
+                    />
+                  </div>
+
+                  <p className="mt-3 font-semibold text-foreground">
+                    {
+                      item.title
+                    }
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Add a scheduled date/time to place this request on the charter timeline.
+                  </p>
+                </Link>
+              )
+            )}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function TimelineItem({
+  charterId,
+  item,
+}: {
+  charterId: string;
+  item: ConciergeItem;
+}) {
+  return (
+    <Link
+      href={`/concierge/${encodeURIComponent(
+        charterId
+      )}/${encodeURIComponent(
+        item.id
+      )}`}
+      className="ui-panel-soft apple-transition relative block rounded-2xl p-4 hover:-translate-y-0.5 hover:bg-accent/40 sm:p-5"
+    >
+      <span className="absolute -left-[2.15rem] top-6 size-3 rounded-full border-2 border-background bg-cyan-500 shadow-sm" />
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-bold text-foreground">
+              {formatTimelineTime(
+                item.scheduledAt
+              )}
+            </span>
+
+            <CategoryBadge
+              value={
+                item.category
+              }
+            />
+
+            <StatusBadge
+              value={
+                item.status
+              }
+            />
+
+            {item.overdue ? (
+              <span className="rounded-full border border-red-500/25 bg-red-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-red-800 dark:text-red-200">
+                Overdue
+              </span>
+            ) : item.needsAttention ? (
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-amber-900 dark:text-amber-200">
+                Needs attention
+              </span>
+            ) : null}
+          </div>
+
+          <h4 className="mt-3 text-base font-semibold text-foreground">
+            {
+              item.title
+            }
+          </h4>
+
+          {item.description ? (
+            <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+              {
+                item.description
+              }
+            </p>
+          ) : null}
+        </div>
+
+        <div className="shrink-0 text-left sm:text-right">
+          <p className="text-xs font-semibold text-foreground">
+            {
+              item.location ??
+              "Location not set"
+            }
+          </p>
+
+          <p className="mt-1 text-xs text-muted-foreground">
+            {item.assignedTo
+              ? "Assigned"
+              : "Unassigned"}{" "}
+            ·{" "}
+            {item.clientVisible
+              ? "Guest visible"
+              : "Internal"}
+          </p>
+        </div>
+      </div>
+    </Link>
   );
 }
 
@@ -1669,6 +2002,111 @@ function formatLabel(
         word.slice(1)
     )
     .join(" ");
+}
+
+function timelineDateKey(
+  value: string | null
+) {
+  if (!value) {
+    return "unscheduled";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "unscheduled";
+  }
+
+  const year =
+    date.getFullYear();
+  const month =
+    String(
+      date.getMonth() +
+        1
+    ).padStart(
+      2,
+      "0"
+    );
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+}
+
+function timelineDayNumber(
+  dateKey: string
+) {
+  const parts =
+    dateKey.split("-");
+
+  return (
+    parts[2] ??
+    "--"
+  );
+}
+
+function formatTimelineDate(
+  dateKey: string
+) {
+  const date =
+    new Date(
+      `${dateKey}T12:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return dateKey;
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
+  );
+}
+
+function formatTimelineTime(
+  value: string | null
+) {
+  if (!value) {
+    return "Time not set";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "Time not set";
+  }
+
+  return date.toLocaleTimeString(
+    "en-GB",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
 }
 
 function formatDateRange(
