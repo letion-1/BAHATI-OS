@@ -148,6 +148,10 @@ function isPublicRoute(
     pathname.startsWith(
       "/proposal-review/"
     ) ||
+    pathname === "/guest" ||
+    pathname.startsWith(
+      "/guest/"
+    ) ||
     pathname === "/onboarding" ||
     pathname.startsWith("/onboarding/") ||
     pathname === "/sign-up" ||

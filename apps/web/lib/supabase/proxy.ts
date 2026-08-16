@@ -17,6 +17,8 @@ const PUBLIC_ROUTE_PREFIXES = [
   "/auth/",
   "/proposal-review/",
   "/api/public/proposals/",
+  "/guest/",
+  "/api/public/guest/",
 ];
 
 function isPublicRoute(
@@ -28,6 +30,7 @@ function isPublicRoute(
     ) ||
     pathname ===
       "/proposal-review" ||
+    pathname === "/guest" ||
     PUBLIC_ROUTE_PREFIXES.some(
       (prefix) =>
         pathname.startsWith(

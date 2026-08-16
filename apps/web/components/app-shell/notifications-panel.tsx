@@ -41,9 +41,28 @@ export function NotificationsPanel() {
   const [error, setError] =
     useState<string | null>(null);
 
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [
+    toastNotification,
+    setToastNotification,
+  ] =
+    useState<NotificationItem | null>(
+      null
+    );
 
-  const loadNotifications = useCallback(async () => {
+  const panelRef =
+    useRef<HTMLDivElement | null>(null);
+
+  const initializedRef =
+    useRef(false);
+
+  const knownIdsRef =
+    useRef<Set<string>>(
+      new Set()
+    );
+
+  const loadNotifications = useCallback(async (
+    announceNew = true
+  ) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -76,8 +95,49 @@ export function NotificationsPanel() {
         );
       }
 
-      setNotifications(result.notifications ?? []);
-      setUnreadCount(result.unreadCount ?? 0);
+      const nextNotifications =
+        result.notifications ??
+        [];
+
+      if (
+        initializedRef.current &&
+        announceNew
+      ) {
+        const newestUnread =
+          nextNotifications.find(
+            (notification) =>
+              !notification.readAt &&
+              !knownIdsRef.current.has(
+                notification.id
+              )
+          );
+
+        if (newestUnread) {
+          setToastNotification(
+            newestUnread
+          );
+        }
+      }
+
+      knownIdsRef.current =
+        new Set(
+          nextNotifications.map(
+            (notification) =>
+              notification.id
+          )
+        );
+
+      initializedRef.current =
+        true;
+
+      setNotifications(
+        nextNotifications
+      );
+
+      setUnreadCount(
+        result.unreadCount ??
+        0
+      );
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -90,18 +150,92 @@ export function NotificationsPanel() {
   }, []);
 
   useEffect(() => {
-    void loadNotifications();
+    void loadNotifications(
+      false
+    );
 
-    const interval = window.setInterval(() => {
-      void loadNotifications();
-    }, 60_000);
+    const interval =
+      window.setInterval(
+        () => {
+          void loadNotifications(
+            true
+          );
+        },
+        15_000
+      );
 
-    return () => window.clearInterval(interval);
+    return () =>
+      window.clearInterval(
+        interval
+      );
   }, [loadNotifications]);
 
   useEffect(() => {
+    const refresh = () => {
+      void loadNotifications(
+        true
+      );
+    };
+
+    const handleVisibility =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          refresh();
+        }
+      };
+
+    window.addEventListener(
+      "focus",
+      refresh
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibility
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus",
+        refresh
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibility
+      );
+    };
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!toastNotification) {
+      return;
+    }
+
+    const timeout =
+      window.setTimeout(
+        () => {
+          setToastNotification(
+            null
+          );
+        },
+        7_000
+      );
+
+    return () =>
+      window.clearTimeout(
+        timeout
+      );
+  }, [toastNotification]);
+
+  useEffect(() => {
     if (isOpen) {
-      void loadNotifications();
+      void loadNotifications(
+        false
+      );
     }
   }, [isOpen, loadNotifications]);
 
@@ -242,6 +376,98 @@ export function NotificationsPanel() {
         ) : null}
       </button>
 
+      {toastNotification &&
+      !isOpen ? (
+        <div className="ui-panel absolute right-0 top-12 z-[60] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-500/25 bg-card/95 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-sky-400/20 dark:bg-[#0b0f16]">
+          <div className="flex items-start gap-3 p-4">
+            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-sky-300">
+              <Bell className="size-4" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
+                {humanize(
+                  toastNotification.type
+                )}
+              </p>
+
+              <p className="mt-1 text-sm font-semibold text-foreground dark:text-white">
+                {
+                  toastNotification.title
+                }
+              </p>
+
+              {toastNotification.message ? (
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                  {
+                    toastNotification.message
+                  }
+                </p>
+              ) : null}
+
+              <div className="mt-3 flex items-center gap-2">
+                {toastNotification.href ? (
+                  <Link
+                    href={
+                      toastNotification.href
+                    }
+                    onClick={() => {
+                      void markRead(
+                        toastNotification.id
+                      );
+                      setToastNotification(
+                        null
+                      );
+                    }}
+                    className="text-xs font-semibold text-cyan-700 hover:underline dark:text-sky-300"
+                  >
+                    Open
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(true);
+                      setToastNotification(
+                        null
+                      );
+                    }}
+                    className="text-xs font-semibold text-cyan-700 hover:underline dark:text-sky-300"
+                  >
+                    View notifications
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setToastNotification(
+                      null
+                    )
+                  }
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setToastNotification(
+                  null
+                )
+              }
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground"
+              aria-label="Dismiss notification"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {isOpen ? (
         <section className="ui-panel absolute right-0 top-12 z-50 w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card/95 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0f16] dark:shadow-2xl dark:shadow-black/60">
           <div className="flex items-center justify-between gap-4 border-b border-border p-4 dark:border-white/[0.08]">
@@ -334,7 +560,7 @@ export function NotificationsPanel() {
           </div>
 
           <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground dark:border-white/[0.08] dark:text-slate-700">
-            Refreshes automatically every minute
+            Refreshes every 15 seconds and when you return to Yacht OS
           </div>
         </section>
       ) : null}

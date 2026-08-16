@@ -1290,6 +1290,15 @@ export default function CharterWorkspacePage() {
                 >
                   Concierge
                 </Link>
+
+                <Link
+                  href={`/charters/${encodeURIComponent(
+                    charter.id
+                  )}/guest-portal`}
+                  className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent"
+                >
+                  Guest Portal
+                </Link>
               </div>
             </div>
           </div>
