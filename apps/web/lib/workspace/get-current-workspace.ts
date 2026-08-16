@@ -8,7 +8,18 @@ import { createClient } from "@/lib/supabase/server";
 
 const ACTIVE_COMPANY_COOKIE = "intrigue-active-company-id";
 
-export type WorkspaceRole = "owner" | "admin" | "broker" | "viewer" | string;
+export type WorkspaceRole =
+  | "owner"
+  | "admin"
+  | "broker"
+  | "viewer"
+  | string;
+
+export type CompanyOperatingModel =
+  | "independent_brokerage"
+  | "yacht_management"
+  | "controlled_fleet"
+  | "mixed_operation";
 
 export type CurrentWorkspace = {
   userId: string;
@@ -20,6 +31,7 @@ export type CurrentWorkspace = {
   defaultCurrency: string;
   timezone: string;
   subscriptionStatus: string;
+  operatingModel: CompanyOperatingModel | null;
   role: WorkspaceRole;
 };
 
@@ -38,20 +50,29 @@ type CompanyRow = {
   default_currency: string;
   timezone: string;
   subscription_status: string;
+  operating_model: CompanyOperatingModel | null;
 };
 
 export class WorkspaceAccessError extends Error {
-  readonly code: "WORKSPACE_REQUIRED" | "WORKSPACE_QUERY_FAILED";
+  readonly code:
+    | "WORKSPACE_REQUIRED"
+    | "WORKSPACE_QUERY_FAILED";
+
   readonly status: 403 | 500;
 
   constructor(
-    code: "WORKSPACE_REQUIRED" | "WORKSPACE_QUERY_FAILED",
+    code:
+      | "WORKSPACE_REQUIRED"
+      | "WORKSPACE_QUERY_FAILED",
     message: string
   ) {
     super(message);
     this.name = "WorkspaceAccessError";
     this.code = code;
-    this.status = code === "WORKSPACE_REQUIRED" ? 403 : 500;
+    this.status =
+      code === "WORKSPACE_REQUIRED"
+        ? 403
+        : 500;
   }
 }
 
@@ -71,14 +92,24 @@ export const getCurrentWorkspace = cache(
     const user = await requireUser();
     const supabase = await createClient();
     const cookieStore = await cookies();
-    const requestedCompanyId =
-      cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? null;
 
-    const { data: membershipData, error: membershipError } = await supabase
+    const requestedCompanyId =
+      cookieStore.get(
+        ACTIVE_COMPANY_COOKIE
+      )?.value ?? null;
+
+    const {
+      data: membershipData,
+      error: membershipError,
+    } = await supabase
       .from("company_members")
-      .select("id, company_id, role, created_at")
+      .select(
+        "id, company_id, role, created_at"
+      )
       .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
+      .order("created_at", {
+        ascending: true,
+      });
 
     if (membershipError) {
       throw new WorkspaceAccessError(
@@ -87,7 +118,9 @@ export const getCurrentWorkspace = cache(
       );
     }
 
-    const memberships = (membershipData ?? []) as MembershipRow[];
+    const memberships =
+      (membershipData ??
+        []) as MembershipRow[];
 
     if (memberships.length === 0) {
       throw new WorkspaceAccessError(
@@ -99,14 +132,19 @@ export const getCurrentWorkspace = cache(
     const membership =
       (requestedCompanyId
         ? memberships.find(
-            (item) => item.company_id === requestedCompanyId
+            (item) =>
+              item.company_id ===
+              requestedCompanyId
           )
         : null) ?? memberships[0];
 
-    const { data: companyData, error: companyError } = await supabase
+    const {
+      data: companyData,
+      error: companyError,
+    } = await supabase
       .from("companies")
       .select(
-        "id, name, slug, logo_url, default_currency, timezone, subscription_status"
+        "id, name, slug, logo_url, default_currency, timezone, subscription_status, operating_model"
       )
       .eq("id", membership.company_id)
       .maybeSingle();
@@ -125,7 +163,8 @@ export const getCurrentWorkspace = cache(
       );
     }
 
-    const company = companyData as CompanyRow;
+    const company =
+      companyData as CompanyRow;
 
     return {
       userId: user.id,
@@ -134,9 +173,13 @@ export const getCurrentWorkspace = cache(
       companyName: company.name,
       companySlug: company.slug,
       companyLogoUrl: company.logo_url,
-      defaultCurrency: company.default_currency,
+      defaultCurrency:
+        company.default_currency,
       timezone: company.timezone,
-      subscriptionStatus: company.subscription_status,
+      subscriptionStatus:
+        company.subscription_status,
+      operatingModel:
+        company.operating_model,
       role: membership.role,
     };
   }

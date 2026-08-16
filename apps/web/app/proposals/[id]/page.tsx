@@ -1,5 +1,6 @@
 "use client";
 
+
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -10,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import { FinalConfirmationPanel } from "@/components/proposals/final-confirmation-panel";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -809,6 +811,12 @@ export default function ProposalDetailPage() {
             </div>
           </div>
         </section>
+      ) : null}
+
+      {clientSelection ? (
+        <FinalConfirmationPanel
+          proposalId={proposalId}
+        />
       ) : null}
 
       {proposalYachts.length > 0 ? (
