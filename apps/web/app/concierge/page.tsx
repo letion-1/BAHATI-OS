@@ -201,23 +201,29 @@ export default function ConciergePage() {
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="space-y-5">
-        <section className="ui-panel rounded-[28px] p-5 sm:p-7">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-300">
-                Charter service control
-              </p>
+        <section className="overflow-hidden rounded-[30px] border border-border/70 bg-[radial-gradient(circle_at_top_left,rgba(58,109,168,0.22),transparent_36%),linear-gradient(135deg,rgba(12,20,34,0.98),rgba(17,22,38,0.98)_56%,rgba(32,25,55,0.98))] shadow-sm">
+          <div className="flex min-h-[300px] flex-col justify-between gap-8 p-6 sm:p-8 lg:p-10 xl:flex-row xl:items-end">
+            <div className="max-w-3xl">
+              <div className="flex items-center gap-3">
+                <span className="size-2 rounded-full bg-white" />
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300">
+                  Concierge workspace
+                </p>
+              </div>
 
-              <h1 className="mt-3 font-heading text-3xl tracking-[0.04em] text-foreground sm:text-4xl">
-                Concierge
+              <h1 className="mt-7 max-w-3xl font-heading text-[42px] leading-[0.96] tracking-[0.02em] text-white sm:text-[54px] lg:text-[62px]">
+                MANAGE CHARTER
+                <br />
+                CONCIERGE
               </h1>
 
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-                Coordinate guest requests, transfers, restaurants, provisioning, activities and crew-facing arrangements across every charter.
+              <p className="mt-7 max-w-2xl text-[15px] leading-7 text-slate-300">
+                Coordinate guest requests, transfers, restaurants, provisioning,
+                activities and crew-facing arrangements across every confirmed charter.
               </p>
             </div>
 
-            <div className="w-full xl:max-w-sm">
+            <div className="w-full xl:max-w-[390px]">
               <label className="block">
                 <span className="sr-only">
                   Search concierge charters
@@ -229,12 +235,11 @@ export default function ConciergePage() {
                     event
                   ) =>
                     setQuery(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   placeholder="Search yacht, client, destination..."
-                  className="ui-input w-full px-4 py-3 text-sm"
+                  className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-2 focus:ring-cyan-400/10"
                 />
               </label>
             </div>
@@ -247,51 +252,43 @@ export default function ConciergePage() {
           </div>
         ) : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard
             label="Charters"
-            value={
-              summary.charters
-            }
+            value={summary.charters}
+            description="Confirmed charter workspaces"
           />
           <StatCard
             label="Active requests"
-            value={
-              summary.activeRequests
-            }
+            value={summary.activeRequests}
+            description="Still being coordinated"
           />
           <StatCard
             label="Urgent"
-            value={
-              summary.urgentRequests
-            }
-            emphasis={
-              summary.urgentRequests >
-              0
-            }
+            value={summary.urgentRequests}
+            description="Needs immediate attention"
+            emphasis={summary.urgentRequests > 0}
           />
           <StatCard
             label="Confirmed"
-            value={
-              summary.confirmedRequests
-            }
+            value={summary.confirmedRequests}
+            description="Arrangements secured"
           />
           <StatCard
             label="Guest visible"
-            value={
-              summary.guestVisible
-            }
+            value={summary.guestVisible}
+            description="Ready for guest portal"
           />
         </section>
 
         <section className="ui-panel rounded-[28px] p-5 sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
                 Active charter workspaces
               </p>
-              <h2 className="mt-2 font-heading text-2xl text-foreground">
-                Concierge charters
+              <h2 className="mt-2 font-heading text-3xl tracking-[0.02em] text-foreground">
+                CONCIERGE CHARTERS
               </h2>
             </div>
 
@@ -482,25 +479,32 @@ function CharterCard({
 function StatCard({
   label,
   value,
+  description,
   emphasis = false,
 }: {
   label: string;
   value: number;
+  description: string;
   emphasis?: boolean;
 }) {
   return (
     <div
-      className={`rounded-2xl border px-4 py-4 ${
+      className={`min-h-[188px] rounded-[24px] border p-5 sm:p-6 ${
         emphasis
           ? "border-red-500/25 bg-red-500/10"
           : "ui-panel"
       }`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-foreground">
+
+      <p className="mt-5 font-heading text-5xl leading-none text-foreground">
         {value}
+      </p>
+
+      <p className="mt-5 text-sm leading-6 text-muted-foreground">
+        {description}
       </p>
     </div>
   );
