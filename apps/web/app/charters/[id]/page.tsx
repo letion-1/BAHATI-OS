@@ -1281,6 +1281,15 @@ export default function CharterWorkspacePage() {
                 >
                   Back to proposal
                 </Link>
+
+                <Link
+                  href={`/concierge/${encodeURIComponent(
+                    charter.id
+                  )}`}
+                  className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold"
+                >
+                  Concierge
+                </Link>
               </div>
             </div>
           </div>

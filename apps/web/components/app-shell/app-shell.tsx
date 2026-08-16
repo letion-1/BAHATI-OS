@@ -27,6 +27,7 @@ import {
   Plus,
   Settings,
   Ship,
+  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -95,6 +96,11 @@ const navigation = [
     name: "Proposals",
     href: "/proposals",
     icon: FileText,
+  },
+  {
+    name: "Concierge",
+    href: "/concierge",
+    icon: Sparkles,
   },
   {
     name: "Email",
