@@ -51,6 +51,11 @@ type SupabaseAdminLike = {
   from: (table: string) => any;
 };
 
+type GmailSendResult = {
+  id: string;
+  threadId: string | null;
+};
+
 export function createGoogleEmailAuthorizationUrl(
   state: string
 ): string {
@@ -225,16 +230,81 @@ export async function sendGmailTextMessage({
   to: string;
   subject: string;
   body: string;
-}): Promise<{
-  id: string;
-  threadId: string | null;
-}> {
+}): Promise<GmailSendResult> {
   const raw = buildRawEmail({
     to,
     subject,
     body,
   });
 
+  return sendRawGmailMessage({
+    accessToken,
+    raw,
+  });
+}
+
+export async function sendGmailMessageWithAttachment({
+  accessToken,
+  to,
+  subject,
+  body,
+  attachment,
+}: {
+  accessToken: string;
+  to: string;
+  subject: string;
+  body: string;
+  attachment: {
+    fileName: string;
+    mimeType: string;
+    content: Buffer;
+  };
+}): Promise<GmailSendResult> {
+  const raw =
+    buildRawEmailWithAttachment({
+      to,
+      subject,
+      body,
+      attachment,
+    });
+
+  return sendRawGmailMessage({
+    accessToken,
+    raw,
+  });
+}
+
+export async function revokeGoogleToken(
+  token: string
+): Promise<void> {
+  try {
+    await fetch(
+      "https://oauth2.googleapis.com/revoke",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          token,
+        }),
+        cache: "no-store",
+      }
+    );
+  } catch {
+    // Local disconnect still proceeds even if
+    // Google revocation is temporarily unavailable.
+  }
+}
+
+async function sendRawGmailMessage({
+  accessToken,
+  raw,
+}: {
+  accessToken: string;
+  raw: string;
+}): Promise<GmailSendResult> {
   const response = await fetch(
     GMAIL_SEND_URL,
     {
@@ -278,30 +348,6 @@ export async function sendGmailTextMessage({
   };
 }
 
-export async function revokeGoogleToken(
-  token: string
-): Promise<void> {
-  try {
-    await fetch(
-      "https://oauth2.googleapis.com/revoke",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          token,
-        }),
-        cache: "no-store",
-      }
-    );
-  } catch {
-    // Local disconnect still proceeds even if
-    // Google revocation is temporarily unavailable.
-  }
-}
-
 async function refreshGoogleAccessToken(
   refreshToken: string
 ): Promise<GoogleTokenResponse> {
@@ -317,8 +363,7 @@ async function refreshGoogleAccessToken(
       },
       body: new URLSearchParams({
         client_id: config.clientId,
-        client_secret:
-          config.clientSecret,
+        client_secret: config.clientSecret,
         refresh_token: refreshToken,
         grant_type: "refresh_token",
       }),
@@ -405,12 +450,127 @@ function buildRawEmail({
   ).toString("base64url");
 }
 
+function buildRawEmailWithAttachment({
+  to,
+  subject,
+  body,
+  attachment,
+}: {
+  to: string;
+  subject: string;
+  body: string;
+  attachment: {
+    fileName: string;
+    mimeType: string;
+    content: Buffer;
+  };
+}): string {
+  const boundary =
+    `yachtos_${crypto.randomUUID().replace(/-/g, "")}`;
+
+  const safeTo =
+    sanitizeHeader(to);
+
+  const encodedSubject =
+    encodeMimeHeader(subject);
+
+  const safeFileName =
+    sanitizeAttachmentFileName(
+      attachment.fileName
+    );
+
+  const normalizedBody =
+    body.replace(/\r?\n/g, "\r\n");
+
+  const bodyBase64 =
+    wrapBase64(
+      Buffer.from(
+        normalizedBody,
+        "utf8"
+      ).toString("base64")
+    );
+
+  const attachmentBase64 =
+    wrapBase64(
+      attachment.content.toString(
+        "base64"
+      )
+    );
+
+  const message = [
+    `To: ${safeTo}`,
+    `Subject: ${encodedSubject}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    bodyBase64,
+    `--${boundary}`,
+    `Content-Type: ${sanitizeMimeType(
+      attachment.mimeType
+    )}; name="${safeFileName}"`,
+    "Content-Transfer-Encoding: base64",
+    `Content-Disposition: attachment; filename="${safeFileName}"`,
+    "",
+    attachmentBase64,
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+
+  return Buffer.from(
+    message,
+    "utf8"
+  ).toString("base64url");
+}
+
+function wrapBase64(
+  value: string
+): string {
+  return (
+    value.match(/.{1,76}/g)?.join(
+      "\r\n"
+    ) ?? ""
+  );
+}
+
 function sanitizeHeader(
   value: string
 ): string {
   return value
     .replace(/[\r\n]+/g, " ")
     .trim();
+}
+
+function sanitizeAttachmentFileName(
+  value: string
+): string {
+  const cleaned = value
+    .replace(/[\r\n"]/g, "")
+    .trim()
+    .replace(
+      /[^a-zA-Z0-9._ -]+/g,
+      "-"
+    )
+    .slice(0, 120);
+
+  return cleaned || "document.pdf";
+}
+
+function sanitizeMimeType(
+  value: string
+): string {
+  const cleaned = value
+    .trim()
+    .toLowerCase();
+
+  return /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(
+    cleaned
+  )
+    ? cleaned
+    : "application/octet-stream";
 }
 
 function encodeMimeHeader(

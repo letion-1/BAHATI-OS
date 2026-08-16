@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+import { useRouter } from "next/navigation";
 
 type ConfirmationStatus =
   | "not_started"
@@ -73,17 +78,35 @@ type ConfirmationResponse = {
   message?: string;
 };
 
+type CharterTransitionResponse = {
+  success: boolean;
+  created?: boolean;
+  charter?: {
+    id: string;
+    reference: string;
+  } | null;
+  error?: string;
+};
+
 export function FinalConfirmationPanel({
   proposalId,
 }: {
   proposalId: string;
 }) {
+  const router = useRouter();
+
   const [data, setData] =
     useState<ConfirmationResponse | null>(null);
   const [isLoading, setIsLoading] =
     useState(true);
   const [isSubmitting, setIsSubmitting] =
     useState(false);
+  const [isLoadingCharter, setIsLoadingCharter] =
+    useState(false);
+  const [isOpeningContract, setIsOpeningContract] =
+    useState(false);
+  const [charterId, setCharterId] =
+    useState<string | null>(null);
   const [error, setError] =
     useState<string | null>(null);
 
@@ -128,6 +151,49 @@ export function FinalConfirmationPanel({
       }
     }, [proposalId]);
 
+  const loadCharterTransition =
+    useCallback(async () => {
+      if (!proposalId) {
+        return;
+      }
+
+      try {
+        setIsLoadingCharter(true);
+
+        const response = await fetch(
+          `/api/proposals/${encodeURIComponent(
+            proposalId
+          )}/charter`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+        const result =
+          (await response.json()) as CharterTransitionResponse;
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.error ??
+              "Could not load charter state."
+          );
+        }
+
+        setCharterId(
+          result.charter?.id ?? null
+        );
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Could not load charter state."
+        );
+      } finally {
+        setIsLoadingCharter(false);
+      }
+    }, [proposalId]);
+
   useEffect(() => {
     void loadConfirmation();
   }, [loadConfirmation]);
@@ -144,6 +210,20 @@ export function FinalConfirmationPanel({
       window.clearInterval(interval);
     };
   }, [loadConfirmation]);
+
+  useEffect(() => {
+    if (
+      data?.confirmation?.status ===
+      "confirmed"
+    ) {
+      void loadCharterTransition();
+    } else {
+      setCharterId(null);
+    }
+  }, [
+    data?.confirmation?.status,
+    loadCharterTransition,
+  ]);
 
   async function performAction(
     action:
@@ -196,6 +276,65 @@ export function FinalConfirmationPanel({
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function proceedToContract() {
+    if (!proposalId || isOpeningContract) {
+      return;
+    }
+
+    if (charterId) {
+      router.push(
+        `/charters/${encodeURIComponent(
+          charterId
+        )}`
+      );
+      return;
+    }
+
+    try {
+      setIsOpeningContract(true);
+      setError(null);
+
+      const response = await fetch(
+        `/api/proposals/${encodeURIComponent(
+          proposalId
+        )}/charter`,
+        {
+          method: "POST",
+        }
+      );
+
+      const result =
+        (await response.json()) as CharterTransitionResponse;
+
+      if (
+        !response.ok ||
+        !result.success ||
+        !result.charter?.id
+      ) {
+        throw new Error(
+          result.error ??
+            "Could not create the charter workspace."
+        );
+      }
+
+      setCharterId(result.charter.id);
+
+      router.push(
+        `/charters/${encodeURIComponent(
+          result.charter.id
+        )}`
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not open the contract workspace."
+      );
+    } finally {
+      setIsOpeningContract(false);
     }
   }
 
@@ -268,6 +407,12 @@ export function FinalConfirmationPanel({
               >
                 {statusView.label}
               </span>
+
+              {isConfirmed && charterId ? (
+                <span className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-cyan-800 dark:text-cyan-200">
+                  Contract created
+                </span>
+              ) : null}
             </div>
 
             <h2 className="mt-3 font-heading text-3xl tracking-[0.04em] text-foreground">
@@ -289,7 +434,7 @@ export function FinalConfirmationPanel({
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-2 lg:max-w-sm lg:justify-end">
+          <div className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
             {renderActions({
               status,
               confirmationType:
@@ -297,8 +442,13 @@ export function FinalConfirmationPanel({
               canProceed:
                 decision.canProceed,
               isSubmitting,
+              isLoadingCharter,
+              isOpeningContract,
+              charterId,
               onAction:
                 performAction,
+              onProceedToContract:
+                proceedToContract,
               primaryActionLabel:
                 decision.primaryActionLabel,
             })}
@@ -392,13 +542,20 @@ function renderActions({
   confirmationType,
   canProceed,
   isSubmitting,
+  isLoadingCharter,
+  isOpeningContract,
+  charterId,
   onAction,
+  onProceedToContract,
   primaryActionLabel,
 }: {
   status: ConfirmationStatus;
   confirmationType: ConfirmationDecision["confirmationType"];
   canProceed: boolean;
   isSubmitting: boolean;
+  isLoadingCharter: boolean;
+  isOpeningContract: boolean;
+  charterId: string | null;
   onAction: (
     action:
       | "request"
@@ -407,6 +564,7 @@ function renderActions({
       | "cancel"
       | "reset"
   ) => Promise<void>;
+  onProceedToContract: () => Promise<void>;
   primaryActionLabel: string | null;
 }) {
   if (!canProceed || status === "blocked") {
@@ -420,20 +578,45 @@ function renderActions({
   if (status === "confirmed") {
     return (
       <>
-        <span className="inline-flex min-h-11 items-center justify-center rounded-[0.9rem] border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-          Charter confirmed
-        </span>
-
         <button
           type="button"
           onClick={() =>
-            void onAction("reset")
+            void onProceedToContract()
           }
-          disabled={isSubmitting}
-          className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent disabled:opacity-60"
+          disabled={
+            isOpeningContract ||
+            isLoadingCharter
+          }
+          className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-60"
         >
-          Reopen confirmation
+          {isOpeningContract
+            ? "Opening contract..."
+            : isLoadingCharter
+              ? "Checking contract..."
+              : charterId
+                ? "Open contract"
+                : "Proceed to contract"}
         </button>
+
+        {charterId ? (
+          <span className="inline-flex min-h-11 items-center justify-center rounded-[0.9rem] border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+            Charter created
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              void onAction("reset")
+            }
+            disabled={
+              isSubmitting ||
+              isLoadingCharter
+            }
+            className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent disabled:opacity-60"
+          >
+            Reopen confirmation
+          </button>
+        )}
       </>
     );
   }

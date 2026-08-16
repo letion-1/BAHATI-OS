@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { isAuthenticationRequiredError } from "@/lib/auth/require-user";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentWorkspace,
@@ -45,8 +46,15 @@ type DocumentRow = {
   client_id: string | null;
   inquiry_id: string | null;
   proposal_id: string | null;
+  charter_id: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type CharterRow = {
+  id: string;
+  contract_signed_at: string | null;
+  charter_status: string;
 };
 
 export async function GET() {
@@ -68,6 +76,7 @@ export async function GET() {
           "client_id",
           "inquiry_id",
           "proposal_id",
+          "charter_id",
           "created_at",
           "updated_at",
         ].join(",")
@@ -107,10 +116,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   let uploadedStoragePath: string | null = null;
+  let insertedDocumentId: string | null = null;
 
   try {
     const workspace = await getCurrentWorkspace();
     const supabase = await createClient();
+    const admin = createAdminClient();
     const formData = await request.formData();
 
     const file = formData.get("file");
@@ -174,6 +185,11 @@ export async function POST(request: NextRequest) {
       "Proposal ID"
     );
 
+    const charterId = parseOptionalUuid(
+      formData.get("charterId"),
+      "Charter ID"
+    );
+
     if (!clientId.success) {
       return NextResponse.json(
         {
@@ -204,11 +220,110 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const storagePath = `${
-      workspace.companyId
-    }/${crypto.randomUUID()}-${sanitizeFileName(
-      file.name
-    )}`;
+    if (!charterId.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: charterId.error,
+        },
+        { status: 400 }
+      );
+    }
+
+    const markContractSigned =
+      cleanText(formData.get("markContractSigned")) === "true";
+
+    let charter: CharterRow | null = null;
+
+    if (charterId.value) {
+      const charterResult = await admin
+        .from("charters")
+        .select("id, contract_signed_at, charter_status")
+        .eq("company_id", workspace.companyId)
+        .eq("id", charterId.value)
+        .maybeSingle();
+
+      if (charterResult.error) {
+        throw new Error(
+          `Could not validate charter: ${charterResult.error.message}`
+        );
+      }
+
+      if (!charterResult.data) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Charter not found.",
+          },
+          { status: 404 }
+        );
+      }
+
+      charter =
+        charterResult.data as unknown as CharterRow;
+    }
+
+    if (markContractSigned) {
+      if (!charterId.value || !charter) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "A charter is required when uploading a signed agreement.",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (category !== "charter_agreement") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "A signed contract must use the Charter Agreement category.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    let version = 1;
+
+    if (charterId.value) {
+      const latestVersionResult = await admin
+        .from("documents")
+        .select("version")
+        .eq("company_id", workspace.companyId)
+        .eq("charter_id", charterId.value)
+        .eq("category", category)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestVersionResult.error) {
+        throw new Error(
+          `Could not determine document version: ${latestVersionResult.error.message}`
+        );
+      }
+
+      version =
+        Math.max(
+          Number(latestVersionResult.data?.version ?? 0),
+          0
+        ) + 1;
+    }
+
+    const storagePath = charterId.value
+      ? `${
+          workspace.companyId
+        }/charters/${charterId.value}/uploads/${crypto.randomUUID()}-${sanitizeFileName(
+          file.name
+        )}`
+      : `${
+          workspace.companyId
+        }/${crypto.randomUUID()}-${sanitizeFileName(
+          file.name
+        )}`;
 
     uploadedStoragePath = storagePath;
 
@@ -241,11 +356,12 @@ export async function POST(request: NextRequest) {
           storage_path: storagePath,
           mime_type: file.type,
           file_size: file.size,
-          version: 1,
+          version,
           status: "active",
           client_id: clientId.value,
           inquiry_id: inquiryId.value,
           proposal_id: proposalId.value,
+          charter_id: charterId.value,
         })
         .select("*")
         .single();
@@ -264,16 +380,76 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    insertedDocumentId = data.id as string;
+
+    if (markContractSigned && charterId.value && charter) {
+      const now = new Date().toISOString();
+
+      const { error: charterUpdateError } = await admin
+        .from("charters")
+        .update({
+          contract_status: "signed",
+          contract_signed_at:
+            charter.contract_signed_at ?? now,
+          charter_status:
+            charter.charter_status === "cancelled"
+              ? "cancelled"
+              : "confirmed",
+          updated_at: now,
+        })
+        .eq("company_id", workspace.companyId)
+        .eq("id", charterId.value);
+
+      if (charterUpdateError) {
+        await supabase
+          .from("documents")
+          .delete()
+          .eq("id", insertedDocumentId)
+          .eq("company_id", workspace.companyId);
+
+        insertedDocumentId = null;
+
+        await supabase.storage
+          .from(BUCKET_NAME)
+          .remove([storagePath]);
+
+        uploadedStoragePath = null;
+
+        throw new Error(
+          `Signed agreement uploaded, but the charter status could not be updated: ${charterUpdateError.message}`
+        );
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
         document: serializeDocument(
           data as unknown as DocumentRow
         ),
+        contractSigned: markContractSigned,
       },
       { status: 201 }
     );
   } catch (error) {
+    if (insertedDocumentId) {
+      try {
+        const workspace = await getCurrentWorkspace();
+        const supabase = await createClient();
+
+        await supabase
+          .from("documents")
+          .delete()
+          .eq("id", insertedDocumentId)
+          .eq("company_id", workspace.companyId);
+      } catch (cleanupError) {
+        console.error(
+          "Document record cleanup failed:",
+          cleanupError
+        );
+      }
+    }
+
     if (uploadedStoragePath) {
       try {
         const supabase = await createClient();
@@ -308,6 +484,7 @@ function serializeDocument(row: DocumentRow) {
     clientId: row.client_id,
     inquiryId: row.inquiry_id,
     proposalId: row.proposal_id,
+    charterId: row.charter_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
