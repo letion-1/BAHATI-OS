@@ -75,6 +75,9 @@ type ConciergeRow = {
   source: string;
   client_visible: boolean;
   notes: string | null;
+  assigned_to: string | null;
+  assigned_at: string | null;
+  due_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -530,6 +533,9 @@ function conciergeSelect() {
     "source",
     "client_visible",
     "notes",
+    "assigned_to",
+    "assigned_at",
+    "due_at",
     "created_by",
     "created_at",
     "updated_at",
@@ -605,6 +611,21 @@ function serializeConcierge(
       ),
     notes:
       row.notes,
+    assignedTo:
+      row.assigned_to,
+    assignedAt:
+      row.assigned_at,
+    dueAt:
+      row.due_at,
+    overdue:
+      isConciergeOverdue(
+        row.due_at,
+        row.status
+      ),
+    needsAttention:
+      isConciergeAttentionNeeded(
+        row
+      ),
     createdAt:
       row.created_at,
     updatedAt:
@@ -795,6 +816,57 @@ function toNullableNumber(
   }
 
   return null;
+}
+
+function isConciergeOverdue(
+  dueAt: string | null,
+  status: string
+) {
+  if (
+    !dueAt ||
+    [
+      "completed",
+      "cancelled",
+    ].includes(status)
+  ) {
+    return false;
+  }
+
+  const due =
+    new Date(dueAt);
+
+  return (
+    !Number.isNaN(
+      due.getTime()
+    ) &&
+    due.getTime() <
+      Date.now()
+  );
+}
+
+function isConciergeAttentionNeeded(
+  row: ConciergeRow
+) {
+  if (
+    [
+      "completed",
+      "cancelled",
+    ].includes(
+      row.status
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    row.priority ===
+      "urgent" ||
+    isConciergeOverdue(
+      row.due_at,
+      row.status
+    ) ||
+    !row.assigned_to
+  );
 }
 
 function badRequest(

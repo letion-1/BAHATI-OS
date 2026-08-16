@@ -30,6 +30,9 @@ type ConciergeCharter = {
     confirmed: number;
     completed: number;
     guestVisible: number;
+    overdue: number;
+    unassigned: number;
+    attention: number;
     nextScheduledAt: string | null;
     estimatedOpenCost: number;
   };
@@ -43,6 +46,7 @@ type ConciergeResponse = {
     urgentRequests: number;
     confirmedRequests: number;
     guestVisible: number;
+    attentionRequests: number;
   };
   charters?: ConciergeCharter[];
   error?: string;
@@ -136,6 +140,7 @@ export default function ConciergePage() {
       urgentRequests: 0,
       confirmedRequests: 0,
       guestVisible: 0,
+      attentionRequests: 0,
     };
 
   const filteredCharters =
@@ -212,14 +217,14 @@ export default function ConciergePage() {
               </div>
 
               <h1 className="mt-7 max-w-3xl font-heading text-[42px] leading-[0.96] tracking-[0.02em] text-white sm:text-[54px] lg:text-[62px]">
-                MANAGE CHARTER
+                CHARTER CONCIERGE
                 <br />
-                CONCIERGE
+                OPERATIONS
               </h1>
 
               <p className="mt-7 max-w-2xl text-[15px] leading-7 text-slate-300">
-                Coordinate guest requests, transfers, restaurants, provisioning,
-                activities and crew-facing arrangements across every confirmed charter.
+                Run the guest experience from one operational workspace, from transfers
+                and provisioning to dining, activities and crew coordination.
               </p>
             </div>
 
@@ -252,7 +257,7 @@ export default function ConciergePage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
           <StatCard
             label="Charters"
             value={summary.charters}
@@ -278,6 +283,12 @@ export default function ConciergePage() {
             label="Guest visible"
             value={summary.guestVisible}
             description="Ready for guest portal"
+          />
+          <StatCard
+            label="Needs attention"
+            value={summary.attentionRequests}
+            description="Urgent, overdue or unassigned"
+            emphasis={summary.attentionRequests > 0}
           />
         </section>
 

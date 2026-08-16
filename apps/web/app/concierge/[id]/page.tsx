@@ -44,6 +44,11 @@ type ConciergeItem = {
   source: string;
   clientVisible: boolean;
   notes: string | null;
+  assignedTo: string | null;
+  assignedAt: string | null;
+  dueAt: string | null;
+  overdue: boolean;
+  needsAttention: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -1127,6 +1132,7 @@ export default function CharterConciergePage() {
                 (item) => (
                   <ConciergeCard
                     key={item.id}
+                    charterId={charter.id}
                     item={item}
                     busy={
                       busyItemId ===
@@ -1172,12 +1178,14 @@ export default function CharterConciergePage() {
 }
 
 function ConciergeCard({
+  charterId,
   item,
   busy,
   onStatus,
   onToggleVisibility,
   onDelete,
 }: {
+  charterId: string;
   item: ConciergeItem;
   busy: boolean;
   onStatus: (
@@ -1208,6 +1216,15 @@ function ConciergeCard({
                   item.priority
                 }
               />
+            ) : null}
+            {item.overdue ? (
+              <span className="rounded-full border border-red-500/25 bg-red-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-red-800 dark:text-red-200">
+                Overdue
+              </span>
+            ) : item.needsAttention ? (
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-amber-900 dark:text-amber-200">
+                Needs attention
+              </span>
             ) : null}
           </div>
 
@@ -1269,6 +1286,24 @@ function ConciergeCard({
             "Not set"
           }
         />
+        <InfoLine
+          label="Internal due"
+          value={
+            item.dueAt
+              ? formatDateTime(
+                  item.dueAt
+                )
+              : "Not set"
+          }
+        />
+        <InfoLine
+          label="Ownership"
+          value={
+            item.assignedTo
+              ? "Assigned"
+              : "Unassigned"
+          }
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -1298,6 +1333,17 @@ function ConciergeCard({
               </button>
             )
           )}
+
+        <Link
+          href={`/concierge/${encodeURIComponent(
+            charterId
+          )}/${encodeURIComponent(
+            item.id
+          )}`}
+          className="ui-primary-button apple-transition inline-flex min-h-9 items-center justify-center px-3 py-1.5 text-xs font-semibold"
+        >
+          Open request
+        </Link>
 
         <button
           type="button"

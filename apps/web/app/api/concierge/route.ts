@@ -39,6 +39,8 @@ type ConciergeItemRow = {
   priority: string;
   scheduled_at: string | null;
   client_visible: boolean;
+  assigned_to: string | null;
+  due_at: string | null;
   estimated_cost:
     | number
     | string
@@ -127,6 +129,8 @@ export async function GET() {
               "priority",
               "scheduled_at",
               "client_visible",
+              "assigned_to",
+              "due_at",
               "estimated_cost",
               "currency",
             ].join(",")
@@ -219,6 +223,31 @@ export async function GET() {
                 item.client_visible
             );
 
+          const overdueItems =
+            activeItems.filter(
+              (item) =>
+                isOverviewOverdue(
+                  item.due_at
+                )
+            );
+
+          const unassignedItems =
+            activeItems.filter(
+              (item) =>
+                !item.assigned_to
+            );
+
+          const attentionItems =
+            activeItems.filter(
+              (item) =>
+                item.priority ===
+                  "urgent" ||
+                isOverviewOverdue(
+                  item.due_at
+                ) ||
+                !item.assigned_to
+            );
+
           const nextScheduledAt =
             activeItems
               .map(
@@ -288,6 +317,12 @@ export async function GET() {
                 completedItems.length,
               guestVisible:
                 guestVisibleItems.length,
+              overdue:
+                overdueItems.length,
+              unassigned:
+                unassignedItems.length,
+              attention:
+                attentionItems.length,
               nextScheduledAt,
               estimatedOpenCost,
             },
@@ -320,6 +355,10 @@ export async function GET() {
             current.guestVisible +
             charter.concierge
               .guestVisible,
+          attentionRequests:
+            current.attentionRequests +
+            charter.concierge
+              .attention,
         }),
         {
           charters: 0,
@@ -327,6 +366,7 @@ export async function GET() {
           urgentRequests: 0,
           confirmedRequests: 0,
           guestVisible: 0,
+          attentionRequests: 0,
         }
       );
 
@@ -349,6 +389,25 @@ export async function GET() {
       "Could not load Concierge."
     );
   }
+}
+
+function isOverviewOverdue(
+  dueAt: string | null
+) {
+  if (!dueAt) {
+    return false;
+  }
+
+  const due =
+    new Date(dueAt);
+
+  return (
+    !Number.isNaN(
+      due.getTime()
+    ) &&
+    due.getTime() <
+      Date.now()
+  );
 }
 
 function numberValue(

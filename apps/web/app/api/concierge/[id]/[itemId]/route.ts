@@ -75,9 +75,201 @@ type ConciergeRow = {
   source: string;
   client_visible: boolean;
   notes: string | null;
+  assigned_to: string | null;
+  assigned_by: string | null;
+  assigned_at: string | null;
+  due_at: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export async function GET(
+  _request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    const ids =
+      await readIds(context);
+
+    if (
+      !ids.charterId ||
+      !ids.itemId
+    ) {
+      return badRequest(
+        "Charter ID and concierge item ID are required."
+      );
+    }
+
+    const workspace =
+      await getCurrentWorkspace();
+    const admin =
+      createAdminClient();
+
+    const charterResult =
+      await admin
+        .from("charters")
+        .select(
+          [
+            "id",
+            "reference",
+            "client_name",
+            "client_email",
+            "yacht_name",
+            "start_date",
+            "end_date",
+            "destination",
+            "embarkation_port",
+            "disembarkation_port",
+            "guests",
+            "currency",
+            "contract_status",
+            "charter_status",
+          ].join(",")
+        )
+        .eq(
+          "company_id",
+          workspace.companyId
+        )
+        .eq(
+          "id",
+          ids.charterId
+        )
+        .maybeSingle();
+
+    if (charterResult.error) {
+      throw new Error(
+        `Could not load charter: ${charterResult.error.message}`
+      );
+    }
+
+    if (!charterResult.data) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Charter not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    const itemResult =
+      await admin
+        .from(
+          "charter_concierge_items"
+        )
+        .select(
+          conciergeSelect()
+        )
+        .eq(
+          "company_id",
+          workspace.companyId
+        )
+        .eq(
+          "charter_id",
+          ids.charterId
+        )
+        .eq(
+          "id",
+          ids.itemId
+        )
+        .maybeSingle();
+
+    if (itemResult.error) {
+      throw new Error(
+        `Could not load concierge item: ${itemResult.error.message}`
+      );
+    }
+
+    if (!itemResult.data) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Concierge item not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    const charter =
+      charterResult.data as unknown as {
+        id: string;
+        reference: string;
+        client_name: string;
+        client_email: string | null;
+        yacht_name: string;
+        start_date: string | null;
+        end_date: string | null;
+        destination: string | null;
+        embarkation_port: string | null;
+        disembarkation_port: string | null;
+        guests: number | null;
+        currency: string;
+        contract_status: string;
+        charter_status: string;
+      };
+
+    const members =
+      await loadWorkspaceMembers(
+        admin,
+        workspace.companyId
+      );
+
+    return NextResponse.json(
+      {
+        success: true,
+        charter: {
+          id: charter.id,
+          reference:
+            charter.reference,
+          clientName:
+            charter.client_name,
+          clientEmail:
+            charter.client_email,
+          yachtName:
+            charter.yacht_name,
+          startDate:
+            charter.start_date,
+          endDate:
+            charter.end_date,
+          destination:
+            charter.destination,
+          embarkationPort:
+            charter.embarkation_port,
+          disembarkationPort:
+            charter.disembarkation_port,
+          guests:
+            charter.guests,
+          currency:
+            charter.currency,
+          contractStatus:
+            charter.contract_status,
+          charterStatus:
+            charter.charter_status,
+        },
+        members,
+        item:
+          serializeConcierge(
+            itemResult.data as unknown as ConciergeRow
+          ),
+      },
+      {
+        status: 200,
+        headers:
+          noStoreHeaders(),
+      }
+    );
+  } catch (error) {
+    return handleRouteError(
+      error,
+      "Could not load concierge request."
+    );
+  }
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -355,6 +547,86 @@ export async function PATCH(
     if (
       Object.prototype.hasOwnProperty.call(
         body,
+        "assignedTo"
+      )
+    ) {
+      const assignedTo =
+        cleanText(
+          body.assignedTo
+        );
+
+      if (assignedTo) {
+        const membershipResult =
+          await admin
+            .from(
+              "company_members"
+            )
+            .select(
+              "id, user_id"
+            )
+            .eq(
+              "company_id",
+              workspace.companyId
+            )
+            .eq(
+              "user_id",
+              assignedTo
+            )
+            .maybeSingle();
+
+        if (
+          membershipResult.error
+        ) {
+          throw new Error(
+            `Could not validate assignee: ${membershipResult.error.message}`
+          );
+        }
+
+        if (
+          !membershipResult.data
+        ) {
+          return badRequest(
+            "The selected assignee is not a member of this Yacht OS workspace."
+          );
+        }
+      }
+
+      patch.assigned_to =
+        assignedTo;
+      patch.assigned_by =
+        assignedTo
+          ? workspace.userId
+          : null;
+      patch.assigned_at =
+        assignedTo
+          ? new Date().toISOString()
+          : null;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "dueAt"
+      )
+    ) {
+      const dueAt =
+        readOptionalDateTime(
+          body.dueAt
+        );
+
+      if (dueAt.error) {
+        return badRequest(
+          dueAt.error
+        );
+      }
+
+      patch.due_at =
+        dueAt.value;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
         "notes"
       )
     ) {
@@ -534,6 +806,10 @@ function conciergeSelect() {
     "source",
     "client_visible",
     "notes",
+    "assigned_to",
+    "assigned_by",
+    "assigned_at",
+    "due_at",
     "created_at",
     "updated_at",
   ].join(",");
@@ -574,6 +850,23 @@ function serializeConcierge(
       ),
     notes:
       row.notes,
+    assignedTo:
+      row.assigned_to,
+    assignedBy:
+      row.assigned_by,
+    assignedAt:
+      row.assigned_at,
+    dueAt:
+      row.due_at,
+    overdue:
+      isOverdue(
+        row.due_at,
+        row.status
+      ),
+    needsAttention:
+      needsAttention(
+        row
+      ),
     createdAt:
       row.created_at,
     updatedAt:
@@ -768,6 +1061,205 @@ function toNullableNumber(
   }
 
   return null;
+}
+
+async function loadWorkspaceMembers(
+  admin: ReturnType<
+    typeof createAdminClient
+  >,
+  companyId: string
+) {
+  const membershipResult =
+    await admin
+      .from("company_members")
+      .select(
+        "user_id, role, created_at"
+      )
+      .eq(
+        "company_id",
+        companyId
+      )
+      .order(
+        "created_at",
+        {
+          ascending: true,
+        }
+      );
+
+  if (
+    membershipResult.error
+  ) {
+    throw new Error(
+      `Could not load workspace members: ${membershipResult.error.message}`
+    );
+  }
+
+  const memberships =
+    (membershipResult.data ??
+      []) as Array<{
+      user_id: string;
+      role: string | null;
+      created_at: string | null;
+    }>;
+
+  if (
+    memberships.length === 0
+  ) {
+    return [];
+  }
+
+  const {
+    data: usersData,
+    error: usersError,
+  } =
+    await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+
+  if (usersError) {
+    throw new Error(
+      `Could not load workspace user profiles: ${usersError.message}`
+    );
+  }
+
+  const usersById =
+    new Map(
+      usersData.users.map(
+        (user) => [
+          user.id,
+          user,
+        ]
+      )
+    );
+
+  return memberships.map(
+    (membership) => {
+      const user =
+        usersById.get(
+          membership.user_id
+        );
+
+      const metadata =
+        user?.user_metadata ??
+        {};
+
+      const fullName =
+        readMetadataString(
+          metadata.full_name
+        ) ??
+        readMetadataString(
+          metadata.display_name
+        ) ??
+        fallbackName(
+          user?.email ??
+          null
+        );
+
+      return {
+        id:
+          membership.user_id,
+        fullName,
+        email:
+          user?.email ??
+          null,
+        role:
+          membership.role,
+      };
+    }
+  );
+}
+
+function readMetadataString(
+  value: unknown
+): string | null {
+  if (
+    typeof value !== "string"
+  ) {
+    return null;
+  }
+
+  const cleaned =
+    value.trim();
+
+  return cleaned.length > 0
+    ? cleaned
+    : null;
+}
+
+function fallbackName(
+  email: string | null
+) {
+  if (!email) {
+    return "Workspace member";
+  }
+
+  const name =
+    email.split("@")[0]
+      ?.replace(
+        /[._-]+/g,
+        " "
+      )
+      .trim();
+
+  return name
+    ? name.replace(
+        /\b\w/g,
+        (character) =>
+          character.toUpperCase()
+      )
+    : "Workspace member";
+}
+
+function isOverdue(
+  dueAt: string | null,
+  status: string
+) {
+  if (
+    !dueAt ||
+    [
+      "completed",
+      "cancelled",
+    ].includes(status)
+  ) {
+    return false;
+  }
+
+  const due =
+    new Date(dueAt);
+
+  return (
+    !Number.isNaN(
+      due.getTime()
+    ) &&
+    due.getTime() <
+      Date.now()
+  );
+}
+
+function needsAttention(
+  row: ConciergeRow
+) {
+  if (
+    [
+      "completed",
+      "cancelled",
+    ].includes(
+      row.status
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    row.priority ===
+      "urgent" ||
+    isOverdue(
+      row.due_at,
+      row.status
+    ) ||
+    !row.assigned_to
+  );
 }
 
 function badRequest(
