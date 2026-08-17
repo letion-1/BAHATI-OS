@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 type NotificationItem = {
   id: string;
@@ -49,8 +50,17 @@ export function NotificationsPanel() {
       null
     );
 
+  const triggerRef =
+    useRef<HTMLButtonElement | null>(null);
+
   const panelRef =
-    useRef<HTMLDivElement | null>(null);
+    useRef<HTMLElement | null>(null);
+
+  const [
+    mounted,
+    setMounted,
+  ] =
+    useState(false);
 
   const initializedRef =
     useRef(false);
@@ -147,6 +157,10 @@ export function NotificationsPanel() {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -265,21 +279,42 @@ export function NotificationsPanel() {
   }, [isOpen]);
 
   useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(
+      event: PointerEvent
+    ) {
+      const target =
+        event.target as Node;
+
+      const clickedTrigger =
+        triggerRef.current?.contains(
+          target
+        ) ?? false;
+
+      const clickedPanel =
+        panelRef.current?.contains(
+          target
+        ) ?? false;
+
       if (
-        isOpen &&
-        panelRef.current &&
-        !panelRef.current.contains(event.target as Node)
+        !clickedTrigger &&
+        !clickedPanel
       ) {
         setIsOpen(false);
       }
     }
 
-    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener(
+      "pointerdown",
+      handlePointerDown
+    );
 
     return () =>
       window.removeEventListener(
-        "mousedown",
+        "pointerdown",
         handlePointerDown
       );
   }, [isOpen]);
@@ -376,224 +411,269 @@ export function NotificationsPanel() {
     }
   }
 
-  return (
-    <div
-      ref={panelRef}
-      className="relative"
-    >
-      <button
-        type="button"
-        onClick={() =>
-          setIsOpen((current) => !current)
-        }
-        className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-card/50 text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white"
-        aria-label="Open notifications"
-        title="Notifications"
-      >
-        <Bell className="size-4" />
+  const toast =
+    mounted &&
+    toastNotification &&
+    !isOpen
+      ? createPortal(
+          <div className="ui-panel fixed inset-x-3 top-[5.25rem] z-[200] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-cyan-500/25 bg-card/98 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-sky-400/20 dark:bg-[#0b0f16]/98 sm:left-auto sm:right-5 sm:w-[min(360px,calc(100vw-2rem))]">
+            <div className="flex items-start gap-3 p-4">
+              <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-sky-300">
+                <Bell className="size-4" />
+              </div>
 
-        {unreadCount > 0 ? (
-          <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {unreadCount > 99
-              ? "99+"
-              : unreadCount}
-          </span>
-        ) : null}
-      </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
+                  {humanize(
+                    toastNotification.type
+                  )}
+                </p>
 
-      {toastNotification &&
-      !isOpen ? (
-        <div className="ui-panel fixed inset-x-3 top-[5.25rem] z-[100] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-cyan-500/25 bg-card/98 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-sky-400/20 dark:bg-[#0b0f16]/98 sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[min(360px,calc(100vw-2rem))]">
-          <div className="flex items-start gap-3 p-4">
-            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-sky-300">
-              <Bell className="size-4" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
-                {humanize(
-                  toastNotification.type
-                )}
-              </p>
-
-              <p className="mt-1 text-sm font-semibold text-foreground dark:text-white">
-                {
-                  toastNotification.title
-                }
-              </p>
-
-              {toastNotification.message ? (
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                <p className="mt-1 text-sm font-semibold text-foreground dark:text-white">
                   {
-                    toastNotification.message
+                    toastNotification.title
                   }
                 </p>
-              ) : null}
 
-              <div className="mt-3 flex items-center gap-2">
-                {toastNotification.href ? (
-                  <Link
-                    href={
-                      toastNotification.href
+                {toastNotification.message ? (
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {
+                      toastNotification.message
                     }
-                    onClick={() => {
-                      void markRead(
-                        toastNotification.id
-                      );
-                      setToastNotification(
-                        null
-                      );
-                    }}
-                    className="text-xs font-semibold text-cyan-700 hover:underline dark:text-sky-300"
-                  >
-                    Open
-                  </Link>
-                ) : (
+                  </p>
+                ) : null}
+
+                <div className="mt-3 flex items-center gap-2">
+                  {toastNotification.href ? (
+                    <Link
+                      href={
+                        toastNotification.href
+                      }
+                      onClick={() => {
+                        void markRead(
+                          toastNotification.id
+                        );
+                        setToastNotification(
+                          null
+                        );
+                      }}
+                      className="text-xs font-semibold text-cyan-700 hover:underline dark:text-sky-300"
+                    >
+                      Open
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsOpen(true);
+                        setToastNotification(
+                          null
+                        );
+                      }}
+                      className="text-xs font-semibold text-cyan-700 hover:underline dark:text-sky-300"
+                    >
+                      View notifications
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsOpen(true);
+                    onClick={() =>
                       setToastNotification(
                         null
-                      );
-                    }}
-                    className="text-xs font-semibold text-cyan-700 hover:underline dark:text-sky-300"
+                      )
+                    }
+                    className="text-xs text-muted-foreground hover:text-foreground"
                   >
-                    View notifications
+                    Dismiss
                   </button>
-                )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setToastNotification(
+                    null
+                  )
+                }
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                aria-label="Dismiss notification"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  const panel =
+    mounted && isOpen
+      ? createPortal(
+          <section
+            ref={panelRef}
+            className="ui-panel fixed inset-x-3 bottom-3 top-[5.25rem] z-[200] flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card/98 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0f16]/98 dark:shadow-2xl dark:shadow-black/60 sm:inset-x-auto sm:bottom-auto sm:right-5 sm:top-[5.25rem] sm:max-h-[calc(100dvh-6rem)] sm:w-[min(390px,calc(100vw-2rem))]"
+            role="dialog"
+            aria-modal="false"
+            aria-label="Notifications"
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-border p-4 dark:border-white/[0.08]">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
+                  Workspace alerts
+                </p>
+                <h2 className="mt-1 font-semibold text-foreground dark:text-white">
+                  Notifications
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void markAllRead()
+                  }
+                  disabled={
+                    unreadCount === 0
+                  }
+                  className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:text-slate-500 dark:hover:bg-white/[0.04] dark:hover:text-white"
+                  aria-label="Mark all read"
+                  title="Mark all read"
+                >
+                  <CheckCheck className="size-4" />
+                </button>
 
                 <button
                   type="button"
                   onClick={() =>
-                    setToastNotification(
-                      null
-                    )
+                    setIsOpen(false)
                   }
-                  className="text-xs text-muted-foreground hover:text-foreground"
+                  className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/[0.08] dark:text-slate-500 dark:hover:bg-white/[0.04] dark:hover:text-white"
+                  aria-label="Close notifications"
                 >
-                  Dismiss
+                  <X className="size-4" />
                 </button>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setToastNotification(
-                  null
-                )
-              }
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground"
-              aria-label="Dismiss notification"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        </div>
-      ) : null}
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              {isLoading &&
+              notifications.length === 0 ? (
+                <div className="space-y-2">
+                  {Array.from({
+                    length: 4,
+                  }).map(
+                    (_, index) => (
+                      <div
+                        key={index}
+                        className="h-24 animate-pulse rounded-xl bg-muted/70 dark:bg-white/[0.04]"
+                      />
+                    )
+                  )}
+                </div>
+              ) : null}
 
-      {isOpen ? (
-        <section className="ui-panel fixed inset-x-3 bottom-3 top-[5.25rem] z-[100] flex min-h-0 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card/98 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0f16]/98 dark:shadow-2xl dark:shadow-black/60 sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-12 sm:max-h-[calc(100dvh-6rem)] sm:w-[min(390px,calc(100vw-2rem))]">
-          <div className="flex items-center justify-between gap-4 border-b border-border p-4 dark:border-white/[0.08]">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
-                Workspace alerts
-              </p>
-              <h2 className="mt-1 font-semibold text-foreground dark:text-white">
-                Notifications
-              </h2>
-            </div>
+              {error ? (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-100">
+                  {error}
+                </div>
+              ) : null}
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void markAllRead()}
-                disabled={unreadCount === 0}
-                className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:text-slate-500 dark:hover:bg-white/[0.04] dark:hover:text-white"
-                aria-label="Mark all read"
-                title="Mark all read"
-              >
-                <CheckCheck className="size-4" />
-              </button>
+              {!isLoading &&
+              !error &&
+              notifications.length ===
+                0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-background/45 px-5 py-12 text-center dark:border-white/10 dark:bg-black/20">
+                  <Bell className="mx-auto size-5 text-muted-foreground dark:text-slate-600" />
+                  <p className="mt-4 text-sm font-semibold text-foreground dark:text-slate-300">
+                    You're all caught up
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground dark:text-slate-600">
+                    New inquiry, proposal and system alerts will appear here.
+                  </p>
+                </div>
+              ) : null}
 
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/[0.08] dark:text-slate-500 dark:hover:bg-white/[0.04] dark:hover:text-white"
-                aria-label="Close notifications"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:max-h-[65vh] sm:flex-none">
-            {isLoading &&
-            notifications.length === 0 ? (
               <div className="space-y-2">
-                {Array.from({ length: 4 }).map(
-                  (_, index) => (
-                    <div
-                      key={index}
-                      className="h-24 animate-pulse rounded-xl bg-muted/70 dark:bg-white/[0.04]"
+                {notifications.map(
+                  (
+                    notification
+                  ) => (
+                    <NotificationCard
+                      key={
+                        notification.id
+                      }
+                      notification={
+                        notification
+                      }
+                      onOpen={() => {
+                        void markRead(
+                          notification.id
+                        );
+                        setIsOpen(false);
+                      }}
+                      onDelete={() =>
+                        void removeNotification(
+                          notification.id
+                        )
+                      }
                     />
                   )
                 )}
               </div>
-            ) : null}
-
-            {error ? (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-100">
-                {error}
-              </div>
-            ) : null}
-
-            {!isLoading &&
-            !error &&
-            notifications.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-background/45 px-5 py-12 text-center dark:border-white/10 dark:bg-black/20">
-                <Bell className="mx-auto size-5 text-muted-foreground dark:text-slate-600" />
-                <p className="mt-4 text-sm font-semibold text-foreground dark:text-slate-300">
-                  You’re all caught up
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground dark:text-slate-600">
-                  New inquiry, proposal and system
-                  alerts will appear here.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              {notifications.map(
-                (notification) => (
-                  <NotificationCard
-                    key={notification.id}
-                    notification={notification}
-                    onOpen={() => {
-                      void markRead(
-                        notification.id
-                      );
-                      setIsOpen(false);
-                    }}
-                    onDelete={() =>
-                      void removeNotification(
-                        notification.id
-                      )
-                    }
-                  />
-                )
-              )}
             </div>
-          </div>
 
-          <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground dark:border-white/[0.08] dark:text-slate-700">
-            Refreshes every 15 seconds and when you return to Yacht OS
-          </div>
-        </section>
-      ) : null}
-    </div>
+            <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground dark:border-white/[0.08] dark:text-slate-700">
+              Refreshes every 15 seconds and when you return to Yacht OS
+            </div>
+          </section>,
+          document.body
+        )
+      : null;
+
+  return (
+    <>
+      <div className="relative z-50 shrink-0">
+        <button
+          ref={triggerRef}
+          type="button"
+          onPointerDown={(
+            event
+          ) =>
+            event.stopPropagation()
+          }
+          onClick={() =>
+            setIsOpen(
+              (current) =>
+                !current
+            )
+          }
+          className="relative z-50 inline-flex size-9 shrink-0 pointer-events-auto items-center justify-center rounded-md border border-border bg-card/50 text-muted-foreground transition hover:bg-accent hover:text-foreground dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white"
+          aria-label="Open notifications"
+          aria-expanded={
+            isOpen
+          }
+          aria-haspopup="dialog"
+          title="Notifications"
+        >
+          <Bell className="size-4" />
+
+          {unreadCount > 0 ? (
+            <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              {unreadCount > 99
+                ? "99+"
+                : unreadCount}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
+      {toast}
+      {panel}
+    </>
   );
+
 }
 
 function NotificationCard({

@@ -469,7 +469,7 @@ export default function ItineraryPlannerPage() {
     if (
       !charterId ||
       !window.confirm(
-        `Delete ${leg.fromName} → ${leg.toName}?`
+        `Delete ${leg.fromName} - ${leg.toName}?`
       )
     ) {
       return;
@@ -579,7 +579,7 @@ export default function ItineraryPlannerPage() {
           </h1>
 
           <p className="ui-hero-muted mt-4 max-w-3xl text-sm leading-7">
-            {charter.clientName} · {charter.reference} · {formatDateRange(
+            {charter.clientName} - {charter.reference} - {formatDateRange(
               charter.startDate,
               charter.endDate
             )}
@@ -600,6 +600,24 @@ export default function ItineraryPlannerPage() {
               className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--hero-foreground)]"
             >
               Back to charter
+            </Link>
+
+            <Link
+              href={`/itineraries/${encodeURIComponent(
+                charter.id
+              )}/experience`}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--hero-foreground)]"
+            >
+              Day-by-day
+            </Link>
+
+            <Link
+              href={`/itineraries/${encodeURIComponent(
+                charter.id
+              )}/preview`}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--hero-foreground)]"
+            >
+              Client preview
             </Link>
           </div>
         </section>
@@ -698,7 +716,7 @@ export default function ItineraryPlannerPage() {
 
                 <div className="mt-5 grid gap-4">
                   <Field
-                    label="Cruising speed · knots"
+                    label="Cruising speed - knots"
                     type="number"
                     value={
                       settings.cruisingSpeedKnots
@@ -715,7 +733,7 @@ export default function ItineraryPlannerPage() {
                   />
 
                   <Field
-                    label="Fuel burn · liters/hour"
+                    label="Fuel burn - liters/hour"
                     type="number"
                     value={
                       settings.fuelBurnLph
@@ -732,7 +750,7 @@ export default function ItineraryPlannerPage() {
                   />
 
                   <Field
-                    label="Fuel price · per liter"
+                    label="Fuel price - per liter"
                     type="number"
                     value={
                       settings.fuelPricePerLiter
@@ -887,7 +905,7 @@ export default function ItineraryPlannerPage() {
                         }
                       />
                       <Field
-                        label="Manual distance · nm"
+                        label="Manual distance - nm"
                         type="number"
                         value={
                           legForm.distanceNm
@@ -1087,18 +1105,18 @@ export default function ItineraryPlannerPage() {
                               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
                                 Leg {leg.position}
                                 {leg.charterDate
-                                  ? ` · ${leg.charterDate}`
+                                  ? ` - ${leg.charterDate}`
                                   : ""}
                               </p>
 
                               <h3 className="mt-2 text-lg font-semibold text-foreground">
-                                {leg.fromName} → {leg.toName}
+                                {leg.fromName} - {leg.toName}
                               </h3>
 
                               <p className="mt-1 text-xs text-muted-foreground">
                                 {leg.distanceNm ??
                                   0}{" "}
-                                nm · {formatLabel(
+                                nm - {formatLabel(
                                   leg.distanceSource
                                 )}
                               </p>
@@ -1314,5 +1332,5 @@ function formatDateRange(
   start: string | null,
   end: string | null
 ) {
-  return `${start ?? "TBC"} → ${end ?? "TBC"}`;
+  return `${start ?? "TBC"} - ${end ?? "TBC"}`;
 }

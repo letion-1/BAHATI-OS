@@ -158,6 +158,14 @@ function isPublicRoute(
     pathname.startsWith(
       "/guest/"
     ) ||
+    (
+      pathname.startsWith(
+        "/itineraries/"
+      ) &&
+      pathname.endsWith(
+        "/preview"
+      )
+    ) ||
     pathname === "/onboarding" ||
     pathname.startsWith("/onboarding/") ||
     pathname === "/sign-up" ||
