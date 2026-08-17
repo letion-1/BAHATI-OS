@@ -240,6 +240,31 @@ export function NotificationsPanel() {
   }, [isOpen, loadNotifications]);
 
   useEffect(() => {
+    if (
+      !isOpen ||
+      typeof window ===
+        "undefined" ||
+      !window.matchMedia(
+        "(max-width: 639px)"
+      ).matches
+    ) {
+      return;
+    }
+
+    const previousOverflow =
+      document.body.style
+        .overflow;
+
+    document.body.style.overflow =
+      "hidden";
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       if (
         isOpen &&
@@ -378,7 +403,7 @@ export function NotificationsPanel() {
 
       {toastNotification &&
       !isOpen ? (
-        <div className="ui-panel absolute right-0 top-12 z-[60] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-500/25 bg-card/95 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-sky-400/20 dark:bg-[#0b0f16]">
+        <div className="ui-panel fixed inset-x-3 top-[5.25rem] z-[100] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-cyan-500/25 bg-card/98 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-sky-400/20 dark:bg-[#0b0f16]/98 sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[min(360px,calc(100vw-2rem))]">
           <div className="flex items-start gap-3 p-4">
             <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-sky-300">
               <Bell className="size-4" />
@@ -469,7 +494,7 @@ export function NotificationsPanel() {
       ) : null}
 
       {isOpen ? (
-        <section className="ui-panel absolute right-0 top-12 z-50 w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card/95 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0f16] dark:shadow-2xl dark:shadow-black/60">
+        <section className="ui-panel fixed inset-x-3 bottom-3 top-[5.25rem] z-[100] flex min-h-0 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card/98 shadow-[var(--strong-shadow)] backdrop-blur-xl dark:border-white/10 dark:bg-[#0b0f16]/98 dark:shadow-2xl dark:shadow-black/60 sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-12 sm:max-h-[calc(100dvh-6rem)] sm:w-[min(390px,calc(100vw-2rem))]">
           <div className="flex items-center justify-between gap-4 border-b border-border p-4 dark:border-white/[0.08]">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-sky-400">
@@ -503,7 +528,7 @@ export function NotificationsPanel() {
             </div>
           </div>
 
-          <div className="max-h-[65vh] overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:max-h-[65vh] sm:flex-none">
             {isLoading &&
             notifications.length === 0 ? (
               <div className="space-y-2">
@@ -545,9 +570,12 @@ export function NotificationsPanel() {
                   <NotificationCard
                     key={notification.id}
                     notification={notification}
-                    onOpen={() =>
-                      void markRead(notification.id)
-                    }
+                    onOpen={() => {
+                      void markRead(
+                        notification.id
+                      );
+                      setIsOpen(false);
+                    }}
                     onDelete={() =>
                       void removeNotification(
                         notification.id

@@ -206,23 +206,23 @@ export default function ConciergePage() {
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="space-y-5">
-        <section className="overflow-hidden rounded-[30px] border border-border/70 bg-[radial-gradient(circle_at_top_left,rgba(58,109,168,0.22),transparent_36%),linear-gradient(135deg,rgba(12,20,34,0.98),rgba(17,22,38,0.98)_56%,rgba(32,25,55,0.98))] shadow-sm">
-          <div className="flex min-h-[300px] flex-col justify-between gap-8 p-6 sm:p-8 lg:p-10 xl:flex-row xl:items-end">
+        <section className="ui-hero rounded-[30px] p-6 sm:p-8 lg:p-10">
+          <div className="relative flex min-h-[290px] flex-col justify-between gap-8 xl:flex-row xl:items-end">
             <div className="max-w-3xl">
               <div className="flex items-center gap-3">
-                <span className="size-2 rounded-full bg-white" />
-                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300">
+                <span className="size-2 rounded-full bg-[var(--hero-foreground)]" />
+                <p className="ui-hero-accent text-[11px] font-bold uppercase tracking-[0.28em]">
                   Concierge workspace
                 </p>
               </div>
 
-              <h1 className="mt-7 max-w-3xl font-heading text-[42px] leading-[0.96] tracking-[0.02em] text-white sm:text-[54px] lg:text-[62px]">
+              <h1 className="mt-7 max-w-3xl font-heading text-[42px] leading-[0.96] tracking-[0.02em] text-[var(--hero-foreground)] sm:text-[54px] lg:text-[62px]">
                 CHARTER CONCIERGE
                 <br />
                 OPERATIONS
               </h1>
 
-              <p className="mt-7 max-w-2xl text-[15px] leading-7 text-slate-300">
+              <p className="ui-hero-muted mt-7 max-w-2xl text-[15px] leading-7">
                 Run the guest experience from one operational workspace, from transfers
                 and provisioning to dining, activities and crew coordination.
               </p>
@@ -244,7 +244,7 @@ export default function ConciergePage() {
                     )
                   }
                   placeholder="Search yacht, client, destination..."
-                  className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-2 focus:ring-cyan-400/10"
+                  className="ui-input min-h-12 w-full px-4 text-sm"
                 />
               </label>
             </div>

@@ -21,6 +21,7 @@ import {
   FolderOpen,
   LayoutDashboard,
   LogOut,
+  MapPinned,
   Menu,
   Mail,
   MessageSquareText,
@@ -101,6 +102,11 @@ const navigation = [
     name: "Concierge",
     href: "/concierge",
     icon: Sparkles,
+  },
+  {
+    name: "Itineraries",
+    href: "/itineraries",
+    icon: MapPinned,
   },
   {
     name: "Email",
@@ -405,7 +411,7 @@ export function AppShell({
 
       {/* Mobile sliding sidebar */}
       <aside
-        aria-hidden={
+        inert={
           !mobileNavigationOpen
         }
         className={`fixed inset-y-0 left-0 z-50 flex w-[min(86vw,20rem)] flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
@@ -482,8 +488,8 @@ export function AppShell({
         />
       </aside>
 
-      <section className="min-w-0 lg:pl-72">
-        <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-2 border-b border-border bg-background/90 px-3 py-3 backdrop-blur-2xl sm:px-5 lg:h-20 lg:px-8 lg:py-0">
+      <section className="w-full min-w-0 overflow-x-clip lg:pl-72">
+        <header className="sticky top-0 z-30 flex min-h-20 w-full min-w-0 items-center justify-between gap-2 border-b border-border bg-background/90 px-3 py-3 backdrop-blur-2xl sm:px-5 lg:h-20 lg:px-8 lg:py-0">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Button
               type="button"
@@ -547,7 +553,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="min-h-[calc(100dvh-5rem)]">
+        <main className="min-h-[calc(100dvh-5rem)] min-w-0 overflow-x-clip">
           {
             children
           }

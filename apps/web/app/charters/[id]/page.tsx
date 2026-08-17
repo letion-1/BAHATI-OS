@@ -1272,7 +1272,7 @@ export default function CharterWorkspacePage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2 xl:flex xl:flex-wrap xl:justify-end">
                 <Link
                   href={`/proposals/${encodeURIComponent(
                     charter.proposalId
@@ -1299,6 +1299,15 @@ export default function CharterWorkspacePage() {
                 >
                   Guest Portal
                 </Link>
+
+                <Link
+                  href={`/itineraries/${encodeURIComponent(
+                    charter.id
+                  )}`}
+                  className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent"
+                >
+                  Itinerary
+                </Link>
               </div>
             </div>
           </div>
@@ -1323,7 +1332,7 @@ export default function CharterWorkspacePage() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Commercial terms
                 </p>
-                <h2 className="mt-2 font-heading text-2xl text-foreground">
+                <h2 className="mt-1.5 font-heading text-xl text-foreground sm:mt-2 sm:text-2xl">
                   Contract economics
                 </h2>
               </div>
@@ -1620,7 +1629,7 @@ export default function CharterWorkspacePage() {
                         title="Client"
                         detail={
                           deliveryReadiness.client.email
-                            ? `${deliveryReadiness.client.name} · ${deliveryReadiness.client.email}`
+                            ? `${deliveryReadiness.client.name} | ${deliveryReadiness.client.email}`
                             : "No client email is saved."
                         }
                         onClick={() =>
@@ -1642,7 +1651,7 @@ export default function CharterWorkspacePage() {
                                 deliveryReadiness.yachtSide.name ??
                                 deliveryReadiness.yachtSide.role ??
                                 "Owner / Charter Manager"
-                              } · ${deliveryReadiness.yachtSide.email}`
+                              } | ${deliveryReadiness.yachtSide.email}`
                             : "No owner / Charter Manager contact is saved for this yacht."
                         }
                         onClick={() =>
@@ -1731,7 +1740,7 @@ export default function CharterWorkspacePage() {
 
         <div className="grid gap-5 xl:grid-cols-2">
           <section className="ui-panel rounded-[28px] p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Documents
@@ -1741,7 +1750,7 @@ export default function CharterWorkspacePage() {
                 </h2>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2 xl:flex xl:flex-wrap xl:justify-end">
                 <button
                   type="button"
                   onClick={() =>
@@ -1750,7 +1759,7 @@ export default function CharterWorkspacePage() {
                   disabled={
                     isGeneratingAgreement
                   }
-                  className="ui-primary-button apple-transition inline-flex min-h-10 items-center justify-center px-3 py-2 text-xs font-semibold disabled:opacity-60"
+                  className="ui-primary-button apple-transition inline-flex min-h-10 w-full items-center justify-center px-3 py-2 text-xs font-semibold disabled:opacity-60 sm:w-auto"
                 >
                   {isGeneratingAgreement
                     ? "Generating..."
@@ -1784,7 +1793,7 @@ export default function CharterWorkspacePage() {
                   disabled={
                     isUploadingSignedAgreement
                   }
-                  className="ui-secondary-button apple-transition inline-flex min-h-10 items-center justify-center px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-60"
+                  className="ui-secondary-button apple-transition inline-flex min-h-10 w-full items-center justify-center px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-60 sm:w-auto"
                 >
                   {isUploadingSignedAgreement
                     ? "Uploading..."
@@ -1793,7 +1802,7 @@ export default function CharterWorkspacePage() {
 
                 <Link
                   href="/documents"
-                  className="ui-secondary-button apple-transition inline-flex min-h-10 items-center justify-center px-3 py-2 text-xs font-semibold hover:bg-accent"
+                  className="ui-secondary-button apple-transition inline-flex min-h-10 w-full items-center justify-center px-3 py-2 text-xs font-semibold hover:bg-accent sm:w-auto"
                 >
                   Documents
                 </Link>
@@ -1806,24 +1815,24 @@ export default function CharterWorkspacePage() {
                   (document) => (
                     <div
                       key={document.id}
-                      className="ui-panel-soft flex items-center justify-between gap-4 rounded-xl px-4 py-3"
+                      className="ui-panel-soft flex flex-col gap-3 rounded-xl px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {document.name}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="w-full min-w-0 max-w-full whitespace-normal break-all [overflow-wrap:anywhere] text-[11px] font-semibold leading-4 text-foreground sm:text-sm sm:leading-5">
+  {document.name}
+</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground sm:text-xs">
                           {formatLabel(
                             document.category
                           )}{" "}
-                          · v
+                          - v
                           {
                             document.version
                           }
                         </p>
                       </div>
 
-                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center sm:justify-end">
                         <span className="hidden text-xs font-semibold text-muted-foreground sm:inline">
                           {formatFileSize(
                             document.fileSize
@@ -1843,7 +1852,7 @@ export default function CharterWorkspacePage() {
                             documentDeleteBusyId ===
                               document.id
                           }
-                          className="ui-secondary-button apple-transition inline-flex min-h-9 items-center justify-center px-3 py-1.5 text-xs font-semibold hover:bg-accent disabled:opacity-60"
+                          className="ui-secondary-button apple-transition inline-flex min-h-9 w-full items-center justify-center px-3 py-1.5 text-xs font-semibold hover:bg-accent disabled:opacity-60 sm:w-auto"
                         >
                           {documentBusyId ===
                           document.id
@@ -1864,7 +1873,7 @@ export default function CharterWorkspacePage() {
                             documentBusyId ===
                               document.id
                           }
-                          className="apple-transition inline-flex min-h-9 items-center justify-center rounded-[0.9rem] border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-500/15 disabled:opacity-60 dark:text-red-200"
+                          className="apple-transition inline-flex min-h-9 w-full items-center justify-center rounded-[0.9rem] border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-500/15 disabled:opacity-60 dark:text-red-200 sm:w-auto"
                         >
                           {documentDeleteBusyId ===
                           document.id
@@ -1910,7 +1919,7 @@ export default function CharterWorkspacePage() {
                       !current
                   )
                 }
-                className="ui-secondary-button apple-transition inline-flex min-h-10 items-center justify-center px-3 py-2 text-xs font-semibold hover:bg-accent"
+                className="ui-secondary-button apple-transition inline-flex min-h-10 w-full items-center justify-center px-3 py-2 text-xs font-semibold hover:bg-accent sm:w-auto"
               >
                 {showPaymentForm
                   ? "Close"
@@ -2099,7 +2108,7 @@ export default function CharterWorkspacePage() {
                                   }
                                 )
                               }
-                              className="ui-primary-button apple-transition inline-flex min-h-10 items-center justify-center px-3 py-2 text-xs font-semibold disabled:opacity-60"
+                              className="ui-primary-button apple-transition inline-flex min-h-10 w-full items-center justify-center px-3 py-2 text-xs font-semibold disabled:opacity-60 sm:w-auto"
                             >
                               {busy
                                 ? "Saving..."
@@ -2594,11 +2603,8 @@ function formatDateRange(
     return "Dates not set";
   }
 
-  return `${formatDate(start)} → ${formatDate(
-    end
-  )}`;
+  return `${formatDate(start)} - ${formatDate(end)}`;
 }
-
 function formatDate(
   value: string | null
 ) {
