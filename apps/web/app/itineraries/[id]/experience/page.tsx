@@ -575,6 +575,15 @@ export default function ItineraryExperiencePage() {
             >
               Client preview
             </Link>
+
+            <Link
+              href={`/itineraries/${encodeURIComponent(
+                charter.id
+              )}/share`}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--hero-foreground)]"
+            >
+              Share itinerary
+            </Link>
           </div>
         </section>
 

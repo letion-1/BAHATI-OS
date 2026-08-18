@@ -45,7 +45,61 @@ type CharterRow = {
   start_date: string | null;
   end_date: string | null;
   destination: string | null;
+  embarkation_port: string | null;
+  disembarkation_port: string | null;
   guests: number | null;
+  charter_status: string;
+  contract_status: string;
+  payment_status: string;
+};
+
+
+type ItineraryDayRow = {
+  id: string;
+  position: number;
+  charter_date: string;
+  title: string;
+  destination_name: string | null;
+  overnight_type: string;
+  overnight_name: string | null;
+  summary: string | null;
+  guest_notes: string | null;
+};
+
+type ItineraryActivityRow = {
+  id: string;
+  day_id: string;
+  position: number;
+  activity_type: string;
+  title: string;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  description: string | null;
+  status: string;
+};
+
+type ItineraryLegRow = {
+  id: string;
+  position: number;
+  charter_date: string | null;
+  from_name: string;
+  to_name: string;
+  distance_nm: number | string | null;
+  departure_time: string | null;
+  arrival_time: string | null;
+  notes: string | null;
+};
+
+type ClientDocumentRow = {
+  id: string;
+  name: string;
+  category: string;
+  mime_type: string;
+  file_size: number;
+  version: number;
+  storage_path: string;
+  created_at: string;
 };
 
 type GuestPreferencePayload = {
@@ -128,11 +182,17 @@ export async function GET(
       return unavailable();
     }
 
-    const charterResult =
-      await admin
+    const [
+      charterResult,
+      arrangementsResult,
+      itineraryResult,
+      heroResult,
+      documentsResult,
+    ] = await Promise.all([
+      admin
         .from("charters")
         .select(
-          "id, reference, client_name, yacht_name, start_date, end_date, destination, guests"
+          "id, reference, client_name, yacht_name, start_date, end_date, destination, embarkation_port, disembarkation_port, guests, charter_status, contract_status, payment_status"
         )
         .eq(
           "company_id",
@@ -142,17 +202,9 @@ export async function GET(
           "id",
           portal.charter_id
         )
-        .maybeSingle();
+        .maybeSingle(),
 
-    if (
-      charterResult.error ||
-      !charterResult.data
-    ) {
-      return unavailable();
-    }
-
-    const arrangementsResult =
-      await admin
+      admin
         .from(
           "charter_concierge_items"
         )
@@ -185,7 +237,83 @@ export async function GET(
             ascending: true,
             nullsFirst: false,
           }
-        );
+        ),
+
+      admin
+        .from(
+          "charter_itineraries"
+        )
+        .select(
+          "id, title, status"
+        )
+        .eq(
+          "company_id",
+          portal.company_id
+        )
+        .eq(
+          "charter_id",
+          portal.charter_id
+        )
+        .maybeSingle(),
+
+      admin
+        .from(
+          "charter_itinerary_shares"
+        )
+        .select(
+          "hero_image_url"
+        )
+        .eq(
+          "company_id",
+          portal.company_id
+        )
+        .eq(
+          "charter_id",
+          portal.charter_id
+        )
+        .maybeSingle(),
+
+      admin
+        .from("documents")
+        .select(
+          "id, name, category, mime_type, file_size, version, storage_path, created_at"
+        )
+        .eq(
+          "company_id",
+          portal.company_id
+        )
+        .eq(
+          "charter_id",
+          portal.charter_id
+        )
+        .eq(
+          "status",
+          "active"
+        )
+        .in(
+          "category",
+          [
+            "proposal",
+            "charter_agreement",
+            "invoice",
+            "apa",
+            "payment_receipt",
+          ]
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        ),
+    ]);
+
+    if (
+      charterResult.error ||
+      !charterResult.data
+    ) {
+      return unavailable();
+    }
 
     if (
       arrangementsResult.error
@@ -195,8 +323,294 @@ export async function GET(
       );
     }
 
+    if (
+      itineraryResult.error
+    ) {
+      throw new Error(
+        `Could not load charter itinerary: ${itineraryResult.error.message}`
+      );
+    }
+
+    if (
+      heroResult.error
+    ) {
+      throw new Error(
+        `Could not load itinerary hero: ${heroResult.error.message}`
+      );
+    }
+
+    if (
+      documentsResult.error
+    ) {
+      throw new Error(
+        `Could not load charter documents: ${documentsResult.error.message}`
+      );
+    }
+
+    const itinerary =
+      itineraryResult.data;
+
+    let days:
+      Array<
+        Record<string, unknown>
+      > = [];
+
+    if (itinerary) {
+      const [
+        daysResult,
+        activitiesResult,
+        legsResult,
+      ] = await Promise.all([
+        admin
+          .from(
+            "charter_itinerary_days"
+          )
+          .select(
+            "id, position, charter_date, title, destination_name, overnight_type, overnight_name, summary, guest_notes"
+          )
+          .eq(
+            "company_id",
+            portal.company_id
+          )
+          .eq(
+            "itinerary_id",
+            itinerary.id
+          )
+          .eq(
+            "guest_visible",
+            true
+          )
+          .order(
+            "charter_date",
+            {
+              ascending: true,
+            }
+          )
+          .order(
+            "position",
+            {
+              ascending: true,
+            }
+          ),
+
+        admin
+          .from(
+            "charter_itinerary_activities"
+          )
+          .select(
+            "id, day_id, position, activity_type, title, start_time, end_time, location, description, status"
+          )
+          .eq(
+            "company_id",
+            portal.company_id
+          )
+          .eq(
+            "itinerary_id",
+            itinerary.id
+          )
+          .eq(
+            "guest_visible",
+            true
+          )
+          .neq(
+            "status",
+            "cancelled"
+          )
+          .order(
+            "position",
+            {
+              ascending: true,
+            }
+          ),
+
+        admin
+          .from(
+            "charter_itinerary_legs"
+          )
+          .select(
+            "id, position, charter_date, from_name, to_name, distance_nm, departure_time, arrival_time, notes"
+          )
+          .eq(
+            "company_id",
+            portal.company_id
+          )
+          .eq(
+            "itinerary_id",
+            itinerary.id
+          )
+          .eq(
+            "guest_visible",
+            true
+          )
+          .order(
+            "position",
+            {
+              ascending: true,
+            }
+          ),
+      ]);
+
+      if (daysResult.error) {
+        throw new Error(
+          `Could not load itinerary days: ${daysResult.error.message}`
+        );
+      }
+
+      if (
+        activitiesResult.error
+      ) {
+        throw new Error(
+          `Could not load itinerary activities: ${activitiesResult.error.message}`
+        );
+      }
+
+      if (legsResult.error) {
+        throw new Error(
+          `Could not load itinerary route legs: ${legsResult.error.message}`
+        );
+      }
+
+      const dayRows =
+        (daysResult.data ??
+          []) as unknown as ItineraryDayRow[];
+
+      const activityRows =
+        (activitiesResult.data ??
+          []) as unknown as ItineraryActivityRow[];
+
+      const legRows =
+        (legsResult.data ??
+          []) as unknown as ItineraryLegRow[];
+
+      days =
+        dayRows.map(
+          (day) => ({
+            id:
+              day.id,
+            position:
+              day.position,
+            charterDate:
+              day.charter_date,
+            title:
+              day.title,
+            destinationName:
+              day.destination_name,
+            overnightType:
+              day.overnight_type,
+            overnightName:
+              day.overnight_name,
+            summary:
+              day.summary,
+            guestNotes:
+              day.guest_notes,
+            activities:
+              activityRows
+                .filter(
+                  (activity) =>
+                    activity.day_id ===
+                    day.id
+                )
+                .map(
+                  (activity) => ({
+                    id:
+                      activity.id,
+                    position:
+                      activity.position,
+                    activityType:
+                      activity.activity_type,
+                    title:
+                      activity.title,
+                    startTime:
+                      activity.start_time,
+                    endTime:
+                      activity.end_time,
+                    location:
+                      activity.location,
+                    description:
+                      activity.description,
+                    status:
+                      activity.status,
+                  })
+                ),
+            routeLegs:
+              legRows
+                .filter(
+                  (leg) =>
+                    leg.charter_date ===
+                    day.charter_date
+                )
+                .map(
+                  (leg) => ({
+                    id:
+                      leg.id,
+                    position:
+                      leg.position,
+                    fromName:
+                      leg.from_name,
+                    toName:
+                      leg.to_name,
+                    distanceNm:
+                      numberOrNull(
+                        leg.distance_nm
+                      ),
+                    departureTime:
+                      leg.departure_time,
+                    arrivalTime:
+                      leg.arrival_time,
+                    notes:
+                      leg.notes,
+                  })
+                ),
+          })
+        );
+    }
+
+    const clientDocuments =
+      await Promise.all(
+        (
+          (documentsResult.data ??
+            []) as unknown as ClientDocumentRow[]
+        ).map(
+          async (
+            document
+          ) => {
+            const signed =
+              await admin.storage
+                .from("documents")
+                .createSignedUrl(
+                  document.storage_path,
+                  60 * 15
+                );
+
+            return {
+              id:
+                document.id,
+              name:
+                document.name,
+              category:
+                document.category,
+              mimeType:
+                document.mime_type,
+              fileSize:
+                document.file_size,
+              version:
+                document.version,
+              createdAt:
+                document.created_at,
+              url:
+                signed.error
+                  ? null
+                  : signed.data
+                      ?.signedUrl ??
+                    null,
+            };
+          }
+        )
+      );
+
     const openedAt =
-      new Date().toISOString();
+      new Date()
+        .toISOString();
 
     await admin
       .from("guest_portals")
@@ -219,7 +633,14 @@ export async function GET(
       );
 
     const charter =
-      charterResult.data as CharterRow;
+      charterResult.data as unknown as CharterRow;
+
+    const heroImageUrl =
+      cleanText(
+        heroResult.data
+          ?.hero_image_url
+      ) ??
+      "/proposal-yacht/hero-exterior.png";
 
     return NextResponse.json(
       {
@@ -235,6 +656,17 @@ export async function GET(
             portal.preferences ??
             {},
         },
+        hero: {
+          imageUrl:
+            heroImageUrl,
+          fallbackImageUrl:
+            "/proposal-yacht/hero-exterior.png",
+          source:
+            heroResult.data
+              ?.hero_image_url
+              ? "custom"
+              : "placeholder",
+        },
         charter: {
           reference:
             charter.reference,
@@ -248,12 +680,36 @@ export async function GET(
             charter.end_date,
           destination:
             charter.destination,
+          embarkationPort:
+            charter.embarkation_port,
+          disembarkationPort:
+            charter.disembarkation_port,
           guests:
             charter.guests,
+          charterStatus:
+            charter.charter_status,
+          contractStatus:
+            charter.contract_status,
+          paymentStatus:
+            charter.payment_status,
         },
+        itinerary:
+          itinerary
+            ? {
+                id:
+                  itinerary.id,
+                title:
+                  itinerary.title,
+                status:
+                  itinerary.status,
+                days,
+              }
+            : null,
         arrangements:
           arrangementsResult.data ??
           [],
+        documents:
+          clientDocuments,
       },
       {
         status: 200,
@@ -672,6 +1128,35 @@ async function loadPortal(
   }
 
   return portal;
+}
+
+function numberOrNull(
+  value: unknown
+) {
+  if (
+    typeof value ===
+      "number" &&
+    Number.isFinite(value)
+  ) {
+    return value;
+  }
+
+  if (
+    typeof value ===
+      "string" &&
+    value.trim()
+  ) {
+    const parsed =
+      Number(value);
+
+    return Number.isFinite(
+      parsed
+    )
+      ? parsed
+      : null;
+  }
+
+  return null;
 }
 
 function normalizePreferences(

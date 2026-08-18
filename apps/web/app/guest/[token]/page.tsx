@@ -27,6 +27,7 @@ type Arrangement = {
 
 type PortalResponse = {
   success: boolean;
+
   portal?: {
     status: string;
     submittedAt: string | null;
@@ -37,6 +38,15 @@ type PortalResponse = {
         unknown
       >;
   };
+
+  hero?: {
+    imageUrl: string;
+    fallbackImageUrl: string;
+    source:
+      | "custom"
+      | "placeholder";
+  };
+
   charter?: {
     reference: string;
     clientName: string;
@@ -44,11 +54,70 @@ type PortalResponse = {
     startDate: string | null;
     endDate: string | null;
     destination: string | null;
+    embarkationPort: string | null;
+    disembarkationPort: string | null;
     guests: number | null;
+    charterStatus: string;
+    contractStatus: string;
+    paymentStatus: string;
   };
-  arrangements?:
-    Arrangement[];
+
+  itinerary?: {
+    id: string;
+    title: string;
+    status: string;
+    days: ItineraryDay[];
+  } | null;
+
+  arrangements?: Arrangement[];
+
+  documents?: ClientDocument[];
+
   error?: string;
+};
+
+type ItineraryDay = {
+  id: string;
+  position: number;
+  charterDate: string;
+  title: string;
+  destinationName: string | null;
+  overnightType: string;
+  overnightName: string | null;
+  summary: string | null;
+  guestNotes: string | null;
+  activities: Array<{
+    id: string;
+    position: number;
+    activityType: string;
+    title: string;
+    startTime: string | null;
+    endTime: string | null;
+    location: string | null;
+    description: string | null;
+    status: string;
+  }>;
+  routeLegs: Array<{
+    id: string;
+    position: number;
+    fromName: string;
+    toName: string;
+    distanceNm: number | null;
+    departureTime: string | null;
+    arrivalTime: string | null;
+    notes: string | null;
+  }>;
+};
+
+type ClientDocument = {
+  id: string;
+  name: string;
+  category: string;
+  mimeType: string;
+  fileSize: number;
+  version: number;
+  createdAt: string;
+  url: string | null;
 };
 
 type FormState = {
@@ -186,6 +255,12 @@ export default function GuestPreferencePage() {
       null
     );
 
+  const [
+    imageFailed,
+    setImageFailed,
+  ] =
+    useState(false);
+
   const loadPortal =
     useCallback(async () => {
       if (!token) {
@@ -221,6 +296,7 @@ export default function GuestPreferencePage() {
         }
 
         setData(result);
+        setImageFailed(false);
 
         if (
           result.portal
@@ -429,6 +505,24 @@ export default function GuestPreferencePage() {
   const charter =
     data!.charter!;
 
+  const heroImage =
+    imageFailed
+      ? data?.hero
+          ?.fallbackImageUrl ??
+        "/proposal-yacht/hero-exterior.png"
+      : data?.hero
+          ?.imageUrl ??
+        "/proposal-yacht/hero-exterior.png";
+
+  const itineraryDays =
+    data?.itinerary
+      ?.days ??
+    [];
+
+  const clientDocuments =
+    data?.documents ??
+    [];
+
   return (
     <main className="min-h-screen bg-[#f5f3ee] text-slate-950">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -439,49 +533,50 @@ export default function GuestPreferencePage() {
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-500">
-                Private charter experience
+                Intrigue Yacht OS
               </p>
               <p className="mt-0.5 text-sm font-semibold">
-                {charter.reference}
+                Private charter portal
               </p>
             </div>
           </div>
 
           <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:inline-flex">
-            Private link
+            Secure private link
           </span>
         </div>
       </header>
 
-      <section className="relative overflow-hidden bg-slate-950 text-white">
-        <div className="absolute -right-20 -top-24 size-96 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 size-80 rounded-full bg-violet-400/10 blur-3xl" />
+      <section className="relative min-h-[68vh] overflow-hidden bg-slate-950 text-white">
+        <img
+          src={heroImage}
+          alt={`${charter.yachtName} charter`}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={() =>
+            setImageFailed(true)
+          }
+        />
 
-        <div className="relative mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/25" />
+
+        <div className="relative mx-auto flex min-h-[68vh] max-w-6xl flex-col justify-end px-5 py-12 sm:px-8 sm:py-16">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">
             Welcome aboard, {charter.clientName}
           </p>
 
-          <h1 className="mt-5 max-w-4xl text-balance text-5xl font-semibold leading-[0.96] tracking-[-0.045em] sm:text-7xl">
-            Plan your
-            <br />
-            {charter.yachtName} experience.
+          <h1 className="mt-5 max-w-5xl text-balance text-5xl font-semibold leading-[0.92] tracking-[-0.05em] sm:text-7xl lg:text-8xl">
+            {charter.yachtName}
           </h1>
 
-          <p className="mt-6 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-            Share your travel plans, dining preferences, provisioning needs,
-            activities and special requests. Your broker will coordinate the
-            details and confirm arrangements separately.
+          <p className="mt-5 text-lg text-white/80">
+            {formatDateRange(
+              charter.startDate,
+              charter.endDate
+            )}
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-2">
-            <MetaPill
-              label="Dates"
-              value={formatDateRange(
-                charter.startDate,
-                charter.endDate
-              )}
-            />
+          <div className="mt-7 flex flex-wrap gap-2">
             <MetaPill
               label="Destination"
               value={
@@ -500,9 +595,48 @@ export default function GuestPreferencePage() {
                   : "To be confirmed"
               }
             />
+            <MetaPill
+              label="Embarkation"
+              value={
+                charter.embarkationPort ??
+                "To be confirmed"
+              }
+            />
+            <MetaPill
+              label="Disembarkation"
+              value={
+                charter.disembarkationPort ??
+                "To be confirmed"
+              }
+            />
           </div>
         </div>
       </section>
+
+      <nav className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-5 py-3 sm:px-8">
+          <PortalNavLink
+            href="#overview"
+            label="Overview"
+          />
+          <PortalNavLink
+            href="#itinerary"
+            label="Itinerary"
+          />
+          <PortalNavLink
+            href="#concierge"
+            label="Concierge"
+          />
+          <PortalNavLink
+            href="#preferences"
+            label="Preferences"
+          />
+          <PortalNavLink
+            href="#documents"
+            label="Documents"
+          />
+        </div>
+      </nav>
 
       <div className="mx-auto max-w-6xl space-y-6 px-5 py-8 sm:px-8 sm:py-12">
         {success ? (
@@ -525,11 +659,307 @@ export default function GuestPreferencePage() {
           </div>
         ) : null}
 
+        <section
+          id="overview"
+          className="scroll-mt-24 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+            Charter overview
+          </p>
+
+          <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-3xl font-semibold tracking-[-0.03em]">
+                Your charter at a glance
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                One private space for your itinerary, preferences, concierge arrangements and charter documents.
+              </p>
+            </div>
+
+            <span className="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">
+              {formatLabel(
+                charter.contractStatus
+              )}
+            </span>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <OverviewStat
+              label="Charter"
+              value={formatLabel(
+                charter.charterStatus
+              )}
+            />
+
+            <OverviewStat
+              label="Contract"
+              value={formatLabel(
+                charter.contractStatus
+              )}
+            />
+
+            <OverviewStat
+              label="Payments"
+              value={formatLabel(
+                charter.paymentStatus
+              )}
+            />
+
+            <OverviewStat
+              label="Preferences"
+              value={
+                data?.portal
+                  ?.submittedAt
+                  ? "Submitted"
+                  : "Awaiting details"
+              }
+            />
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <OverviewStat
+              label="Itinerary days"
+              value={String(
+                itineraryDays.length
+              )}
+            />
+
+            <OverviewStat
+              label="Concierge arrangements"
+              value={String(
+                arrangements.length
+              )}
+            />
+
+            <OverviewStat
+              label="Documents"
+              value={String(
+                clientDocuments.length
+              )}
+            />
+          </div>
+        </section>
+
+        <section
+          id="itinerary"
+          className="scroll-mt-24 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                Itinerary
+              </p>
+
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
+                Your journey
+              </h2>
+            </div>
+
+            <p className="text-sm text-slate-500">
+              {itineraryDays.length} {itineraryDays.length === 1 ? "day" : "days"}
+            </p>
+          </div>
+
+          {itineraryDays.length >
+          0 ? (
+            <div className="mt-6 space-y-4">
+              {itineraryDays.map(
+                (
+                  day,
+                  index
+                ) => (
+                  <article
+                    key={day.id}
+                    className="overflow-hidden rounded-[24px] border border-slate-200"
+                  >
+                    <div className="grid gap-4 bg-slate-50 p-4 sm:grid-cols-[110px_1fr] sm:p-5">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                          Day {index + 1}
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                          {formatShortDate(
+                            day.charterDate
+                          )}
+                        </p>
+                      </div>
+
+                      <div>
+                        <h3 className="text-xl font-semibold">
+                          {day.title}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {day.destinationName ??
+                            "Destination to be confirmed"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[1fr_0.9fr]">
+                      <div>
+                        {day.summary ? (
+                          <p className="text-sm leading-6 text-slate-700">
+                            {day.summary}
+                          </p>
+                        ) : null}
+
+                        {day.routeLegs.length >
+                        0 ? (
+                          <div className="mt-4 space-y-2">
+                            {day.routeLegs.map(
+                              (
+                                leg
+                              ) => (
+                                <div
+                                  key={leg.id}
+                                  className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                                >
+                                  <p className="text-sm font-semibold">
+                                    {leg.fromName} - {leg.toName}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-slate-600">
+                                    {[
+                                      leg.distanceNm !==
+                                      null
+                                        ? `${leg.distanceNm} nm`
+                                        : null,
+                                      leg.departureTime
+                                        ? `Depart ${leg.departureTime.slice(
+                                            0,
+                                            5
+                                          )}`
+                                        : null,
+                                      leg.arrivalTime
+                                        ? `Arrive ${leg.arrivalTime.slice(
+                                            0,
+                                            5
+                                          )}`
+                                        : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" - ")}
+                                  </p>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        ) : null}
+
+                        {day.guestNotes ? (
+                          <div className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-800">
+                              Notes for your charter
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                              {day.guestNotes}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                          Experiences
+                        </p>
+
+                        {day.activities.length >
+                        0 ? (
+                          <div className="mt-3 space-y-2">
+                            {day.activities.map(
+                              (
+                                activity
+                              ) => (
+                                <div
+                                  key={activity.id}
+                                  className="rounded-2xl border border-slate-200 p-3"
+                                >
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">
+                                      {formatLabel(
+                                        activity.activityType
+                                      )}
+                                    </span>
+
+                                    {activity.status ===
+                                    "confirmed" ? (
+                                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                                        Confirmed
+                                      </span>
+                                    ) : null}
+                                  </div>
+
+                                  <p className="mt-2 text-sm font-semibold">
+                                    {activity.title}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-slate-600">
+                                    {[
+                                      activity.startTime
+                                        ? activity.startTime.slice(
+                                            0,
+                                            5
+                                          )
+                                        : null,
+                                      activity.location,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" - ")}
+                                  </p>
+
+                                  {activity.description ? (
+                                    <p className="mt-2 text-xs leading-5 text-slate-600">
+                                      {activity.description}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              )
+                            )}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">
+                            Experiences are being arranged.
+                          </p>
+                        )}
+
+                        {day.overnightType !==
+                        "none" ? (
+                          <div className="mt-4 rounded-2xl bg-slate-950 p-3 text-white">
+                            <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                              Overnight
+                            </p>
+                            <p className="mt-1 text-sm font-semibold">
+                              {formatLabel(
+                                day.overnightType
+                              )}
+                              {day.overnightName
+                                ? ` - ${day.overnightName}`
+                                : ""}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm text-slate-500">
+              Your broker is preparing the charter itinerary.
+            </div>
+          )}
+        </section>
+
         {arrangements.length >
         0 ? (
-          <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <section
+            id="concierge"
+            className="scroll-mt-24 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7"
+          >
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Your arrangements
+              Concierge
             </p>
             <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
               Charter plan
@@ -575,7 +1005,7 @@ export default function GuestPreferencePage() {
                           Boolean
                         )
                         .join(
-                          " · "
+                          " - "
                         ) ||
                         "Your broker is coordinating this arrangement."}
                     </p>
@@ -586,8 +1016,13 @@ export default function GuestPreferencePage() {
           </section>
         ) : null}
 
+        <div
+          id="preferences"
+          className="scroll-mt-24"
+        />
+
         <PortalSection
-          eyebrow="01 · Travel"
+          eyebrow="01 - Travel"
           title="Arrival & transfers"
           description="Tell your broker how you plan to arrive and whether ground or air transfer should be arranged."
         >
@@ -691,7 +1126,7 @@ export default function GuestPreferencePage() {
         </PortalSection>
 
         <PortalSection
-          eyebrow="02 · Dining"
+          eyebrow="02 - Dining"
           title="Dining ashore"
           description="Request restaurant reservations, beach clubs, celebration dinners or other dining experiences."
         >
@@ -730,7 +1165,7 @@ export default function GuestPreferencePage() {
         </PortalSection>
 
         <PortalSection
-          eyebrow="03 · Activities"
+          eyebrow="03 - Activities"
           title="Things you'd like to do"
           description="Choose anything that sounds interesting. Your broker will confirm what is possible for the yacht, location and dates."
         >
@@ -783,7 +1218,7 @@ export default function GuestPreferencePage() {
         </PortalSection>
 
         <PortalSection
-          eyebrow="04 · Provisioning"
+          eyebrow="04 - Provisioning"
           title="Food & drinks"
           description="Help the yacht team prepare the onboard experience. Only provide information relevant to your charter."
         >
@@ -852,7 +1287,7 @@ export default function GuestPreferencePage() {
         </PortalSection>
 
         <PortalSection
-          eyebrow="05 · Celebrations"
+          eyebrow="05 - Celebrations"
           title="Special occasions"
           description="Birthday, anniversary, proposal or another moment you'd like the broker and crew to help plan."
         >
@@ -909,7 +1344,7 @@ export default function GuestPreferencePage() {
         </PortalSection>
 
         <PortalSection
-          eyebrow="06 · Onboard"
+          eyebrow="06 - Onboard"
           title="Guest preferences"
           description="Share cabin, family, music or accessibility details that can help the yacht team prepare."
         >
@@ -978,7 +1413,7 @@ export default function GuestPreferencePage() {
         </PortalSection>
 
         <PortalSection
-          eyebrow="07 · Anything else"
+          eyebrow="07 - Anything else"
           title="Special requests"
           description="Use this space for anything not covered above."
         >
@@ -1039,9 +1474,165 @@ export default function GuestPreferencePage() {
                 : "Submit charter preferences"}
           </button>
         </section>
+
+        <section
+          id="documents"
+          className="scroll-mt-24 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+            Documents
+          </p>
+
+          <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
+            Charter files
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Client-facing agreements, invoices, APA documents and receipts are available here when your broker publishes them.
+          </p>
+
+          {clientDocuments.length >
+          0 ? (
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              {clientDocuments.map(
+                (
+                  document
+                ) => (
+                  <div
+                    key={document.id}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words text-sm font-semibold">
+                          {document.name}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {formatLabel(
+                            document.category
+                          )} - v{document.version} - {formatFileSize(
+                            document.fileSize
+                          )}
+                        </p>
+                      </div>
+
+                      {document.url ? (
+                        <a
+                          href={document.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Open
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm text-slate-500">
+              No client-facing charter documents are available yet.
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
+}
+
+function PortalNavLink({
+  href,
+  label,
+}: {
+  href: string;
+  label: string;
+}) {
+  return (
+    <a
+      href={href}
+      className="shrink-0 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+    >
+      {label}
+    </a>
+  );
+}
+
+function OverviewStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-semibold text-slate-950">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function formatShortDate(
+  value: string
+) {
+  const date =
+    new Date(
+      `${value}T12:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "numeric",
+      month: "short",
+    }
+  );
+}
+
+function formatFileSize(
+  bytes: number
+) {
+  if (
+    !Number.isFinite(bytes) ||
+    bytes <= 0
+  ) {
+    return "0 B";
+  }
+
+  if (bytes < 1024) {
+    return `${Math.round(
+      bytes
+    )} B`;
+  }
+
+  if (
+    bytes <
+    1024 * 1024
+  ) {
+    return `${(
+      bytes / 1024
+    ).toFixed(1)} KB`;
+  }
+
+  return `${(
+    bytes /
+    (1024 * 1024)
+  ).toFixed(1)} MB`;
 }
 
 function PortalSection({
@@ -1200,7 +1791,7 @@ function MetaPill({
       <span className="text-slate-500">
         {label}
       </span>
-      {" · "}
+      {" - "}
       <span className="font-semibold text-white">
         {value}
       </span>
@@ -1400,7 +1991,7 @@ function formatDateRange(
 
   return `${formatDate(
     start
-  )} → ${formatDate(
+  )} - ${formatDate(
     end
   )}`;
 }
