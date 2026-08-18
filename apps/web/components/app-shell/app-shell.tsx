@@ -99,6 +99,11 @@ const navigation = [
     icon: FileText,
   },
   {
+    name: "Charters",
+    href: "/charters",
+    icon: Anchor,
+  },
+  {
     name: "Concierge",
     href: "/concierge",
     icon: Sparkles,
