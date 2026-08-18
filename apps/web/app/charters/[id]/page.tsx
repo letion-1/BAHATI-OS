@@ -255,6 +255,14 @@ export default function CharterWorkspacePage() {
     useState<string | null>(null);
   const [savedMessage, setSavedMessage] =
     useState<string | null>(null);
+  const [activeSection, setActiveSection] =
+    useState<
+      "overview" |
+      "commercial" |
+      "contract" |
+      "payments" |
+      "documents"
+    >("overview");
 
   const loadCharter =
     useCallback(async () => {
@@ -309,6 +317,85 @@ export default function CharterWorkspacePage() {
   useEffect(() => {
     void loadCharter();
   }, [loadCharter]);
+
+  useEffect(() => {
+    if (isLoading || !data?.charter) {
+      return;
+    }
+
+    const sectionIds = [
+      "overview",
+      "commercial",
+      "contract",
+      "payments",
+      "documents",
+    ] as const;
+
+    const syncActiveSectionFromHash =
+      () => {
+        const hash =
+          window.location.hash.replace(
+            "#",
+            ""
+          );
+
+        if (
+          sectionIds.includes(
+            hash as (typeof sectionIds)[number]
+          )
+        ) {
+          setActiveSection(
+            hash as (typeof sectionIds)[number]
+          );
+          return;
+        }
+
+        setActiveSection("overview");
+      };
+
+    syncActiveSectionFromHash();
+
+    window.addEventListener(
+      "hashchange",
+      syncActiveSectionFromHash
+    );
+
+    return () => {
+      window.removeEventListener(
+        "hashchange",
+        syncActiveSectionFromHash
+      );
+    };
+  }, [isLoading, data?.charter]);
+
+  function goToWorkspaceSection(
+    section:
+      | "overview"
+      | "commercial"
+      | "contract"
+      | "payments"
+      | "documents"
+  ) {
+    setActiveSection(section);
+
+    const element =
+      document.getElementById(section);
+
+    if (!element) {
+      return;
+    }
+
+    window.history.replaceState(
+      null,
+      "",
+      `#${section}`
+    );
+
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
 
   async function saveCommercialTerms() {
     if (
@@ -1193,6 +1280,36 @@ export default function CharterWorkspacePage() {
   const documents =
     data?.documents ?? [];
 
+  const paidAmount =
+    payments.reduce(
+      (total, payment) =>
+        payment.currency ===
+        charter.commercial.currency
+          ? total + payment.amountPaid
+          : total,
+      0
+    );
+
+  const outstandingAmount =
+    charter.commercial
+      .totalContractValue !== null
+      ? Math.max(
+          charter.commercial
+            .totalContractValue -
+            paidAmount,
+          0
+        )
+      : null;
+
+  const nextAction =
+    charter.contractStatus !== "signed"
+      ? "Complete the charter contract workflow."
+      : charter.paymentStatus !== "paid"
+        ? "Review the payment schedule and outstanding balance."
+        : charter.charter.guests === null
+          ? "Add the confirmed guest count."
+          : "Review itinerary and concierge preparations.";
+
   return (
     <main className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="space-y-5">
@@ -1274,12 +1391,10 @@ export default function CharterWorkspacePage() {
 
               <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2 xl:flex xl:flex-wrap xl:justify-end">
                 <Link
-                  href={`/proposals/${encodeURIComponent(
-                    charter.proposalId
-                  )}`}
+                  href="/charters"
                   className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent"
                 >
-                  Back to proposal
+                  Back to Charters
                 </Link>
 
                 <Link
@@ -1325,8 +1440,350 @@ export default function CharterWorkspacePage() {
           </div>
         ) : null}
 
+        <nav
+          aria-label="Charter workspace sections"
+          className="ui-panel sticky top-24 z-20 overflow-x-auto rounded-[24px] p-2 backdrop-blur-xl"
+        >
+          <div className="flex min-w-max items-center gap-1">
+            <a
+              href="#overview"
+              onClick={(event) => {
+                event.preventDefault();
+                goToWorkspaceSection(
+                  "overview"
+                );
+              }}
+              aria-current={
+                activeSection === "overview"
+                  ? "location"
+                  : undefined
+              }
+              className={workspaceSectionClass(
+                activeSection === "overview"
+              )}
+            >
+              Overview
+            </a>
+            <a
+              href="#commercial"
+              onClick={(event) => {
+                event.preventDefault();
+                goToWorkspaceSection(
+                  "commercial"
+                );
+              }}
+              aria-current={
+                activeSection === "commercial"
+                  ? "location"
+                  : undefined
+              }
+              className={workspaceSectionClass(
+                activeSection === "commercial"
+              )}
+            >
+              Commercial
+            </a>
+            <a
+              href="#contract"
+              onClick={(event) => {
+                event.preventDefault();
+                goToWorkspaceSection(
+                  "contract"
+                );
+              }}
+              aria-current={
+                activeSection === "contract"
+                  ? "location"
+                  : undefined
+              }
+              className={workspaceSectionClass(
+                activeSection === "contract"
+              )}
+            >
+              Contract
+            </a>
+            <a
+              href="#payments"
+              onClick={(event) => {
+                event.preventDefault();
+                goToWorkspaceSection(
+                  "payments"
+                );
+              }}
+              aria-current={
+                activeSection === "payments"
+                  ? "location"
+                  : undefined
+              }
+              className={workspaceSectionClass(
+                activeSection === "payments"
+              )}
+            >
+              Payments
+            </a>
+            <a
+              href="#documents"
+              onClick={(event) => {
+                event.preventDefault();
+                goToWorkspaceSection(
+                  "documents"
+                );
+              }}
+              aria-current={
+                activeSection === "documents"
+                  ? "location"
+                  : undefined
+              }
+              className={workspaceSectionClass(
+                activeSection === "documents"
+              )}
+            >
+              Documents
+            </a>
+            <Link
+              href={`/itineraries/${encodeURIComponent(
+                charter.id
+              )}`}
+              className="apple-transition inline-flex min-h-9 items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Itinerary
+            </Link>
+            <Link
+              href={`/concierge/${encodeURIComponent(
+                charter.id
+              )}`}
+              className="apple-transition inline-flex min-h-9 items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Concierge
+            </Link>
+            <Link
+              href={`/charters/${encodeURIComponent(
+                charter.id
+              )}/guest-portal`}
+              className="apple-transition inline-flex min-h-9 items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Guest Portal
+            </Link>
+          </div>
+        </nav>
+
+        <section
+          id="overview"
+          className="ui-panel scroll-mt-28 overflow-hidden rounded-[28px] p-5 sm:p-6"
+        >
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-300">
+                Charter overview
+              </p>
+              <h2 className="mt-2 font-heading text-2xl text-foreground sm:text-3xl">
+                Operational command center
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                A live summary of contract, payment and charter readiness.
+              </p>
+            </div>
+
+            <StatusBadge
+              value={
+                charter.charterStatus
+              }
+            />
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 sm:p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
+              Next action
+            </p>
+            <p className="mt-2 text-base font-semibold text-foreground">
+              {nextAction}
+            </p>
+          </div>
+
+          <div className="mt-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Charter health
+            </p>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="ui-panel-soft rounded-2xl p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Contract
+                </p>
+                <div className="mt-3">
+                  <StatusBadge
+                    value={
+                      charter.contractStatus
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="ui-panel-soft rounded-2xl p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Payments
+                </p>
+                <div className="mt-3">
+                  <StatusBadge
+                    value={
+                      charter.paymentStatus
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="ui-panel-soft rounded-2xl p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Guest count
+                </p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {charter.charter.guests !== null
+                    ? `${charter.charter.guests} confirmed`
+                    : "Not set"}
+                </p>
+              </div>
+
+              <div className="ui-panel-soft rounded-2xl p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Documents
+                </p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {documents.length === 1
+                    ? "1 file"
+                    : `${documents.length} files`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-3">
+            <div className="ui-panel-soft rounded-2xl p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                Client
+              </p>
+              <p className="mt-3 text-lg font-semibold text-foreground">
+                {charter.client.name}
+              </p>
+              <div className="mt-3 space-y-1 text-xs leading-5 text-muted-foreground">
+                <p>
+                  {charter.client.email ??
+                    "Email not set"}
+                </p>
+                <p>
+                  {charter.client.phone ??
+                    "Phone not set"}
+                </p>
+              </div>
+            </div>
+
+            <div className="ui-panel-soft rounded-2xl p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                Yacht
+              </p>
+              <p className="mt-3 text-lg font-semibold text-foreground">
+                {charter.yacht.name}
+              </p>
+              <div className="mt-3 space-y-1 text-xs leading-5 text-muted-foreground">
+                <p>
+                  {charter.charter.destination ??
+                    "Destination not set"}
+                </p>
+                <p>
+                  {formatDateRange(
+                    charter.charter
+                      .startDate,
+                    charter.charter
+                      .endDate
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="ui-panel-soft rounded-2xl p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                Financial snapshot
+              </p>
+
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">
+                    Charter fee
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {formatMoney(
+                      charter.commercial
+                        .charterFee,
+                      charter.commercial
+                        .currency
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">
+                    APA
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {formatMoney(
+                      charter.commercial
+                        .apaAmount,
+                      charter.commercial
+                        .currency
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">
+                    VAT
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {formatMoney(
+                      charter.commercial
+                        .vatAmount,
+                      charter.commercial
+                        .currency
+                    )}
+                  </span>
+                </div>
+
+                <div className="border-t border-border pt-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">
+                      Paid
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {formatMoney(
+                        paidAmount,
+                        charter.commercial
+                          .currency
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">
+                      Outstanding
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {formatMoney(
+                        outstandingAmount,
+                        charter.commercial
+                          .currency
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section
+            id="commercial"
+            className="ui-panel scroll-mt-28 rounded-[28px] p-5 sm:p-6"
+          >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
@@ -1534,7 +1991,10 @@ export default function CharterWorkspacePage() {
             </p>
           </section>
 
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section
+            id="contract"
+            className="ui-panel scroll-mt-28 rounded-[28px] p-5 sm:p-6"
+          >
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Contract
             </p>
@@ -1739,7 +2199,10 @@ export default function CharterWorkspacePage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-2">
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section
+            id="documents"
+            className="ui-panel scroll-mt-28 rounded-[28px] p-5 sm:p-6"
+          >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
@@ -1892,7 +2355,10 @@ export default function CharterWorkspacePage() {
             )}
           </section>
 
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <section
+            id="payments"
+            className="ui-panel scroll-mt-28 rounded-[28px] p-5 sm:p-6"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -2184,6 +2650,14 @@ export default function CharterWorkspacePage() {
       </div>
     </main>
   );
+}
+
+function workspaceSectionClass(
+  active: boolean
+) {
+  return active
+    ? "ui-primary-button apple-transition inline-flex min-h-9 items-center justify-center px-3 py-2 text-xs font-semibold"
+    : "apple-transition inline-flex min-h-9 items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground";
 }
 
 function renderWorkflowAction({
