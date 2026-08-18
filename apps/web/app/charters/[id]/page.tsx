@@ -91,6 +91,23 @@ type CharterResponse = {
   error?: string;
 };
 
+type GuestSummary = {
+  expectedGuests: number | null;
+  actualGuests: number;
+  remainingProfiles: number | null;
+  completeGuests: number;
+  inProgressGuests: number;
+  incompleteGuests: number;
+  averageCompleteness: number;
+  manifestReady: boolean;
+};
+
+type CharterGuestsResponse = {
+  success: boolean;
+  summary?: GuestSummary;
+  error?: string;
+};
+
 type PaymentMutationResponse = {
   success: boolean;
   payment?: Payment;
@@ -255,6 +272,8 @@ export default function CharterWorkspacePage() {
     useState<string | null>(null);
   const [savedMessage, setSavedMessage] =
     useState<string | null>(null);
+  const [guestSummary, setGuestSummary] =
+    useState<GuestSummary | null>(null);
   const [activeSection, setActiveSection] =
     useState<
       "overview" |
@@ -314,9 +333,50 @@ export default function CharterWorkspacePage() {
       }
     }, [charterId]);
 
+  const loadGuestSummary =
+    useCallback(async () => {
+      if (!charterId) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/charters/${encodeURIComponent(
+            charterId
+          )}/guests`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+        const result =
+          (await response.json()) as CharterGuestsResponse;
+
+        if (
+          !response.ok ||
+          !result.success ||
+          !result.summary
+        ) {
+          setGuestSummary(null);
+          return;
+        }
+
+        setGuestSummary(
+          result.summary
+        );
+      } catch {
+        setGuestSummary(null);
+      }
+    }, [charterId]);
+
   useEffect(() => {
     void loadCharter();
-  }, [loadCharter]);
+    void loadGuestSummary();
+  }, [
+    loadCharter,
+    loadGuestSummary,
+  ]);
 
   useEffect(() => {
     if (isLoading || !data?.charter) {
@@ -1308,7 +1368,12 @@ export default function CharterWorkspacePage() {
         ? "Review the payment schedule and outstanding balance."
         : charter.charter.guests === null
           ? "Add the confirmed guest count."
-          : "Review itinerary and concierge preparations.";
+          : guestSummary &&
+              !guestSummary.manifestReady
+            ? guestSummary.expectedGuests !== null
+              ? `Complete Guest Intelligence (${guestSummary.actualGuests}/${guestSummary.expectedGuests} profiles created).`
+              : "Complete Guest Intelligence and manifest preparation."
+            : "Review itinerary and concierge preparations.";
 
   return (
     <main className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
@@ -1368,13 +1433,16 @@ export default function CharterWorkspacePage() {
                   <Metric
                     label="Guests"
                     value={
-                      charter.charter
-                        .guests !== null
-                        ? String(
-                            charter.charter
-                              .guests
-                          )
-                        : "Not set"
+                      guestSummary &&
+                      guestSummary.expectedGuests !== null
+                        ? `${guestSummary.actualGuests}/${guestSummary.expectedGuests} profiles`
+                        : charter.charter
+                              .guests !== null
+                          ? String(
+                              charter.charter
+                                .guests
+                            )
+                          : "Not set"
                     }
                   />
                   <Metric
@@ -1395,6 +1463,15 @@ export default function CharterWorkspacePage() {
                   className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent"
                 >
                   Back to Charters
+                </Link>
+
+                <Link
+                  href={`/charters/${encodeURIComponent(
+                    charter.id
+                  )}/guests`}
+                  className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent"
+                >
+                  Guests
                 </Link>
 
                 <Link
@@ -1541,6 +1618,15 @@ export default function CharterWorkspacePage() {
               Documents
             </a>
             <Link
+              href={`/charters/${encodeURIComponent(
+                charter.id
+              )}/guests`}
+              className="apple-transition inline-flex min-h-9 items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Guests
+            </Link>
+
+            <Link
               href={`/itineraries/${encodeURIComponent(
                 charter.id
               )}`}
@@ -1632,16 +1718,52 @@ export default function CharterWorkspacePage() {
                 </div>
               </div>
 
-              <div className="ui-panel-soft rounded-2xl p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Guest count
-                </p>
-                <p className="mt-2 text-sm font-semibold text-foreground">
-                  {charter.charter.guests !== null
-                    ? `${charter.charter.guests} confirmed`
-                    : "Not set"}
-                </p>
-              </div>
+              <Link
+                href={`/charters/${encodeURIComponent(
+                  charter.id
+                )}/guests`}
+                className="ui-panel-soft apple-transition rounded-2xl p-4 hover:-translate-y-0.5 hover:border-cyan-500/30 hover:bg-cyan-500/5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Guest Intelligence
+                    </p>
+
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {guestSummary
+                        ? guestSummary.expectedGuests !== null
+                          ? `${guestSummary.actualGuests} / ${guestSummary.expectedGuests} profiles`
+                          : `${guestSummary.actualGuests} profiles`
+                        : charter.charter.guests !== null
+                          ? `${charter.charter.guests} expected`
+                          : "Open guest profiles"}
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {guestSummary
+                        ? guestSummary.manifestReady
+                          ? "Manifest ready"
+                          : `${guestSummary.averageCompleteness}% average readiness`
+                        : "Manage manifest readiness"}
+                    </p>
+                  </div>
+
+                  {guestSummary ? (
+                    <span
+                      className={
+                        guestSummary.manifestReady
+                          ? "rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-800 dark:text-emerald-200"
+                          : "rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-900 dark:text-amber-200"
+                      }
+                    >
+                      {guestSummary.manifestReady
+                        ? "Ready"
+                        : "Pending"}
+                    </span>
+                  ) : null}
+                </div>
+              </Link>
 
               <div className="ui-panel-soft rounded-2xl p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
