@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 
-import { FinalConfirmationPanel } from "@/components/proposals/final-confirmation-panel";
+import { ProposalCharterHandoff } from "@/components/proposals/proposal-charter-handoff";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -762,60 +762,12 @@ export default function ProposalDetailPage() {
           </div>
         </div>
       </section>
-
       {clientSelection ? (
-        <section className="overflow-hidden rounded-[24px] border border-emerald-500/25 bg-emerald-500/[0.07]">
-          <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div className="flex items-start gap-4">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
-                <CheckIcon />
-              </div>
-
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
-                  Client preference
-                </p>
-
-                <h2 className="mt-2 font-heading text-3xl tracking-[0.04em] text-foreground">
-                  {clientSelection.yachtName}
-                </h2>
-
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {proposal.client.name} selected this yacht from the{" "}
-                  {yachtCount}-option proposal on{" "}
-                  {formatDateTime(
-                    clientSelection.selectedAt
-                  )}.
-                </p>
-
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  This records the client's preferred yacht only. Final availability,
-                  manager or owner approval and charter confirmation remain separate.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-              {clientSelection.fleetId ? (
-                <Link
-                  href={`/fleet/${clientSelection.fleetId}`}
-                  className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold hover:bg-accent"
-                >
-                  Open selected yacht
-                </Link>
-              ) : null}
-
-              <span className="inline-flex min-h-11 items-center justify-center rounded-[0.9rem] border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-                Ready for final confirmation
-              </span>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {clientSelection ? (
-        <FinalConfirmationPanel
+        <ProposalCharterHandoff
           proposalId={proposalId}
+          clientName={proposal.client.name}
+          yachtCount={yachtCount}
+          clientSelection={clientSelection}
         />
       ) : null}
 

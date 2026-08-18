@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -202,8 +203,81 @@ function NavigationLinks({
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const navRef =
+    useRef<HTMLElement | null>(
+      null
+    );
+
+  const activeItemRef =
+    useRef<HTMLAnchorElement | null>(
+      null
+    );
+
+  useEffect(() => {
+    const nav =
+      navRef.current;
+
+    const activeItem =
+      activeItemRef.current;
+
+    if (
+      !nav ||
+      !activeItem
+    ) {
+      return;
+    }
+
+    const frame =
+      window.requestAnimationFrame(
+        () => {
+          const navRect =
+            nav.getBoundingClientRect();
+
+          const itemRect =
+            activeItem.getBoundingClientRect();
+
+          if (
+            itemRect.top <
+            navRect.top
+          ) {
+            nav.scrollBy({
+              top:
+                itemRect.top -
+                navRect.top -
+                8,
+              behavior: "smooth",
+            });
+
+            return;
+          }
+
+          if (
+            itemRect.bottom >
+            navRect.bottom
+          ) {
+            nav.scrollBy({
+              top:
+                itemRect.bottom -
+                navRect.bottom +
+                8,
+              behavior: "smooth",
+            });
+          }
+        }
+      );
+
+    return () => {
+      window.cancelAnimationFrame(
+        frame
+      );
+    };
+  }, [pathname]);
+
   return (
-    <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 pb-5">
+    <nav
+      ref={navRef}
+      className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 pb-5"
+    >
       {navigation.map(
         (
           item
@@ -222,11 +296,21 @@ function NavigationLinks({
               key={
                 item.href
               }
+              ref={
+                active
+                  ? activeItemRef
+                  : undefined
+              }
               href={
                 item.href
               }
               onClick={
                 onNavigate
+              }
+              aria-current={
+                active
+                  ? "page"
+                  : undefined
               }
               className={`apple-transition flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm ${
                 active
