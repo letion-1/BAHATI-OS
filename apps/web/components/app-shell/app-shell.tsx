@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
-  useRef,
   useState,
 } from "react";
 
+import Image from "next/image";
 import Link from "next/link";
 
 import {
@@ -54,7 +54,6 @@ import {
   ThemeToggle,
 } from "@/components/theme-toggle";
 
-
 import {
   Button,
 } from "@/components/ui/button";
@@ -62,6 +61,18 @@ import {
 import {
   Separator,
 } from "@/components/ui/separator";
+
+type AccountResponse = {
+  success: boolean;
+  account?: {
+    companyName:
+      | string
+      | null;
+  };
+};
+
+const DEFAULT_COMPANY_NAME =
+  "Workspace";
 
 const navigation = [
   {
@@ -173,9 +184,13 @@ function isPublicRoute(
       )
     ) ||
     pathname === "/onboarding" ||
-    pathname.startsWith("/onboarding/") ||
+    pathname.startsWith(
+      "/onboarding/"
+    ) ||
     pathname === "/sign-up" ||
-    pathname.startsWith("/sign-up/") ||
+    pathname.startsWith(
+      "/sign-up/"
+    ) ||
     pathname === "/login" ||
     pathname.startsWith(
       "/login/"
@@ -196,6 +211,60 @@ function isPublicRoute(
   );
 }
 
+function YachtOsBrandMark() {
+  return (
+    <div
+      className="
+        flex size-11 shrink-0 items-center justify-center
+        rounded-full
+        border border-sidebar-border/90
+        bg-background/65
+        shadow-sm
+        ring-1 ring-black/[0.025]
+        backdrop-blur-xl
+        dark:border-white/10
+        dark:bg-white/[0.04]
+        dark:ring-white/[0.035]
+      "
+    >
+      <Image
+        src="/brand/yacht-os-mark.png"
+        alt=""
+        width={32}
+        height={32}
+        priority
+        className="
+          h-8 w-8 object-contain
+          drop-shadow-[0_1px_1px_rgba(0,0,0,0.10)]
+          dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.34)]
+        "
+      />
+    </div>
+  );
+}
+
+function YachtOsBrandLockup({
+  companyName,
+}: {
+  companyName: string;
+}) {
+  return (
+    <>
+      <YachtOsBrandMark />
+
+      <div className="min-w-0">
+        <p className="font-heading text-2xl leading-none tracking-[0.08em]">
+          Yacht OS
+        </p>
+
+        <p className="mt-1 max-w-[170px] truncate text-[11px] text-muted-foreground">
+          {companyName}
+        </p>
+      </div>
+    </>
+  );
+}
+
 function NavigationLinks({
   pathname,
   onNavigate,
@@ -203,81 +272,8 @@ function NavigationLinks({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const navRef =
-    useRef<HTMLElement | null>(
-      null
-    );
-
-  const activeItemRef =
-    useRef<HTMLAnchorElement | null>(
-      null
-    );
-
-  useEffect(() => {
-    const nav =
-      navRef.current;
-
-    const activeItem =
-      activeItemRef.current;
-
-    if (
-      !nav ||
-      !activeItem
-    ) {
-      return;
-    }
-
-    const frame =
-      window.requestAnimationFrame(
-        () => {
-          const navRect =
-            nav.getBoundingClientRect();
-
-          const itemRect =
-            activeItem.getBoundingClientRect();
-
-          if (
-            itemRect.top <
-            navRect.top
-          ) {
-            nav.scrollBy({
-              top:
-                itemRect.top -
-                navRect.top -
-                8,
-              behavior: "smooth",
-            });
-
-            return;
-          }
-
-          if (
-            itemRect.bottom >
-            navRect.bottom
-          ) {
-            nav.scrollBy({
-              top:
-                itemRect.bottom -
-                navRect.bottom +
-                8,
-              behavior: "smooth",
-            });
-          }
-        }
-      );
-
-    return () => {
-      window.cancelAnimationFrame(
-        frame
-      );
-    };
-  }, [pathname]);
-
   return (
-    <nav
-      ref={navRef}
-      className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 pb-5"
-    >
+    <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 pb-5">
       {navigation.map(
         (
           item
@@ -296,21 +292,11 @@ function NavigationLinks({
               key={
                 item.href
               }
-              ref={
-                active
-                  ? activeItemRef
-                  : undefined
-              }
               href={
                 item.href
               }
               onClick={
                 onNavigate
-              }
-              aria-current={
-                active
-                  ? "page"
-                  : undefined
               }
               className={`apple-transition flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm ${
                 active
@@ -393,12 +379,25 @@ export function AppShell({
   const pathname =
     usePathname();
 
+  const publicRoute =
+    isPublicRoute(
+      pathname
+    );
+
   const [
     mobileNavigationOpen,
     setMobileNavigationOpen,
   ] =
     useState(
       false
+    );
+
+  const [
+    companyName,
+    setCompanyName,
+  ] =
+    useState(
+      DEFAULT_COMPANY_NAME
     );
 
   useEffect(
@@ -436,10 +435,86 @@ export function AppShell({
     ]
   );
 
+  useEffect(
+    () => {
+      if (
+        publicRoute
+      ) {
+        return;
+      }
+
+      let cancelled =
+        false;
+
+      async function loadCompanyName() {
+        try {
+          const response =
+            await fetch(
+              "/api/account",
+              {
+                method: "GET",
+                cache: "no-store",
+              }
+            );
+
+          if (
+            !response.ok
+          ) {
+            return;
+          }
+
+          const contentType =
+            response.headers.get(
+              "content-type"
+            ) ?? "";
+
+          if (
+            !contentType.includes(
+              "application/json"
+            )
+          ) {
+            return;
+          }
+
+          const result =
+            (await response.json()) as AccountResponse;
+
+          const nextCompanyName =
+            result.account
+              ?.companyName
+              ?.trim();
+
+          if (
+            cancelled ||
+            !result.success ||
+            !nextCompanyName
+          ) {
+            return;
+          }
+
+          setCompanyName(
+            nextCompanyName
+          );
+        } catch {
+          // Keep the neutral fallback if the account endpoint
+          // is temporarily unavailable.
+        }
+      }
+
+      void loadCompanyName();
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    [
+      publicRoute,
+    ]
+  );
+
   if (
-    isPublicRoute(
-      pathname
-    )
+    publicRoute
   ) {
     return (
       <>
@@ -459,19 +534,11 @@ export function AppShell({
             href="/"
             className="apple-transition flex items-center gap-3 rounded-2xl px-2 py-3 hover:bg-sidebar-accent"
           >
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-              <Anchor className="size-5" />
-            </div>
-
-            <div>
-              <p className="font-heading text-2xl leading-none tracking-[0.08em]">
-                Intrigue
-              </p>
-
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Yacht OS
-              </p>
-            </div>
+            <YachtOsBrandLockup
+              companyName={
+                companyName
+              }
+            />
           </Link>
 
           <Separator className="my-5 bg-sidebar-border" />
@@ -526,21 +593,13 @@ export function AppShell({
                   false
                 )
               }
-              className="apple-transition flex items-center gap-3 rounded-2xl px-2 py-3 hover:bg-sidebar-accent"
+              className="apple-transition flex min-w-0 items-center gap-3 rounded-2xl px-2 py-3 hover:bg-sidebar-accent"
             >
-              <div className="flex size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-                <Anchor className="size-5" />
-              </div>
-
-              <div>
-                <p className="font-heading text-2xl leading-none tracking-[0.08em]">
-                  Intrigue
-                </p>
-
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Yacht OS
-                </p>
-              </div>
+              <YachtOsBrandLockup
+                companyName={
+                  companyName
+                }
+              />
             </Link>
 
             <Button
@@ -552,7 +611,7 @@ export function AppShell({
                   false
                 )
               }
-              className="rounded-xl"
+              className="shrink-0 rounded-xl"
               aria-label="Close navigation"
             >
               <X className="size-4" />
@@ -608,14 +667,13 @@ export function AppShell({
 
             <div className="min-w-0">
               <p className="truncate font-heading text-[17px] leading-none tracking-[0.04em] sm:text-xl sm:tracking-[0.06em]">
-                Intrigue
                 Yacht OS
               </p>
 
-              <p className="mt-1 hidden text-[10px] leading-tight text-muted-foreground min-[390px]:block sm:text-[11px]">
-                Charter
-                intelligence
-                workspace
+              <p className="mt-1 hidden max-w-[46vw] truncate text-[10px] leading-tight text-muted-foreground min-[390px]:block sm:max-w-none sm:text-[11px]">
+                {
+                  companyName
+                }
               </p>
             </div>
           </div>
