@@ -7,9 +7,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import {
-  useParams,
-} from "next/navigation";
+import { useParams } from "next/navigation";
 
 type GuestPortalResponse = {
   success: boolean;
@@ -45,16 +43,16 @@ type GuestPortalResponse = {
     clientEmailAvailable: boolean;
     gmailConnected: boolean;
     gmailAddress: string | null;
+    stableLinkAvailable?: boolean;
   };
-  guestUrl?: string;
+  guestUrl?: string | null;
   sender?: string;
   revoked?: boolean;
   error?: string;
 };
 
-export default function GuestPortalManagementPage() {
-  const params =
-    useParams();
+export default function CharterPortalManagementPage() {
+  const params = useParams();
 
   const charterId =
     useMemo(() => {
@@ -71,9 +69,7 @@ export default function GuestPortalManagementPage() {
       if (
         Array.isArray(value)
       ) {
-        return (
-          value[0] ?? ""
-        );
+        return value[0] ?? "";
       }
 
       return "";
@@ -140,8 +136,7 @@ export default function GuestPortalManagementPage() {
               charterId
             )}/guest-portal`,
             {
-              cache:
-                "no-store",
+              cache: "no-store",
             }
           );
 
@@ -155,18 +150,37 @@ export default function GuestPortalManagementPage() {
         ) {
           throw new Error(
             result.error ??
-              "Could not load guest portal."
+              "Could not load Charter Portal."
           );
         }
 
         setData(result);
+
+        if (
+          typeof result.guestUrl ===
+            "string" &&
+          result.guestUrl.trim()
+            .length > 0
+        ) {
+          setGeneratedUrl(
+            result.guestUrl
+          );
+        } else if (
+          !result.portal ||
+          result.portal.status ===
+            "revoked"
+        ) {
+          setGeneratedUrl(
+            null
+          );
+        }
       } catch (
         caughtError
       ) {
         setError(
           caughtError instanceof Error
             ? caughtError.message
-            : "Could not load guest portal."
+            : "Could not load Charter Portal."
         );
       } finally {
         setLoading(false);
@@ -261,8 +275,7 @@ export default function GuestPortalManagementPage() {
             charterId
           )}/guest-portal`,
           {
-            method:
-              "POST",
+            method: "POST",
             headers: {
               "Content-Type":
                 "application/json",
@@ -283,12 +296,15 @@ export default function GuestPortalManagementPage() {
       ) {
         throw new Error(
           result.error ??
-            "Could not update guest portal."
+            "Could not update Charter Portal."
         );
       }
 
       if (
-        result.guestUrl
+        typeof result.guestUrl ===
+          "string" &&
+        result.guestUrl.trim()
+          .length > 0
       ) {
         setGeneratedUrl(
           result.guestUrl
@@ -304,14 +320,14 @@ export default function GuestPortalManagementPage() {
 
       setMessage(
         action === "generate"
-          ? "A new private Guest Preference Portal link is ready."
+          ? "A new secure Charter Portal link is ready. The previous client link has been replaced."
           : action === "send"
-            ? `Guest Preference Portal sent to the client${
+            ? `Charter Portal sent to the client${
                 result.sender
                   ? ` from ${result.sender}`
                   : ""
               }.`
-            : "Guest Preference Portal revoked."
+            : "Charter Portal link revoked."
       );
 
       await loadPortal();
@@ -321,7 +337,7 @@ export default function GuestPortalManagementPage() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Could not update guest portal."
+          : "Could not update Charter Portal."
       );
     } finally {
       setBusyAction(null);
@@ -335,13 +351,19 @@ export default function GuestPortalManagementPage() {
       return;
     }
 
-    await navigator.clipboard.writeText(
-      generatedUrl
-    );
+    try {
+      await navigator.clipboard.writeText(
+        generatedUrl
+      );
 
-    setMessage(
-      "Private guest link copied."
-    );
+      setMessage(
+        "Charter Portal link copied."
+      );
+    } catch {
+      setError(
+        "Could not copy the Charter Portal link."
+      );
+    }
   }
 
   if (loading) {
@@ -388,17 +410,17 @@ export default function GuestPortalManagementPage() {
           <div className="relative grid gap-7 xl:grid-cols-[1fr_360px] xl:items-end">
             <div>
               <p className="ui-hero-accent text-xs font-semibold uppercase tracking-[0.22em]">
-                Guest Preference Portal
+                Client Charter Portal
               </p>
 
               <h1 className="mt-5 text-5xl leading-none tracking-[0.04em] text-[var(--hero-foreground)] sm:text-6xl">
                 {charter.yachtName}
               </h1>
 
-              <p className="ui-hero-muted mt-4 max-w-2xl text-sm leading-7">
-                Send {charter.clientName} a private link to share travel details,
-                dining requests, provisioning preferences, activities and special
-                requests. Submissions flow into Concierge for broker review.
+              <p className="ui-hero-muted mt-4 max-w-3xl text-sm leading-7">
+                One secure post-contract link for {charter.clientName}. The
+                client sees the latest itinerary, concierge arrangements,
+                guest preferences and approved charter documents in one place.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-2">
@@ -412,12 +434,21 @@ export default function GuestPortalManagementPage() {
                 </Link>
 
                 <Link
+                  href={`/itineraries/${encodeURIComponent(
+                    charter.id
+                  )}`}
+                  className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--hero-foreground)]"
+                >
+                  Itinerary
+                </Link>
+
+                <Link
                   href={`/concierge/${encodeURIComponent(
                     charter.id
                   )}`}
                   className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--hero-foreground)]"
                 >
-                  Open Concierge
+                  Concierge
                 </Link>
               </div>
             </div>
@@ -433,6 +464,21 @@ export default function GuestPortalManagementPage() {
                 {charter.clientEmail ??
                   "No client email"}
               </p>
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="ui-hero-muted text-[10px] font-semibold uppercase tracking-[0.18em]">
+                  Charter
+                </p>
+                <p className="mt-2 text-sm font-semibold text-[var(--hero-foreground)]">
+                  {formatDateRange(
+                    charter.startDate,
+                    charter.endDate
+                  )}
+                </p>
+                <p className="ui-hero-muted mt-1 text-xs">
+                  {charter.reference}
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -451,7 +497,8 @@ export default function GuestPortalManagementPage() {
 
         {!readiness?.contractSigned ? (
           <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-900 dark:text-amber-200">
-            The Charter Agreement must be marked signed before a client Guest Preference Portal can be activated.
+            The Charter Agreement must be marked signed before the client
+            Charter Portal can be activated.
           </div>
         ) : null}
 
@@ -488,97 +535,47 @@ export default function GuestPortalManagementPage() {
             )}
           />
           <Metric
-            label="Submitted"
-            value={formatDateTime(
-              portal?.submittedAt ??
-                null
-            )}
+            label="Preferences"
+            value={
+              portal?.submittedAt
+                ? "Submitted"
+                : "Not submitted"
+            }
           />
         </section>
 
-        {portal?.submittedAt ? (
-          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                  Client submission
-                </p>
+        <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                Secure client access
+              </p>
 
-                <h2 className="mt-2 font-heading text-2xl text-foreground">
-                  Guest preferences
-                </h2>
+              <h2 className="mt-2 font-heading text-2xl text-foreground">
+                Charter Portal
+              </h2>
 
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Latest submission from {charter.clientName}. Yacht OS also synchronizes actionable sections into Concierge.
-                </p>
-              </div>
-
-              <div className="text-left sm:text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Last submitted
-                </p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {formatDateTime(
-                    portal.submittedAt
-                  )}
-                </p>
-              </div>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Yacht OS keeps the public lookup token hashed and stores the
+                recoverable token encrypted at rest. Resending uses the same
+                secure client URL. Rotate the link only when you intentionally
+                want to invalidate and replace the previous URL.
+              </p>
             </div>
 
-            {preferenceGroups.length > 0 ? (
-              <div className="mt-6 grid gap-4 xl:grid-cols-2">
-                {preferenceGroups.map(
-                  (group) => (
-                    <div
-                      key={group.title}
-                      className="ui-panel-soft rounded-2xl p-4 sm:p-5"
-                    >
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
-                        {group.title}
-                      </p>
-
-                      <div className="mt-4 space-y-3">
-                        {group.entries.map(
-                          (entry) => (
-                            <div
-                              key={`${group.title}-${entry.label}`}
-                              className="rounded-xl border border-border bg-background/35 px-3 py-3"
-                            >
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                                {entry.label}
-                              </p>
-
-                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-foreground">
-                                {entry.value}
-                              </p>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            ) : (
-              <div className="mt-6 rounded-2xl border border-dashed border-border bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground">
-                The client submitted the portal, but no preference fields contain values.
-              </div>
-            )}
-          </section>
-        ) : null}
-
-        <section className="ui-panel rounded-[28px] p-5 sm:p-6">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-            Secure client access
-          </p>
-          <h2 className="mt-2 font-heading text-2xl text-foreground">
-            Guest Preference Portal
-          </h2>
-
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Yacht OS stores only the secure token hash. Generating or sending a
-            new link replaces any previous guest link for this charter.
-          </p>
+            <div className="rounded-2xl border border-border bg-background/40 px-4 py-3 text-xs leading-5 text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                Delivery:
+              </span>{" "}
+              {readiness?.gmailConnected
+                ? `Gmail connected${
+                    readiness.gmailAddress
+                      ? ` - ${readiness.gmailAddress}`
+                      : ""
+                  }`
+                : "Gmail not connected"}
+            </div>
+          </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
             <button
@@ -599,10 +596,12 @@ export default function GuestPortalManagementPage() {
             >
               {busyAction ===
               "generate"
-                ? "Generating..."
-                : portal
-                  ? "Regenerate link"
-                  : "Generate link"}
+                ? "Rotating..."
+                : portal &&
+                    portal.status !==
+                      "revoked"
+                  ? "Rotate secure link"
+                  : "Generate secure link"}
             </button>
 
             <button
@@ -628,7 +627,9 @@ export default function GuestPortalManagementPage() {
               {busyAction ===
               "send"
                 ? "Sending..."
-                : "Send portal to client"}
+                : portal?.sentAt
+                  ? "Resend Charter Portal"
+                  : "Send Charter Portal"}
             </button>
 
             {portal &&
@@ -657,26 +658,37 @@ export default function GuestPortalManagementPage() {
           {!readiness
             ?.clientEmailAvailable ? (
             <p className="mt-4 text-sm text-amber-800 dark:text-amber-200">
-              Add the client's email address before sending.
+              Add the client&apos;s email address before sending the Charter
+              Portal.
             </p>
           ) : null}
 
           {!readiness
             ?.gmailConnected ? (
             <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
-              Connect Gmail before sending the portal from Yacht OS.
+              Connect Gmail before sending the Charter Portal from Yacht OS.
             </p>
           ) : null}
 
           {generatedUrl ? (
             <div className="mt-6 rounded-2xl border border-border bg-background/50 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                Newly generated private URL
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    Active secure client URL
+                  </p>
 
-              <p className="mt-2 break-all font-mono text-xs leading-6 text-foreground">
-                {generatedUrl}
-              </p>
+                  <p className="mt-2 break-all font-mono text-xs leading-6 text-foreground">
+                    {generatedUrl}
+                  </p>
+                </div>
+
+                {portal?.tokenHint ? (
+                  <span className="shrink-0 rounded-full border border-border bg-background/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Token - {portal.tokenHint}
+                  </span>
+                ) : null}
+              </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
@@ -703,15 +715,134 @@ export default function GuestPortalManagementPage() {
                   Open client view
                 </button>
               </div>
+
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                This URL remains the same when you resend it. Use Rotate secure
+                link only if the previous client URL should stop being used.
+              </p>
             </div>
           ) : portal &&
             portal.status !==
               "revoked" ? (
             <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-900 dark:text-amber-200">
-              A secure guest link exists, but the original token cannot be recovered after reload. Regenerate it if you need a copyable URL.
+              This is an older portal record without a recoverable encrypted
+              token. Sending or rotating once will upgrade it to the stable-link
+              Charter Portal workflow.
             </div>
           ) : null}
         </section>
+
+        <section className="grid gap-4 xl:grid-cols-4">
+          <PortalArea
+            title="Itinerary"
+            description="Published day-by-day route, activities and guest-facing overnight details."
+            status="Live portal section"
+          />
+          <PortalArea
+            title="Concierge"
+            description="Only client-visible confirmed or planning arrangements are exposed."
+            status="Live portal section"
+          />
+          <PortalArea
+            title="Preferences"
+            description="Travel, dining, provisioning, activity and onboard requests."
+            status={
+              portal?.submittedAt
+                ? "Client submitted"
+                : "Awaiting client"
+            }
+          />
+          <PortalArea
+            title="Documents"
+            description="Only approved client-safe charter document categories are shown."
+            status="Controlled access"
+          />
+        </section>
+
+        {portal?.submittedAt ? (
+          <section className="ui-panel rounded-[28px] p-5 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Client submission
+                </p>
+
+                <h2 className="mt-2 font-heading text-2xl text-foreground">
+                  Guest preferences
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Latest submission from {charter.clientName}. Yacht OS also
+                  synchronizes actionable sections into Concierge for broker
+                  review.
+                </p>
+              </div>
+
+              <div className="text-left sm:text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Last submitted
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {formatDateTime(
+                    portal.submittedAt
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {preferenceGroups.length >
+            0 ? (
+              <div className="mt-6 grid gap-4 xl:grid-cols-2">
+                {preferenceGroups.map(
+                  (group) => (
+                    <div
+                      key={
+                        group.title
+                      }
+                      className="ui-panel-soft rounded-2xl p-4 sm:p-5"
+                    >
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
+                        {
+                          group.title
+                        }
+                      </p>
+
+                      <div className="mt-4 space-y-3">
+                        {group.entries.map(
+                          (
+                            item
+                          ) => (
+                            <div
+                              key={`${group.title}-${item.label}`}
+                              className="rounded-xl border border-border bg-background/35 px-3 py-3"
+                            >
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                {
+                                  item.label
+                                }
+                              </p>
+
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-foreground">
+                                {
+                                  item.value
+                                }
+                              </p>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-dashed border-border bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground">
+                The client submitted the portal, but no preference fields
+                contain values.
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
     </main>
   );
@@ -734,22 +865,27 @@ function buildPreferenceGroups(
     recordValue(
       preferences.travel
     );
+
   const dining =
     recordValue(
       preferences.dining
     );
+
   const activities =
     recordValue(
       preferences.activities
     );
+
   const provisioning =
     recordValue(
       preferences.provisioning
     );
+
   const celebration =
     recordValue(
       preferences.celebration
     );
+
   const guest =
     recordValue(
       preferences.guestPreferences
@@ -757,133 +893,145 @@ function buildPreferenceGroups(
 
   return [
     {
-      title: "Travel & transfers",
-      entries: compactEntries([
-        entry(
-          "Transfer requested",
-          booleanLabel(
-            travel.transferRequested
-          )
-        ),
-        entry(
-          "Preferred transfer",
-          travel.transferType
-        ),
-        entry(
-          "Flight number",
-          travel.flightNumber
-        ),
-        entry(
-          "Arrival airport",
-          travel.arrivalAirport
-        ),
-        entry(
-          "Arrival time",
-          travel.arrivalTime
-        ),
-        entry(
-          "Pickup",
-          travel.pickupLocation
-        ),
-      ]),
+      title:
+        "Travel & transfers",
+      entries:
+        compactEntries([
+          entry(
+            "Transfer requested",
+            booleanLabel(
+              travel.transferRequested
+            )
+          ),
+          entry(
+            "Preferred transfer",
+            travel.transferType
+          ),
+          entry(
+            "Flight number",
+            travel.flightNumber
+          ),
+          entry(
+            "Arrival airport",
+            travel.arrivalAirport
+          ),
+          entry(
+            "Arrival time",
+            travel.arrivalTime
+          ),
+          entry(
+            "Pickup",
+            travel.pickupLocation
+          ),
+        ]),
     },
     {
       title: "Dining",
-      entries: compactEntries([
-        entry(
-          "Reservations requested",
-          booleanLabel(
-            dining.restaurantsRequested
-          )
-        ),
-        entry(
-          "Dining requests",
-          dining.restaurantNotes
-        ),
-      ]),
+      entries:
+        compactEntries([
+          entry(
+            "Reservations requested",
+            booleanLabel(
+              dining.restaurantsRequested
+            )
+          ),
+          entry(
+            "Dining requests",
+            dining.restaurantNotes
+          ),
+        ]),
     },
     {
       title: "Activities",
-      entries: compactEntries([
-        entry(
-          "Selected",
-          arrayLabel(
-            activities.selected
-          )
-        ),
-        entry(
-          "Notes",
-          activities.notes
-        ),
-      ]),
+      entries:
+        compactEntries([
+          entry(
+            "Selected",
+            arrayLabel(
+              activities.selected
+            )
+          ),
+          entry(
+            "Notes",
+            activities.notes
+          ),
+        ]),
     },
     {
-      title: "Provisioning",
-      entries: compactEntries([
-        entry(
-          "Dietary requirements",
-          provisioning.dietaryRequirements
-        ),
-        entry(
-          "Allergies",
-          provisioning.allergies
-        ),
-        entry(
-          "Food preferences",
-          provisioning.foodPreferences
-        ),
-        entry(
-          "Drinks",
-          provisioning.drinks
-        ),
-      ]),
+      title:
+        "Provisioning",
+      entries:
+        compactEntries([
+          entry(
+            "Dietary requirements",
+            provisioning.dietaryRequirements
+          ),
+          entry(
+            "Allergies",
+            provisioning.allergies
+          ),
+          entry(
+            "Food preferences",
+            provisioning.foodPreferences
+          ),
+          entry(
+            "Drinks",
+            provisioning.drinks
+          ),
+        ]),
     },
     {
-      title: "Celebration",
-      entries: compactEntries([
-        entry(
-          "Occasion",
-          celebration.type
-        ),
-        entry(
-          "Preferred date",
-          celebration.date
-        ),
-        entry(
-          "Notes",
-          celebration.notes
-        ),
-      ]),
+      title:
+        "Celebration",
+      entries:
+        compactEntries([
+          entry(
+            "Occasion",
+            celebration.type
+          ),
+          entry(
+            "Preferred date",
+            celebration.date
+          ),
+          entry(
+            "Notes",
+            celebration.notes
+          ),
+        ]),
     },
     {
-      title: "Onboard preferences",
-      entries: compactEntries([
-        entry(
-          "Cabins",
-          guest.cabinPreferences
-        ),
-        entry(
-          "Children",
-          guest.childrenDetails
-        ),
-        entry(
-          "Music",
-          guest.musicPreferences
-        ),
-        entry(
-          "Accessibility",
-          guest.accessibilityRequirements
-        ),
-      ]),
+      title:
+        "Onboard preferences",
+      entries:
+        compactEntries([
+          entry(
+            "Cabins",
+            guest.cabinPreferences
+          ),
+          entry(
+            "Children",
+            guest.childrenDetails
+          ),
+          entry(
+            "Music",
+            guest.musicPreferences
+          ),
+          entry(
+            "Accessibility",
+            guest.accessibilityRequirements
+          ),
+        ]),
     },
     {
-      title: "Special requests",
-      entries: compactEntries([
-        entry(
-          "Request",
-          preferences.specialRequests
-        ),
-      ]),
+      title:
+        "Special requests",
+      entries:
+        compactEntries([
+          entry(
+            "Request",
+            preferences.specialRequests
+          ),
+        ]),
     },
   ].filter(
     (group) =>
@@ -992,6 +1140,34 @@ function Metric({
   );
 }
 
+function PortalArea({
+  title,
+  description,
+  status,
+}: {
+  title: string;
+  description: string;
+  status: string;
+}) {
+  return (
+    <div className="ui-panel rounded-[24px] p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
+        {title}
+      </p>
+
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
+
+      <div className="mt-4 border-t border-border pt-3">
+        <p className="text-xs font-semibold text-foreground">
+          {status}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function formatDateTime(
   value: string | null
 ) {
@@ -1009,6 +1185,51 @@ function formatDateTime(
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+    }
+  );
+}
+
+function formatDateRange(
+  start: string | null,
+  end: string | null
+) {
+  return `${formatDate(
+    start
+  )} - ${formatDate(
+    end
+  )}`;
+}
+
+function formatDate(
+  value: string | null
+) {
+  if (!value) {
+    return "Date TBC";
+  }
+
+  const date =
+    new Date(
+      `${value.slice(
+        0,
+        10
+      )}T12:00:00Z`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
     }
   );
 }

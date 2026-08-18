@@ -15,6 +15,10 @@ import {
   getValidGoogleAccessToken,
   sendGmailTextMessage,
 } from "@/lib/email/google";
+import {
+  decryptEmailToken,
+  encryptEmailToken,
+} from "@/lib/email/token-crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getCurrentWorkspace,
@@ -28,12 +32,8 @@ const PORTAL_LIFETIME_DAYS = 90;
 
 type RouteContext = {
   params:
-    | Promise<{
-        id: string;
-      }>
-    | {
-        id: string;
-      };
+    | Promise<{ id: string }>
+    | { id: string };
 };
 
 type CharterRow = {
@@ -54,6 +54,8 @@ type CharterRow = {
 
 type PortalRow = {
   id: string;
+  token_hash: string | null;
+  token_encrypted: string | null;
   token_hint: string | null;
   status: string;
   expires_at: string | null;
@@ -122,10 +124,7 @@ export async function GET(
           "company_id",
           workspace.companyId
         )
-        .eq(
-          "id",
-          charterId
-        )
+        .eq("id", charterId)
         .maybeSingle(),
 
       admin
@@ -133,6 +132,8 @@ export async function GET(
         .select(
           [
             "id",
+            "token_hash",
+            "token_encrypted",
             "token_hint",
             "status",
             "expires_at",
@@ -179,7 +180,7 @@ export async function GET(
 
     if (portalResult.error) {
       throw new Error(
-        `Could not load guest portal: ${portalResult.error.message}`
+        `Could not load Charter Portal: ${portalResult.error.message}`
       );
     }
 
@@ -197,12 +198,9 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Charter not found.",
+          error: "Charter not found.",
         },
-        {
-          status: 404,
-        }
+        { status: 404 }
       );
     }
 
@@ -214,19 +212,31 @@ export async function GET(
       (connectionResult.data ??
         null) as ConnectionRow | null;
 
+    const recoverableUrl =
+      portal &&
+      portal.status !== "revoked" &&
+      portal.token_encrypted
+        ? buildGuestUrl(
+            _request,
+            decryptEmailToken(
+              portal.token_encrypted
+            )
+          )
+        : null;
+
     return NextResponse.json(
       {
         success: true,
         charter:
-          serializeCharter(
-            charter
-          ),
+          serializeCharter(charter),
         portal:
           portal
             ? serializePortal(
                 portal
               )
             : null,
+        guestUrl:
+          recoverableUrl,
         readiness: {
           contractSigned:
             charter.contract_status ===
@@ -243,6 +253,10 @@ export async function GET(
           gmailAddress:
             connection?.email_address ??
             null,
+          stableLinkAvailable:
+            Boolean(
+              recoverableUrl
+            ),
         },
       },
       {
@@ -254,7 +268,7 @@ export async function GET(
   } catch (error) {
     return handleRouteError(
       error,
-      "Could not load guest portal."
+      "Could not load Charter Portal."
     );
   }
 }
@@ -311,8 +325,11 @@ export async function POST(
     const admin =
       createAdminClient();
 
-    const charterResult =
-      await admin
+    const [
+      charterResult,
+      existingPortalResult,
+    ] = await Promise.all([
+      admin
         .from("charters")
         .select(
           [
@@ -335,15 +352,48 @@ export async function POST(
           "company_id",
           workspace.companyId
         )
+        .eq("id", charterId)
+        .maybeSingle(),
+
+      admin
+        .from("guest_portals")
+        .select(
+          [
+            "id",
+            "token_hash",
+            "token_encrypted",
+            "token_hint",
+            "status",
+            "expires_at",
+            "sent_at",
+            "opened_at",
+            "opened_count",
+            "submitted_at",
+            "preferences",
+            "created_at",
+            "updated_at",
+          ].join(",")
+        )
         .eq(
-          "id",
+          "company_id",
+          workspace.companyId
+        )
+        .eq(
+          "charter_id",
           charterId
         )
-        .maybeSingle();
+        .maybeSingle(),
+    ]);
 
     if (charterResult.error) {
       throw new Error(
         `Could not load charter: ${charterResult.error.message}`
+      );
+    }
+
+    if (existingPortalResult.error) {
+      throw new Error(
+        `Could not load Charter Portal: ${existingPortalResult.error.message}`
       );
     }
 
@@ -355,12 +405,9 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Charter not found.",
+          error: "Charter not found.",
         },
-        {
-          status: 404,
-        }
+        { status: 404 }
       );
     }
 
@@ -374,12 +421,11 @@ export async function POST(
           .update({
             status:
               "revoked",
-            token_hash:
+            token_hash: null,
+            token_encrypted:
               null,
-            token_hint:
-              null,
-            updated_at:
-              now,
+            token_hint: null,
+            updated_at: now,
           })
           .eq(
             "company_id",
@@ -392,7 +438,7 @@ export async function POST(
 
       if (revokeResult.error) {
         throw new Error(
-          `Could not revoke guest portal: ${revokeResult.error.message}`
+          `Could not revoke Charter Portal: ${revokeResult.error.message}`
         );
       }
 
@@ -417,109 +463,39 @@ export async function POST(
         {
           success: false,
           error:
-            "Mark the Charter Agreement signed before opening the Guest Preference Portal.",
+            "Mark the Charter Agreement signed before activating the client Charter Portal.",
         },
-        {
-          status: 409,
-        }
+        { status: 409 }
       );
     }
 
-    const token =
-      randomBytes(32)
-        .toString("base64url");
+    const existingPortal =
+      (existingPortalResult.data ??
+        null) as PortalRow | null;
 
-    const tokenHash =
-      hashToken(token);
+    const portalAccess =
+      await ensureStablePortal({
+        admin,
+        companyId:
+          workspace.companyId,
+        charterId,
+        userId:
+          workspace.userId,
+        existingPortal,
+        forceRotate:
+          action === "generate",
+      });
 
-    const tokenHint =
-      token.slice(-6);
-
-    const now =
-      new Date();
-
-    const expiresAt =
-      new Date(
-        now.getTime() +
-          PORTAL_LIFETIME_DAYS *
-            24 *
-            60 *
-            60 *
-            1000
-      ).toISOString();
-
-    const nowIso =
-      now.toISOString();
-
-    const upsertResult =
-      await admin
-        .from("guest_portals")
-        .upsert(
-          {
-            company_id:
-              workspace.companyId,
-            charter_id:
-              charterId,
-            token_hash:
-              tokenHash,
-            token_hint:
-              tokenHint,
-            status:
-              "active",
-            expires_at:
-              expiresAt,
-            created_by:
-              workspace.userId,
-            updated_at:
-              nowIso,
-          },
-          {
-            onConflict:
-              "company_id,charter_id",
-          }
-        )
-        .select(
-          [
-            "id",
-            "token_hint",
-            "status",
-            "expires_at",
-            "sent_at",
-            "opened_at",
-            "opened_count",
-            "submitted_at",
-            "preferences",
-            "created_at",
-            "updated_at",
-          ].join(",")
-        )
-        .single();
-
-    if (
-      upsertResult.error ||
-      !upsertResult.data
-    ) {
-      throw new Error(
-        `Could not create guest portal: ${
-          upsertResult.error
-            ?.message ??
-          "Unknown error."
-        }`
-      );
-    }
-
-    const portal =
-      upsertResult.data as unknown as PortalRow;
+    const portal: PortalRow = portalAccess.portal as PortalRow;
 
     const guestUrl =
       buildGuestUrl(
         request,
-        token
+        portalAccess.token
       );
 
     if (
-      action ===
-      "generate"
+      action === "generate"
     ) {
       return NextResponse.json(
         {
@@ -543,11 +519,9 @@ export async function POST(
         {
           success: false,
           error:
-            "Add the client's email address before sending the guest portal.",
+            "Add the client's email address before sending the Charter Portal.",
         },
-        {
-          status: 409,
-        }
+        { status: 409 }
       );
     }
 
@@ -569,9 +543,7 @@ export async function POST(
         )
         .maybeSingle();
 
-    if (
-      connectionResult.error
-    ) {
+    if (connectionResult.error) {
       throw new Error(
         `Could not load Gmail connection: ${connectionResult.error.message}`
       );
@@ -590,22 +562,23 @@ export async function POST(
         {
           success: false,
           error:
-            "Connect Gmail before sending the Guest Preference Portal.",
+            "Connect Gmail before sending the Charter Portal.",
         },
-        {
-          status: 409,
-        }
+        { status: 409 }
       );
     }
 
     const email =
-      buildGuestPortalEmail({
+      buildCharterPortalEmail({
         companyName:
           workspace.companyName ||
           "Yacht OS",
         charter,
         guestUrl,
       });
+
+    const nowIso =
+      new Date().toISOString();
 
     const draftResult =
       await admin
@@ -619,8 +592,7 @@ export async function POST(
             charter.fleet_id,
           manager_contact_id:
             null,
-          purpose:
-            "general",
+          purpose: "general",
           to_email:
             charter.client_email,
           to_name:
@@ -633,10 +605,8 @@ export async function POST(
             charter.start_date,
           end_date:
             charter.end_date,
-          status:
-            "draft",
-          provider:
-            null,
+          status: "draft",
+          provider: null,
           created_by:
             workspace.userId,
           created_at:
@@ -652,7 +622,7 @@ export async function POST(
       !draftResult.data
     ) {
       throw new Error(
-        `Could not create guest portal email audit: ${
+        `Could not create Charter Portal email audit: ${
           draftResult.error
             ?.message ??
           "Unknown error."
@@ -686,20 +656,21 @@ export async function POST(
       const sentAt =
         new Date().toISOString();
 
-      await Promise.all([
+      const [
+        draftUpdate,
+        portalUpdate,
+        connectionUpdate,
+      ] = await Promise.all([
         admin
           .from("email_drafts")
           .update({
-            status:
-              "sent",
-            provider:
-              "gmail",
+            status: "sent",
+            provider: "gmail",
             external_message_id:
               sent.id,
             external_thread_id:
               sent.threadId,
-            sent_at:
-              sentAt,
+            sent_at: sentAt,
             updated_at:
               sentAt,
           })
@@ -707,16 +678,12 @@ export async function POST(
             "company_id",
             workspace.companyId
           )
-          .eq(
-            "id",
-            draftId
-          ),
+          .eq("id", draftId),
 
         admin
           .from("guest_portals")
           .update({
-            sent_at:
-              sentAt,
+            sent_at: sentAt,
             updated_at:
               sentAt,
           })
@@ -749,6 +716,29 @@ export async function POST(
           ),
       ]);
 
+      if (draftUpdate.error) {
+        console.error(
+          "Charter Portal email sent but email audit could not be finalized:",
+          draftUpdate.error
+        );
+      }
+
+      if (portalUpdate.error) {
+        console.error(
+          "Charter Portal email sent but portal sent_at could not be updated:",
+          portalUpdate.error
+        );
+      }
+
+      if (
+        connectionUpdate.error
+      ) {
+        console.error(
+          "Charter Portal email sent but Gmail last_used_at could not be updated:",
+          connectionUpdate.error
+        );
+      }
+
       return NextResponse.json(
         {
           success: true,
@@ -773,10 +763,8 @@ export async function POST(
       await admin
         .from("email_drafts")
         .update({
-          status:
-            "failed",
-          provider:
-            "gmail",
+          status: "failed",
+          provider: "gmail",
           updated_at:
             new Date()
               .toISOString(),
@@ -785,27 +773,161 @@ export async function POST(
           "company_id",
           workspace.companyId
         )
-        .eq(
-          "id",
-          draftId
-        );
+        .eq("id", draftId);
 
       throw sendError;
     }
   } catch (error) {
     return handleRouteError(
       error,
-      "Could not update guest portal."
+      "Could not update Charter Portal."
     );
   }
+}
+
+async function ensureStablePortal({
+  admin,
+  companyId,
+  charterId,
+  userId,
+  existingPortal,
+  forceRotate,
+}: {
+  admin: ReturnType<
+    typeof createAdminClient
+  >;
+  companyId: string;
+  charterId: string;
+  userId: string;
+  existingPortal:
+    PortalRow | null;
+  forceRotate: boolean;
+}) {
+  const existingToken =
+    !forceRotate &&
+    existingPortal &&
+    existingPortal.status !==
+      "revoked" &&
+    existingPortal
+      .token_encrypted
+      ? decryptEmailToken(
+          existingPortal
+            .token_encrypted
+        )
+      : null;
+
+  if (existingToken) {
+    return {
+      token:
+        existingToken,
+      portal:
+        existingPortal,
+    };
+  }
+
+  const token =
+    randomBytes(32)
+      .toString(
+        "base64url"
+      );
+
+  const now =
+    new Date();
+
+  const nowIso =
+    now.toISOString();
+
+  const expiresAt =
+    new Date(
+      now.getTime() +
+        PORTAL_LIFETIME_DAYS *
+          24 *
+          60 *
+          60 *
+          1000
+    ).toISOString();
+
+  const nextStatus =
+    existingPortal
+      ?.submitted_at
+      ? "submitted"
+      : "active";
+
+  const upsertResult =
+    await admin
+      .from("guest_portals")
+      .upsert(
+        {
+          company_id:
+            companyId,
+          charter_id:
+            charterId,
+          token_hash:
+            hashToken(token),
+          token_encrypted:
+            encryptEmailToken(
+              token
+            ),
+          token_hint:
+            token.slice(-6),
+          status:
+            nextStatus,
+          expires_at:
+            expiresAt,
+          created_by:
+            userId,
+          updated_at:
+            nowIso,
+        },
+        {
+          onConflict:
+            "company_id,charter_id",
+        }
+      )
+      .select(
+        [
+          "id",
+          "token_hash",
+          "token_encrypted",
+          "token_hint",
+          "status",
+          "expires_at",
+          "sent_at",
+          "opened_at",
+          "opened_count",
+          "submitted_at",
+          "preferences",
+          "created_at",
+          "updated_at",
+        ].join(",")
+      )
+      .single();
+
+  if (
+    upsertResult.error ||
+    !upsertResult.data
+  ) {
+    throw new Error(
+      `Could not create Charter Portal: ${
+        upsertResult.error
+          ?.message ??
+        "Unknown error."
+      }`
+    );
+  }
+
+  return {
+    token,
+    portal:
+      upsertResult.data as unknown as PortalRow,
+  };
 }
 
 function serializeCharter(
   charter: CharterRow
 ) {
   return {
-    id:
-      charter.id,
+    id: charter.id,
     reference:
       charter.reference,
     clientName:
@@ -833,8 +955,7 @@ function serializePortal(
   portal: PortalRow
 ) {
   return {
-    id:
-      portal.id,
+    id: portal.id,
     status:
       portal.status,
     tokenHint:
@@ -859,7 +980,7 @@ function serializePortal(
   };
 }
 
-function buildGuestPortalEmail({
+function buildCharterPortalEmail({
   companyName,
   charter,
   guestUrl,
@@ -870,11 +991,11 @@ function buildGuestPortalEmail({
 }) {
   return {
     subject:
-      `Your ${charter.yacht_name} Charter Experience`,
+      `Your ${charter.yacht_name} Charter Portal`,
     body: [
       `Dear ${charter.client_name},`,
       "",
-      `Your charter aboard ${charter.yacht_name} is ready for the next planning stage.`,
+      `Your private Charter Portal for ${charter.yacht_name} is ready.`,
       "",
       `Charter reference: ${charter.reference}`,
       `Charter period: ${formatDateRange(
@@ -885,15 +1006,21 @@ function buildGuestPortalEmail({
         ? `Destination: ${charter.destination}`
         : null,
       "",
-      "Use your private link below to share travel details, dining requests, provisioning preferences, activities and special requests:",
+      "Your portal brings your charter into one private place:",
       "",
+      "- Day-by-day itinerary",
+      "- Guest preferences",
+      "- Concierge arrangements",
+      "- Charter documents",
+      "",
+      "Open your Charter Portal:",
       guestUrl,
       "",
-      "Your selections are requests for your broker to arrange. Supplier availability and final confirmation remain with your broker and the relevant yacht or service provider.",
+      "Your itinerary and arrangements may continue to update as your broker and yacht team finalize the charter. The same secure link will always show the latest published information.",
       "",
       "Please keep this private link confidential.",
       "",
-      `Kind regards,`,
+      "Kind regards,",
       companyName,
     ]
       .filter(
@@ -907,7 +1034,8 @@ function buildGuestPortalEmail({
 }
 
 function buildGuestUrl(
-  request: NextRequest,
+  request:
+    NextRequest | Request,
   token: string
 ) {
   const configuredBase =
@@ -919,9 +1047,12 @@ function buildGuestUrl(
         ""
       );
 
+  const requestUrl =
+    new URL(request.url);
+
   const base =
     configuredBase ||
-    request.nextUrl.origin;
+    requestUrl.origin;
 
   return `${base}/guest/${encodeURIComponent(
     token
@@ -974,9 +1105,45 @@ function formatDateRange(
   start: string | null,
   end: string | null
 ) {
-  return `${start ?? "Date TBC"} to ${
-    end ?? "Date TBC"
-  }`;
+  return `${formatDate(
+    start
+  )} - ${formatDate(
+    end
+  )}`;
+}
+
+function formatDate(
+  value: string | null
+) {
+  if (!value) {
+    return "Date TBC";
+  }
+
+  const date =
+    new Date(
+      `${value.slice(
+        0,
+        10
+      )}T12:00:00Z`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }
+  );
 }
 
 function badRequest(
@@ -987,9 +1154,7 @@ function badRequest(
       success: false,
       error: message,
     },
-    {
-      status: 400,
-    }
+    { status: 400 }
   );
 }
 
@@ -1012,7 +1177,8 @@ function handleRouteError(
     return NextResponse.json(
       {
         success: false,
-        error: error.message,
+        error:
+          error.message,
       },
       {
         status:
@@ -1029,7 +1195,8 @@ function handleRouteError(
     return NextResponse.json(
       {
         success: false,
-        error: error.message,
+        error:
+          error.message,
       },
       {
         status:
@@ -1044,7 +1211,7 @@ function handleRouteError(
       : fallbackMessage;
 
   console.error(
-    "Guest portal API error:",
+    "Charter Portal API error:",
     error
   );
 
@@ -1053,8 +1220,6 @@ function handleRouteError(
       success: false,
       error: message,
     },
-    {
-      status: 500,
-    }
+    { status: 500 }
   );
 }
