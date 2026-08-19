@@ -84,8 +84,11 @@ export async function provisionWorkspaceForUser({
         attempt
       );
 
-    const companyResult =
+        const companyResult =
       await admin
+        // audit-ignore: this call creates the company itself, so there is no
+        // existing company_id to scope to. Reached only from authenticated
+        // sign-up and workspace-provisioning flows.
         .from("companies")
         .insert({
           name: cleanCompanyName,

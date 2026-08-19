@@ -24,6 +24,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/workspace/get-current-workspace";
 
 type Inquiry = {
   id: string;
@@ -131,11 +132,16 @@ function formatPipelineValue(inquiries: Inquiry[]) {
 }
 
 export default async function InquiriesPage() {
+  // Scope to the caller's company explicitly. RLS is the backstop, not the
+  // primary control: an unscoped select here would expose every brokerage's
+  // pipeline the moment a policy is missing or misconfigured.
+  const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("inquiries")
     .select("*")
+    .eq("company_id", workspace.companyId)
     .order("created_at", { ascending: false });
 
   if (error) {
