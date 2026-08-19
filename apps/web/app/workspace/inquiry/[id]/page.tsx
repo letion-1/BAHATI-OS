@@ -23,6 +23,7 @@ import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/workspace/get-current-workspace";
 import { InquiryMatchActions } from "@/components/inquiries/inquiry-match-actions";
 
 type InquiryWorkspacePageProps = {
@@ -60,12 +61,16 @@ export default async function InquiryWorkspacePage({
   params,
 }: InquiryWorkspacePageProps) {
   const { id } = await params;
+  // Without the company predicate, a valid inquiry UUID from another
+  // brokerage would render here for any signed-in user.
+  const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("inquiries")
     .select("*")
     .eq("id", id)
+    .eq("company_id", workspace.companyId)
     .maybeSingle();
 
   if (error) {
