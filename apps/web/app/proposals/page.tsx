@@ -15,6 +15,7 @@ import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { WithdrawProposalButton } from "@/components/proposals/withdraw-proposal-button";
 
 type ProposalStatus =
   | "Draft"
@@ -471,6 +472,9 @@ function ProposalsContent() {
                     proposal.id ===
                     createdProposalId
                   }
+                  onWithdrawn={() =>
+                    void loadProposals(true)
+                  }
                 />
               )
             )}
@@ -484,9 +488,11 @@ function ProposalsContent() {
 function ProposalCard({
   proposal,
   highlighted,
+  onWithdrawn,
 }: {
   proposal: Proposal;
   highlighted: boolean;
+  onWithdrawn: () => void;
 }) {
   return (
     <article
@@ -592,15 +598,24 @@ function ProposalCard({
           </p>
         </div>
 
-        <Link
-          href={`/proposals/${proposal.id}`}
-          className="apple-transition inline-flex items-center gap-2 text-sm font-semibold text-violet-700 hover:opacity-75 dark:text-violet-300"
-        >
-          Open proposal
-          <span className="transition group-hover:translate-x-1">
-            →
-          </span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <WithdrawProposalButton
+            proposalId={proposal.id}
+            clientName={proposal.client.name ?? "this client"}
+            proposalStatus={proposal.status ?? null}
+            onWithdrawn={onWithdrawn}
+          />
+
+          <Link
+            href={`/proposals/${proposal.id}`}
+            className="apple-transition inline-flex items-center gap-2 text-sm font-semibold text-violet-700 hover:opacity-75 dark:text-violet-300"
+          >
+            Open proposal
+            <span className="transition group-hover:translate-x-1">
+              →
+            </span>
+          </Link>
+        </div>
       </div>
     </article>
   );

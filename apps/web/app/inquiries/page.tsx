@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import { DeleteInquiryButton } from "@/components/inquiries/delete-inquiry-button";
 import {
   ArrowRight,
   CalendarDays,
@@ -342,6 +344,11 @@ export default async function InquiriesPage() {
                           <ArrowRight className="size-4" />
                         </Button>
                       </Link>
+
+                      <DeleteInquiryButton
+                        inquiryId={inquiry.id}
+                        clientName={inquiry.client_name ?? "this client"}
+                      />
                     </div>
                   </div>
                 </CardContent>
