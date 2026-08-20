@@ -13,6 +13,23 @@ import {
   isWorkspaceAccessError,
 } from "@/lib/workspace/get-current-workspace";
 
+/**
+ * The columns this route reads from email_drafts. Declared explicitly rather
+ * than cast to `any`, so a renamed column fails the build instead of becoming
+ * `undefined` at runtime and silently sending an empty email.
+ */
+type EmailDraftRow = {
+  status: string | null;
+  to_email: string | null;
+  subject: string | null;
+  body: string | null;
+  purpose: string | null;
+  inquiry_id: string | null;
+  fleet_id: string | null;
+  start_date: string | null;
+  end_date: string | null;
+};
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -109,7 +126,7 @@ export async function POST(
     }
 
     const draft =
-      draftResult.data as any;
+      draftResult.data as unknown as EmailDraftRow;
 
     if (draft.status === "sent") {
       return NextResponse.json(
@@ -165,6 +182,23 @@ export async function POST(
         connection:
           connectionResult.data,
       });
+
+    if (
+      !draft.to_email ||
+      !draft.subject ||
+      !draft.body
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This draft is missing a recipient, subject or body.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
     const sent =
       await sendGmailTextMessage({

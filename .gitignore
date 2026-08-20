@@ -4,7 +4,11 @@ node_modules/
 **/.next/
 .env
 .env.*
+
+# Committed template. The negation must come after the .env.* rule and
+# match at any depth, which a bare filename does.
 !.env.example
+!**/.env.example
 .vercel/
 dist/
 build/

@@ -163,7 +163,7 @@ export async function POST(
     }
 
     if (intent === "proposals") {
-      let query = supabase
+      const query = supabase
         .from("inquiries")
         .select(
           [

@@ -129,7 +129,7 @@ export default function AiCopilotPage() {
     }
   }
 
-  function useSuggestion(
+  function applySuggestion(
     suggestion: string
   ) {
     setMessage(suggestion);
@@ -213,7 +213,7 @@ export default function AiCopilotPage() {
                       key={suggestion}
                       type="button"
                       onClick={() =>
-                        useSuggestion(
+                        applySuggestion(
                           suggestion
                         )
                       }

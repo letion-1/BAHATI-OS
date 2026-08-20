@@ -1,4 +1,7 @@
 import * as cheerio from "cheerio";
+// Element is cheerio's underlying DOM node type, re-exported by domhandler.
+// Using it instead of `any` keeps .attr()/.children() type-checked.
+import type { Element } from "domhandler";
 
 import type {
   PageSignals,
@@ -763,7 +766,7 @@ function collectColorLegend(
 
 function extractColorFromChild(
   $: cheerio.CheerioAPI,
-  node: cheerio.Cheerio<any>
+  node: cheerio.Cheerio<Element>
 ): string | null {
   let result:
     string |

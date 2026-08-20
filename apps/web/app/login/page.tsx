@@ -60,7 +60,7 @@ export default async function LoginPage({
             </h1>
 
             <p className="mt-6 max-w-lg text-base leading-7 text-muted-foreground">
-              Sign in to your protected Yacht OS company workspace. Company membership keeps each brokerage's operational data isolated.
+              Sign in to your protected Yacht OS company workspace. Company membership keeps each brokerage&apos;s operational data isolated.
             </p>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-2">

@@ -9,7 +9,7 @@ export default function NewInquiryPage() {
       </h1>
 
       <p className="mt-2 text-muted-foreground">
-        Choose how you'd like to create a new inquiry.
+        Choose how you&apos;d like to create a new inquiry.
       </p>
 
       <div className="mt-10 grid gap-8 md:grid-cols-2">

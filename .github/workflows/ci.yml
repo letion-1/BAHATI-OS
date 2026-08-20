@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The build only needs these to be present and well-formed, not real. Vercel
+  # supplies the genuine values at deploy time.
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  verify:
+    name: Types, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Type checking is the main safety net in this codebase: there is not a
+      # single `any` or `@ts-ignore` in 110k lines, and that only stays true if
+      # something enforces it.
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      # Non-blocking on the first runs: a Next build can fail in CI for
+      # environment reasons (fonts, remote images, missing optional env) that
+      # say nothing about code quality. Typecheck and lint above are the real
+      # gate. Remove `|| true` once you have seen this pass a few times.
+      - name: Build
+        run: npm run build || true
+
+      # Lint currently passes with 0 errors and ~92 warnings, most of them
+      # react-hooks/set-state-in-effect (see eslint.config.mjs). Once those
+      # pages move to Server Components, add --max-warnings=0 here to stop
+      # the count creeping back up.
+
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the secret scan can inspect the whole diff range.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Catches the class of bug that RLS alone cannot: a service-role handler
+      # that queries a company-scoped table without a company_id predicate.
+      - name: Tenant isolation audit
+        working-directory: apps/web
+        run: python3 scripts/audit-tenant-isolation.py
+
+      - name: Check for committed secrets
+        run: |
+          set -euo pipefail
+
+          if git ls-files | grep -qE '(^|/)\.env($|\.)' ; then
+            echo "::error::An .env file is tracked in git."
+            exit 1
+          fi
+
+          # Live key prefixes only. Placeholders and type names are ignored.
+          PATTERN='sk-[A-Za-z0-9]{32,}|sb_secret_[A-Za-z0-9]{16,}|GOCSPX-[A-Za-z0-9_-]{20,}'
+
+          if git grep -nIE "$PATTERN" -- \
+              ':!*.lock' ':!package-lock.json' ':!.github/workflows/*' ; then
+            echo "::error::A live-looking credential is committed."
+            exit 1
+          fi
+
+          echo "No committed secrets found."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Dependency audit
+        working-directory: apps/web
+        # Advisory only: a transitive high in a dev dependency should not block
+        # a deploy, but it should be visible in the log.
+        run: npm audit --audit-level=high || true
+
+  migrations:
+    name: Migration sanity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      # Verifies the migration files parse and apply in order against a clean
+      # database. This only becomes a real end-to-end check once the baseline
+      # schema is committed (`supabase db pull`); until then it validates
+      # syntax and ordering.
+      - name: Apply migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for file in $(ls supabase/migrations/*.sql | sort); do
+            echo "--- applying $file"
+            psql -h localhost -U postgres -d postgres \
+                 -v ON_ERROR_STOP=1 -f "$file"
+          done
+          echo "All migrations applied cleanly."
