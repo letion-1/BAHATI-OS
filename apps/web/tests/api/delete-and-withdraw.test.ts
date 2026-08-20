@@ -77,7 +77,13 @@ describe("DELETE /api/inquiries/[id]", () => {
     // The guard must run as admin: `charters` has RLS enabled with no policy,
     // so the browser client sees zero rows and would wave the delete through.
     mocks.admin = makeClient({
-      inquiries: { data: { proposal_status: "Draft" }, error: null },
+      inquiries: {
+        data: {
+          proposal_status: "Draft",
+          proposal_created_at: "2026-08-18T00:00:00Z",
+        },
+        error: null,
+      },
       charters: { data: [], error: null, count: 1 },
     });
 
@@ -97,7 +103,10 @@ describe("DELETE /api/inquiries/[id]", () => {
     });
 
     mocks.admin = makeClient({
-      inquiries: { data: { proposal_status: null }, error: null },
+      inquiries: {
+        data: { proposal_status: null, proposal_created_at: null },
+        error: null,
+      },
       charters: { data: [], error: null, count: 0 },
     });
 
@@ -129,7 +138,10 @@ describe("DELETE /api/inquiries/[id]", () => {
     };
 
     mocks.admin = makeClient({
-      inquiries: { data: { proposal_status: null }, error: null },
+      inquiries: {
+        data: { proposal_status: null, proposal_created_at: null },
+        error: null,
+      },
       charters: { data: [], error: null, count: 0 },
     });
 
@@ -137,6 +149,29 @@ describe("DELETE /api/inquiries/[id]", () => {
     const response = await DELETE({} as never, context("i3") as never);
 
     expect(response.status).toBe(500);
+  });
+
+  it("allows deletion when a status exists but no proposal was ever built", async () => {
+    // The real case that broke: an inquiry carrying proposal_status "Draft"
+    // with no proposal_created_at. It does not appear in the Proposals list,
+    // so telling the broker it has a proposal attached points them at
+    // something they cannot find or remove.
+    mocks.browser = makeClient({
+      inquiries: { data: [{ id: "i4" }], error: null },
+    });
+
+    mocks.admin = makeClient({
+      inquiries: {
+        data: { proposal_status: "Draft", proposal_created_at: null },
+        error: null,
+      },
+      charters: { data: [], error: null, count: 0 },
+    });
+
+    const { DELETE } = await import("@/app/api/inquiries/[id]/route");
+    const response = await DELETE({} as never, context("i4") as never);
+
+    expect(response.status).toBe(200);
   });
 
   it("returns 404 for an inquiry in another company", async () => {
@@ -154,7 +189,12 @@ describe("DELETE /api/proposals/[id] (withdraw)", () => {
   it("clears the proposal and keeps the inquiry", async () => {
     mocks.browser = makeClient({
       inquiries: {
-        data: { id: "p1", client_name: "James", proposal_status: "Draft" },
+        data: {
+          id: "p1",
+          client_name: "James",
+          proposal_status: "Draft",
+          proposal_created_at: "2026-08-18T00:00:00Z",
+        },
         error: null,
       },
       proposal_yachts: { data: [], error: null },
@@ -172,7 +212,12 @@ describe("DELETE /api/proposals/[id] (withdraw)", () => {
   it("withdraws a sent proposal rather than blocking it", async () => {
     mocks.browser = makeClient({
       inquiries: {
-        data: { id: "p2", client_name: "James", proposal_status: "Sent" },
+        data: {
+          id: "p2",
+          client_name: "James",
+          proposal_status: "Sent",
+          proposal_created_at: "2026-08-18T00:00:00Z",
+        },
         error: null,
       },
       proposal_yachts: { data: [], error: null },
@@ -187,7 +232,12 @@ describe("DELETE /api/proposals/[id] (withdraw)", () => {
   it("refuses when the inquiry has no proposal on it", async () => {
     mocks.browser = makeClient({
       inquiries: {
-        data: { id: "p3", client_name: "Nobody", proposal_status: null },
+        data: {
+          id: "p3",
+          client_name: "Nobody",
+          proposal_status: "Draft",
+          proposal_created_at: null,
+        },
         error: null,
       },
     });

@@ -908,7 +908,7 @@ export async function DELETE(
 
     const existing = await supabase
       .from("inquiries")
-      .select("id, client_name, proposal_status, reference")
+      .select("id, client_name, proposal_status, proposal_created_at, reference")
       .eq("id", id)
       .eq("company_id", workspace.companyId)
       .maybeSingle();
@@ -927,7 +927,15 @@ export async function DELETE(
     const previousStatus =
       (existing.data.proposal_status as string | null) ?? null;
 
-    if (!previousStatus) {
+    // `proposal_created_at` is what /api/proposals uses to decide whether a
+    // proposal exists, so the same test is used here. A row can carry a
+    // status with no proposal ever built, and refusing to withdraw based on
+    // status alone would leave those rows stuck.
+    const hasProposal = Boolean(
+      existing.data.proposal_created_at as string | null
+    );
+
+    if (!hasProposal) {
       return NextResponse.json(
         {
           success: false,

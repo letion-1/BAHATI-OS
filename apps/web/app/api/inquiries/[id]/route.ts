@@ -269,19 +269,26 @@ async function findBlockingRecords(
 
   // A proposal is not a separate table. It is this same inquiry row with
   // proposal fields populated, so the check is on the row itself rather than
-  // on a foreign key. An earlier version queried a "proposals" table that
-  // does not exist, silently found nothing, and let proposals be destroyed.
+  // on a foreign key.
+  //
+  // The test is `proposal_created_at`, matching exactly how /api/proposals
+  // decides what appears in the Proposals list. `proposal_status` alone is
+  // not sufficient: rows exist carrying a status with no proposal ever built,
+  // and blocking on those tells a broker their inquiry has a proposal that
+  // they cannot see anywhere in the product.
   const self = await supabase
     .from("inquiries")
-    .select("proposal_status")
+    .select("proposal_status, proposal_created_at")
     .eq("id", inquiryId)
     .eq("company_id", companyId)
     .maybeSingle();
 
-  if (!self.error && self.data?.proposal_status) {
-    blockers.push(
-      `a ${String(self.data.proposal_status).toLowerCase()} proposal`
-    );
+  if (!self.error && self.data?.proposal_created_at) {
+    const status = self.data.proposal_status
+      ? String(self.data.proposal_status).toLowerCase()
+      : null;
+
+    blockers.push(status ? `a ${status} proposal` : "a proposal");
   }
 
   // Charters reference the inquiry with on delete restrict, so the database
