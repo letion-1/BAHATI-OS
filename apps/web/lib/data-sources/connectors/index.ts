@@ -5,6 +5,7 @@ import type {
 
 import { fetchDropboxExcel } from "./dropbox-excel";
 import { fetchGoogleSheets } from "./google-sheets";
+import { fetchPdfSource } from "./pdf";
 import { fetchWebsiteSource } from "./website";
 
 export async function fetchDataSource(
@@ -27,6 +28,9 @@ export async function fetchDataSource(
 
     case "website":
       return fetchWebsiteSource(sourceUrl);
+
+    case "pdf":
+      return fetchPdfSource(sourceUrl);
 
     default: {
       const unsupportedSourceType: never =
