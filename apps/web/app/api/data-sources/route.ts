@@ -12,7 +12,8 @@ import {
 type SourceType =
   | "google_sheets"
   | "dropbox_excel"
-  | "website";
+  | "website"
+  | "pdf";
 
 type CreateDataSourceBody = {
   name?: string;
@@ -25,6 +26,7 @@ const ALLOWED_SOURCE_TYPES: SourceType[] = [
   "google_sheets",
   "dropbox_excel",
   "website",
+  "pdf",
 ];
 
 export const runtime = "nodejs";
@@ -599,6 +601,8 @@ function formatSourceType(
 
     website:
       "Website",
+
+    pdf: "PDF",
   };
 
   return labels[sourceType];

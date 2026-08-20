@@ -10,7 +10,8 @@ import type {
 export type SourceType =
   | "google_sheets"
   | "dropbox_excel"
-  | "website";
+  | "website"
+  | "pdf";
 
 export type SourceRecord = {
   id: string;
@@ -26,7 +27,8 @@ export type WorkbookConnectorResult = {
   sourceType:
     | "google_sheets"
     | "dropbox_excel"
-    | "website";
+    | "website"
+    | "pdf";
   fileName: string | null;
   workbook: ParsedWorkbook;
 };
