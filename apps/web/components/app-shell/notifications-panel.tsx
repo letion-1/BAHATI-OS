@@ -587,7 +587,7 @@ export function NotificationsPanel() {
                 <div className="rounded-xl border border-dashed border-border bg-background/45 px-5 py-12 text-center dark:border-white/10 dark:bg-black/20">
                   <Bell className="mx-auto size-5 text-muted-foreground dark:text-slate-600" />
                   <p className="mt-4 text-sm font-semibold text-foreground dark:text-slate-300">
-                    You're all caught up
+                    You&apos;re all caught up
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground dark:text-slate-600">
                     New inquiry, proposal and system alerts will appear here.

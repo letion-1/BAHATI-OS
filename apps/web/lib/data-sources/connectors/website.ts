@@ -1,4 +1,7 @@
 import * as cheerio from "cheerio";
+// Element is cheerio's underlying DOM node type, re-exported by domhandler.
+// Using it instead of `any` keeps .attr()/.children() type-checked.
+import type { Element } from "domhandler";
 
 import {
   adaptiveExtractionToWorkbook,
@@ -228,7 +231,7 @@ function parseWebsiteTables(
 
 function parseTable(
   $: cheerio.CheerioAPI,
-  table: cheerio.Cheerio<any>,
+  table: cheerio.Cheerio<Element>,
   tableIndex: number
 ): ParsedWorksheet {
   const matrix: SerializableCellValue[][] = [];
@@ -356,7 +359,7 @@ function parseTable(
 }
 
 function extractCellValue(
-  cell: cheerio.Cheerio<any>
+  cell: cheerio.Cheerio<Element>
 ): SerializableCellValue {
   const raw = cleanText(
     cell.attr("data-value") ??
@@ -383,7 +386,7 @@ function extractCellValue(
 }
 
 function extractHtmlFill(
-  cell: cheerio.Cheerio<any>
+  cell: cheerio.Cheerio<Element>
 ): WorkbookCellFill | undefined {
   const className = cell.attr("class") ?? "";
   const style = cell.attr("style") ?? "";
@@ -478,7 +481,7 @@ function matrixToRecords(
 
 function getTableName(
   $: cheerio.CheerioAPI,
-  table: cheerio.Cheerio<any>,
+  table: cheerio.Cheerio<Element>,
   tableIndex: number
 ): string {
   const explicit = cleanText(

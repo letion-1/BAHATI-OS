@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import {
   decryptEmailToken,
   encryptEmailToken,
@@ -47,9 +49,12 @@ type StoredGoogleConnection = {
   token_expires_at: string | null;
 };
 
-type SupabaseAdminLike = {
-  from: (table: string) => any;
-};
+/**
+ * Only the `from` method of the admin client is used here. Typing it as
+ * SupabaseClient rather than a hand-rolled shim keeps the query builder's
+ * own types intact, so a typo in a column name is caught at compile time.
+ */
+type SupabaseAdminLike = Pick<SupabaseClient, "from">;
 
 type GmailSendResult = {
   id: string;
