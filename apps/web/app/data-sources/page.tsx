@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Database,
   FileSpreadsheet,
+  FileText,
   Globe,
   Loader2,
   Plus,
@@ -32,11 +33,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PdfUploadPanel } from "@/components/data-sources/pdf-upload";
 
 type SourceType =
   | "google_sheets"
   | "dropbox_excel"
-  | "website";
+  | "website"
+  | "pdf";
 
 type SyncSummary = {
   sheetCount?: number;
@@ -151,6 +154,7 @@ const sourceTypeLabels: Record<SourceType, string> = {
   google_sheets: "Google Sheets",
   dropbox_excel: "Dropbox Excel",
   website: "Website",
+  pdf: "PDF",
 };
 
 function sourceIcon(sourceType: SourceType) {
@@ -160,6 +164,10 @@ function sourceIcon(sourceType: SourceType) {
 
   if (sourceType === "dropbox_excel") {
     return Database;
+  }
+
+  if (sourceType === "pdf") {
+    return FileText;
   }
 
   return Globe;
@@ -299,6 +307,7 @@ export default function DataSourcesPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [form, setForm] =
     useState<CreateSourceForm>(emptyForm);
   const [isCreating, setIsCreating] = useState(false);
@@ -818,15 +827,25 @@ export default function DataSourcesPage() {
         <HeroCard
           eyebrow="Fleet intelligence"
           title="Data Sources"
-          description="Connect Google Sheets, Dropbox workbooks and live websites. Every source is scanned, normalized and folded into one private fleet database."
+          description="Connect Google Sheets, Dropbox workbooks, PDFs and live websites. Every source is scanned, normalized and folded into one private fleet database."
           actions={
-            <Button
-              onClick={() => setIsAddOpen(true)}
-              className="ui-primary-button apple-transition h-11 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
-            >
-              <Plus className="size-4" />
-              Add source
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => setIsUploadOpen(true)}
+                className="ui-secondary-button apple-transition h-11 px-5 text-sm font-semibold hover:-translate-y-0.5"
+              >
+                <FileText className="size-4" />
+                Upload PDF
+              </Button>
+
+              <Button
+                onClick={() => setIsAddOpen(true)}
+                className="ui-primary-button apple-transition h-11 px-5 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+              >
+                <Plus className="size-4" />
+                Add source
+              </Button>
+            </div>
           }
         />
 
@@ -1078,6 +1097,14 @@ export default function DataSourcesPage() {
         </section>
       </div>
 
+      {isUploadOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 dark:bg-black/80 p-4 backdrop-blur-md">
+          <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-border bg-card p-6 shadow-[var(--strong-shadow)]">
+            <PdfUploadPanel onClose={() => setIsUploadOpen(false)} />
+          </div>
+        </div>
+      ) : null}
+
       {isAddOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 dark:bg-black/80 p-4 backdrop-blur-md">
           <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-border bg-card shadow-[var(--strong-shadow)]">
@@ -1129,6 +1156,7 @@ export default function DataSourcesPage() {
                   <option value="google_sheets">Google Sheets</option>
                   <option value="dropbox_excel">Dropbox Excel</option>
                   <option value="website">Website</option>
+                  <option value="pdf">PDF</option>
                 </select>
               </div>
 
@@ -1145,12 +1173,30 @@ export default function DataSourcesPage() {
                       ? "https://docs.google.com/spreadsheets/d/..."
                       : form.sourceType === "dropbox_excel"
                         ? "https://www.dropbox.com/scl/fi/..."
-                        : "https://example.com/fleet"
+                        : form.sourceType === "pdf"
+                          ? "https://example.com/availability-2026.pdf"
+                          : "https://example.com/fleet"
                   }
                   className="mt-2 h-12 w-full rounded-2xl border border-border bg-background/55 px-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/75 focus:border-cyan-300/40"
                   required
                 />
                 <p className="mt-2 text-xs text-muted-foreground/75">The URL must be publicly accessible to the connector.</p>
+                {form.sourceType === "pdf" ? (
+                  <p className="mt-2 text-xs text-muted-foreground/75">
+                    Have the file rather than a link?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddOpen(false);
+                        setIsUploadOpen(true);
+                      }}
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      Upload it directly
+                    </button>
+                    .
+                  </p>
+                ) : null}
               </div>
 
               <div>

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { isAuthenticationRequiredError } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
@@ -875,4 +875,128 @@ function handleRouteError(
       status: 500,
     }
   );
+}
+/**
+ * Withdraw a proposal.
+ *
+ * Deliberately not a row delete. Proposals are not a separate table: a
+ * proposal IS an inquiry row with proposal fields populated. Deleting the row
+ * would take the client's inquiry with it, so "delete proposal" clears the
+ * proposal off the inquiry and leaves the inquiry standing.
+ *
+ * Sent and accepted proposals can still be withdrawn. The client already has
+ * the PDF, so the record here is a copy of something that left the building.
+ * The caller is expected to warn first; this endpoint reports what state the
+ * proposal was in so that warning can be accurate.
+ */
+export async function DELETE(
+  _request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    const { id } = await context.params;
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Proposal ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const workspace = await getCurrentWorkspace();
+    const supabase = await createClient();
+
+    const existing = await supabase
+      .from("inquiries")
+      .select("id, client_name, proposal_status, reference")
+      .eq("id", id)
+      .eq("company_id", workspace.companyId)
+      .maybeSingle();
+
+    if (existing.error) {
+      throw new Error(existing.error.message);
+    }
+
+    if (!existing.data) {
+      return NextResponse.json(
+        { success: false, error: "That proposal could not be found." },
+        { status: 404 }
+      );
+    }
+
+    const previousStatus =
+      (existing.data.proposal_status as string | null) ?? null;
+
+    if (!previousStatus) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "There is no proposal on this inquiry to withdraw.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // Line items first. If this fails the proposal stays intact, which is the
+    // safer failure: a proposal with no yachts would render as an empty
+    // document that still looks live to the broker.
+    const yachts = await supabase
+      .from("proposal_yachts")
+      .delete()
+      .eq("proposal_id", id)
+      .eq("company_id", workspace.companyId);
+
+    if (yachts.error) {
+      throw new Error(yachts.error.message);
+    }
+
+    // Clear the proposal, keep the inquiry. Status returns to qualified so the
+    // enquiry drops back into the pipeline rather than vanishing from it.
+    // `.select()` so the affected rows come back. Without it a write blocked
+    // by a missing RLS policy returns success having changed nothing, and the
+    // broker is told the proposal was withdrawn when it was not.
+    const cleared = await supabase
+      .from("inquiries")
+      .update({
+        proposal_status: null,
+        proposal_pdf: null,
+        proposal_created_at: null,
+        yacht_id: null,
+        yacht_name: null,
+        weekly_rate: null,
+        status: "qualified",
+      })
+      .eq("id", id)
+      .eq("company_id", workspace.companyId)
+      .select("id");
+
+    if (cleared.error) {
+      throw new Error(cleared.error.message);
+    }
+
+    if (!cleared.data || cleared.data.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "The proposal could not be withdrawn. Please refresh and try again, and contact support if this persists.",
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          inquiryId: id,
+          previousStatus,
+          clientName: existing.data.client_name ?? null,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    return handleRouteError(error, "Failed to withdraw proposal.");
+  }
 }
