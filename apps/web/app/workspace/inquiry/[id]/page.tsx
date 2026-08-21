@@ -329,9 +329,9 @@ export default async function InquiryWorkspacePage({
             <div className="ui-panel rounded-[26px] p-5 sm:p-6">
               {preferences.length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {preferences.map((preference) => (
-                    <div
-                      key={preference}
+                  {preferences.map((preference, index) => (
+  <div
+    key={`${preference}-${index}`}
                       className="ui-panel-soft apple-transition flex min-h-20 items-center gap-3 rounded-2xl px-4 py-4 hover:-translate-y-0.5 hover:border-ring/20"
                     >
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background/55 text-cyan-700 dark:text-cyan-300">
