@@ -39,9 +39,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Type checking is the main safety net in this codebase: there is not a
-      # single `any` or `@ts-ignore` in 110k lines, and that only stays true if
-      # something enforces it.
+      # Type checking is the main safety net in this codebase, and it only
+      # stays a safety net if something enforces it.
       - name: Type check
         run: npx tsc --noEmit
 
@@ -55,10 +54,13 @@ jobs:
       - name: Build
         run: npm run build || true
 
-      # Lint currently passes with 0 errors and ~92 warnings, most of them
+      # Lint currently passes with 0 errors and ~94 warnings, most of them
       # react-hooks/set-state-in-effect (see eslint.config.mjs). Once those
-      # pages move to Server Components, add --max-warnings=0 here to stop
+      # pages move to Server Components, add --max-warnings=0 above to stop
       # the count creeping back up.
+
+      - name: Tests
+        run: npm test
 
   security:
     name: Security checks
@@ -68,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Full history so the secret scan can inspect the whole diff range.
+          # Full history so the secret scan can inspect the whole tree.
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -87,10 +89,10 @@ jobs:
 
           # `set -e` is deliberately NOT used here. `git grep` exits 1 when it
           # finds nothing, which is the success case, and -e would abort the
-          # job on it.
+          # job on it. That bug failed every run of this job.
 
           # `.env.example` is committed on purpose and must not trip this.
-          # An earlier version matched it and failed every run.
+          # An earlier pattern matched it and failed every run too.
           if git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.(local|production|development)$' ; then
             echo "::error::A real .env file is tracked in git."
             exit 1
@@ -117,22 +119,7 @@ jobs:
         # a deploy, but it should be visible in the log.
         run: npm audit --audit-level=high || true
 
-  # DISABLED until the baseline schema is committed.
-  #
-  # This job applies every migration to a clean Postgres. It cannot pass today
-  # because 0001 references `public.companies`, a table created directly in the
-  # hosted Supabase project and never committed. The job is correct; the gap it
-  # reports is real.
-  #
-  # To re-enable: install Docker, run
-  #   supabase db dump --schema public -f supabase/schema-baseline.sql
-  # commit it, then change the `if:` below to `if: true`.
-  #
-  # Left in place rather than deleted so the gap stays visible. A permanently
-  # red check is worse than no check, because it gets ignored and then cannot
-  # warn about anything real.
   migrations:
-    if: false
     name: Migration sanity
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -158,18 +145,48 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      # Verifies the migration files parse and apply in order against a clean
-      # database. This only becomes a real end-to-end check once the baseline
-      # schema is committed (`supabase db pull`); until then it validates
-      # syntax and ordering.
-      - name: Apply migrations
+      # Applies the baseline schema, then every migration in order, against a
+      # clean database. This proves the repo alone can rebuild the schema.
+      #
+      # The baseline is required because migration 0001 references
+      # `public.companies`, a table created directly in the hosted Supabase
+      # project. Without it the very first migration fails on a foreign key.
+      #
+      # If no baseline is committed yet, the job reports that and passes
+      # rather than failing. A permanently red check gets ignored, and then it
+      # cannot warn about anything real. It starts enforcing automatically the
+      # moment the baseline lands.
+      - name: Apply baseline and migrations
         env:
           PGPASSWORD: postgres
         run: |
-          set -euo pipefail
+          set -uo pipefail
+
+          BASELINE="supabase/schema-baseline.sql"
+
+          if [ ! -s "$BASELINE" ]; then
+            echo "::warning::No schema baseline committed at $BASELINE."
+            echo ""
+            echo "Migrations cannot be verified against a clean database"
+            echo "because the core tables (companies, fleet, inquiries...)"
+            echo "exist only in the hosted Supabase project."
+            echo ""
+            echo "To enable this check:"
+            echo "  supabase db dump --schema public -f $BASELINE"
+            echo "  git add $BASELINE && git commit && git push"
+            exit 0
+          fi
+
+          set -e
+
+          echo "--- applying baseline"
+          psql -h localhost -U postgres -d postgres \
+               -v ON_ERROR_STOP=1 -f "$BASELINE"
+
           for file in $(ls supabase/migrations/*.sql | sort); do
             echo "--- applying $file"
             psql -h localhost -U postgres -d postgres \
                  -v ON_ERROR_STOP=1 -f "$file"
           done
-          echo "All migrations applied cleanly."
+
+          echo "Baseline and all migrations applied cleanly."
