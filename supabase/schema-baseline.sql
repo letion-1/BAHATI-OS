@@ -1,6 +1,61 @@
-ddl
-"CREATE TABLE activities (
-  id uuid NOT NULL,
+-- ============================================================================
+-- schema-baseline.sql
+--
+-- The public schema as it exists in the hosted Supabase project, exported on
+-- 21 August 2026.
+--
+-- WHY THIS FILE EXISTS
+--
+-- The core tables below were created directly in the Supabase dashboard and
+-- never committed. That meant the repository could not rebuild the database,
+-- no staging environment could be created, and the CI migration check could
+-- not run because migration 0001 references `public.companies`, which did not
+-- exist in a clean database.
+--
+-- WHAT IT CONTAINS
+--
+--   * Every table, column, type and NOT NULL constraint
+--   * A primary key on each table's `id` column, required so that the
+--     foreign keys in migrations 0001 onward have a valid target
+--   * The `auth` schema stub and `gen_random_uuid`, so migrations apply
+--
+-- WHAT IT DOES NOT CONTAIN
+--
+--   * Foreign keys between core tables
+--   * Indexes, defaults, check constraints, triggers
+--   * RLS policies (added by 20260821_0011)
+--
+-- Those were omitted because the export was produced with a SQL query rather
+-- than pg_dump, Docker being unavailable at the time. Replace this file with
+-- a real dump when possible:
+--
+--   supabase db dump --schema public -f supabase/schema-baseline.sql
+--
+-- It is sufficient for CI to verify that migrations apply in order, which is
+-- what it is used for.
+-- ============================================================================
+
+create extension if not exists pgcrypto;
+
+-- Supabase provides these in a real project. Stubbed so the schema and the
+-- RLS migration can be applied to a plain Postgres instance in CI.
+create schema if not exists auth;
+
+create or replace function auth.uid()
+returns uuid
+language sql
+stable
+as $$
+  select nullif(
+    current_setting('request.jwt.claim.sub', true),
+    ''
+  )::uuid;
+$$;
+
+-- ---------------------------------------------------------------- tables
+
+CREATE TABLE activities (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   inquiry_id uuid,
   fleet_id uuid,
@@ -11,9 +66,10 @@ ddl
   description text,
   metadata jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE availability (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE availability (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid NOT NULL,
   source_id uuid,
@@ -33,9 +89,10 @@ ddl
   last_synced_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE availability_checks (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE availability_checks (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   inquiry_id uuid NOT NULL,
   yacht_id uuid NOT NULL,
@@ -48,9 +105,10 @@ ddl
   notes text,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charter_concierge_items (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_concierge_items (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   charter_id uuid NOT NULL,
   category text NOT NULL,
@@ -76,9 +134,10 @@ ddl
   due_at timestamp with time zone,
   guest_portal_id uuid,
   guest_request_key text
-);"
-"CREATE TABLE charter_guests (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_guests (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   charter_id uuid NOT NULL,
   full_name text NOT NULL,
@@ -110,9 +169,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charter_itineraries (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_itineraries (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   charter_id uuid NOT NULL,
   title text NOT NULL,
@@ -126,9 +186,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charter_itinerary_activities (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_itinerary_activities (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   itinerary_id uuid NOT NULL,
   charter_id uuid NOT NULL,
@@ -145,9 +206,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charter_itinerary_days (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_itinerary_days (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   itinerary_id uuid NOT NULL,
   charter_id uuid NOT NULL,
@@ -164,9 +226,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charter_itinerary_legs (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_itinerary_legs (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   itinerary_id uuid NOT NULL,
   charter_id uuid NOT NULL,
@@ -190,9 +253,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charter_itinerary_shares (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_itinerary_shares (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   charter_id uuid NOT NULL,
   itinerary_id uuid NOT NULL,
@@ -206,9 +270,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charter_payment_schedule (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charter_payment_schedule (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   charter_id uuid NOT NULL,
   payment_type text NOT NULL,
@@ -224,9 +289,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE charters (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE charters (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   proposal_id uuid NOT NULL,
   confirmation_id uuid NOT NULL,
@@ -264,9 +330,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE clients (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE clients (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   name text NOT NULL,
   email text,
@@ -281,9 +348,10 @@ ddl
   last_contacted_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE companies (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE companies (
+  id uuid NOT NULL PRIMARY KEY,
   name text NOT NULL,
   slug text NOT NULL,
   logo_url text,
@@ -300,16 +368,18 @@ ddl
   yacht_access_band text,
   onboarding_completed_at timestamp with time zone,
   onboarding_version integer NOT NULL
-);"
-"CREATE TABLE company_members (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE company_members (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   user_id uuid NOT NULL,
   role text NOT NULL,
   created_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE data_sources (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE data_sources (
+  id uuid NOT NULL PRIMARY KEY,
   name text NOT NULL,
   source_type text NOT NULL,
   source_url text,
@@ -331,9 +401,10 @@ ddl
   error_count integer NOT NULL,
   next_sync_at timestamp with time zone,
   is_active boolean NOT NULL
-);"
-"CREATE TABLE documents (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE documents (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid,
   inquiry_id uuid,
@@ -357,9 +428,10 @@ ddl
   version integer,
   status text,
   charter_id uuid
-);"
-"CREATE TABLE email_connections (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE email_connections (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   provider text NOT NULL,
   provider_account_id text,
@@ -373,9 +445,10 @@ ddl
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL,
   last_used_at timestamp with time zone
-);"
-"CREATE TABLE email_drafts (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE email_drafts (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   inquiry_id uuid,
   fleet_id uuid,
@@ -395,9 +468,10 @@ ddl
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL,
   sent_at timestamp with time zone
-);"
-"CREATE TABLE fleet (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE fleet (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   source_id uuid,
   external_id text,
@@ -441,9 +515,10 @@ ddl
   standard_rate_currency text,
   default_apa_percent numeric,
   profile_updated_at timestamp with time zone
-);"
-"CREATE TABLE guest_portals (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE guest_portals (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   charter_id uuid NOT NULL,
   token_hash text,
@@ -459,9 +534,10 @@ ddl
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL,
   token_encrypted text
-);"
-"CREATE TABLE inquiries (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE inquiries (
+  id uuid NOT NULL PRIMARY KEY,
   reference text NOT NULL,
   client_name text NOT NULL,
   client_type text,
@@ -500,9 +576,10 @@ ddl
   pdf_version integer NOT NULL,
   pdf_status text NOT NULL,
   client_id uuid
-);"
-"CREATE TABLE notifications (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE notifications (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   user_id uuid,
   type text NOT NULL,
@@ -514,9 +591,10 @@ ddl
   priority text NOT NULL,
   read_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE proposal_assets (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE proposal_assets (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid,
   document_id uuid,
@@ -532,9 +610,10 @@ ddl
   metadata jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE proposal_client_events (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE proposal_client_events (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   proposal_id uuid NOT NULL,
   share_link_id uuid,
@@ -543,9 +622,10 @@ ddl
   fleet_id uuid,
   metadata jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE proposal_client_selections (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE proposal_client_selections (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   proposal_id uuid NOT NULL,
   proposal_yacht_id uuid NOT NULL,
@@ -554,9 +634,10 @@ ddl
   yacht_name text NOT NULL,
   selected_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE proposal_confirmations (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE proposal_confirmations (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   proposal_id uuid NOT NULL,
   proposal_yacht_id uuid,
@@ -577,9 +658,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE proposal_share_links (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE proposal_share_links (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   proposal_id uuid NOT NULL,
   token_hash text NOT NULL,
@@ -591,9 +673,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE proposal_yachts (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE proposal_yachts (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   proposal_id uuid NOT NULL,
   fleet_id uuid,
@@ -612,9 +695,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE yacht_access_profiles (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE yacht_access_profiles (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid NOT NULL,
   access_type text NOT NULL,
@@ -626,9 +710,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE yacht_cabin_configuration (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE yacht_cabin_configuration (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid NOT NULL,
   cabin_type text NOT NULL,
@@ -636,9 +721,10 @@ ddl
   position integer NOT NULL,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE yacht_contacts (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE yacht_contacts (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid NOT NULL,
   management_company text,
@@ -649,9 +735,10 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE yacht_images (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE yacht_images (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid NOT NULL,
   storage_path text NOT NULL,
@@ -663,13 +750,14 @@ ddl
   created_by uuid,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
-"CREATE TABLE yacht_toys (
-  id uuid NOT NULL,
+);
+
+CREATE TABLE yacht_toys (
+  id uuid NOT NULL PRIMARY KEY,
   company_id uuid NOT NULL,
   fleet_id uuid NOT NULL,
   name text NOT NULL,
   position integer NOT NULL,
   created_at timestamp with time zone NOT NULL,
   updated_at timestamp with time zone NOT NULL
-);"
+);
