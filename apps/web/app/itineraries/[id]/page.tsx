@@ -650,7 +650,7 @@ export default function ItineraryPlannerPage() {
             </h2>
 
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Create an itinerary workspace, then add route legs and the yacht assumptions Yacht OS should use for time and fuel estimates.
+              Create an itinerary workspace, then add route legs and the yacht assumptions Bahari OS should use for time and fuel estimates.
             </p>
 
             <button

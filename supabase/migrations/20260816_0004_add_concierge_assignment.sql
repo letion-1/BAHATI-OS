@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Concierge assignment + due-date ownership layer
 
 alter table public.charter_concierge_items

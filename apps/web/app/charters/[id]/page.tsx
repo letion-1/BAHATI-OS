@@ -1199,7 +1199,7 @@ export default function CharterWorkspacePage() {
 
     const confirmed =
       window.confirm(
-        `Delete ${document.name}? This removes the file from Yacht OS and cannot be undone.`
+        `Delete ${document.name}? This removes the file from Bahari OS and cannot be undone.`
       );
 
     if (!confirmed) {
@@ -2109,7 +2109,7 @@ export default function CharterWorkspacePage() {
             </div>
 
             <p className="mt-5 text-xs leading-5 text-muted-foreground">
-              Yacht OS stores the terms exactly as the broker enters them. VAT, APA, deposit and balance values are not guessed or auto-imposed.
+              Bahari OS stores the terms exactly as the broker enters them. VAT, APA, deposit and balance values are not guessed or auto-imposed.
             </p>
           </section>
 

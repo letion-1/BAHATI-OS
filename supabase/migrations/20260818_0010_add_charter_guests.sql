@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Charter Guest Intelligence foundation
 -- Created: 2026-08-18
 --

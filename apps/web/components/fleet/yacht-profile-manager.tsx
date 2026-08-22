@@ -451,7 +451,7 @@ export function YachtProfileManager({
       <section className="ui-panel rounded-[24px] p-5 sm:p-6">
         <SectionHeader
           title="Yacht media"
-          subtitle="Optional client-facing photography. If nothing is uploaded, Yacht OS keeps using its existing placeholders."
+          subtitle="Optional client-facing photography. If nothing is uploaded, Bahari OS keeps using its existing placeholders."
           action={
             <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Optional
@@ -466,7 +466,7 @@ export function YachtProfileManager({
               Hero image
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              The primary image used across Yacht OS and client proposals.
+              The primary image used across Bahari OS and client proposals.
             </p>
 
             <div className="relative mt-4 flex min-h-72 items-center justify-center overflow-hidden rounded-[22px] border border-border bg-muted/30">
@@ -555,7 +555,7 @@ export function YachtProfileManager({
                   No gallery images uploaded
                 </p>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Nothing is required. Yacht OS will keep its existing placeholders until the broker adds photography.
+                  Nothing is required. Bahari OS will keep its existing placeholders until the broker adds photography.
                 </p>
               </div>
             ) : (

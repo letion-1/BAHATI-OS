@@ -69,7 +69,7 @@ export function WorkspaceUserIdentity() {
   const displayName =
     account?.fullName?.trim() ||
     account?.email?.split("@")[0] ||
-    "Yacht OS user";
+    "Bahari OS user";
 
   const initials = useMemo(
     () => getInitials(displayName),

@@ -1002,7 +1002,7 @@ export default function ProposalDetailPage() {
 
         {share?.active && !generatedShareUrl ? (
           <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-900 dark:text-amber-200">
-            A secure client link is active. For security, Yacht OS stores only
+            A secure client link is active. For security, Bahari OS stores only
             the token hash and cannot recover the original URL after this page
             is reloaded. Regenerate the link if you need a new copyable URL.
           </div>

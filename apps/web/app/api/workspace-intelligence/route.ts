@@ -132,7 +132,7 @@ export async function GET() {
         {
           success: false,
           error:
-            "The current Yacht OS company profile could not be found.",
+            "The current Bahari OS company profile could not be found.",
         },
         {
           status: 404,

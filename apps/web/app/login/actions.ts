@@ -82,7 +82,7 @@ export async function login(
       return {
         status: "error",
         message:
-          "Your email address has not been confirmed yet. Open the latest Yacht OS confirmation email before signing in.",
+          "Your email address has not been confirmed yet. Open the latest Bahari OS confirmation email before signing in.",
       };
     }
 
@@ -118,7 +118,7 @@ export async function login(
     return {
       status: "error",
       message:
-        "Your account signed in, but Yacht OS could not load its company workspace.",
+        "Your account signed in, but Bahari OS could not load its company workspace.",
     };
   }
 
@@ -157,7 +157,7 @@ export async function login(
       };
     } catch (error) {
       console.error(
-        "Could not repair missing Yacht OS workspace:",
+        "Could not repair missing Bahari OS workspace:",
         error
       );
 
@@ -166,7 +166,7 @@ export async function login(
       return {
         status: "error",
         message:
-          "Your account is verified, but Yacht OS could not finish creating its company workspace. Please try again.",
+          "Your account is verified, but Bahari OS could not finish creating its company workspace. Please try again.",
       };
     }
 
@@ -200,7 +200,7 @@ export async function login(
     return {
       status: "error",
       message:
-        "You were signed in, but Yacht OS could not load the workspace setup state.",
+        "You were signed in, but Bahari OS could not load the workspace setup state.",
     };
   }
 

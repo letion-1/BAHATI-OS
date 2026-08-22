@@ -80,7 +80,7 @@ export async function GET(
 
     return redirectToSignupError(
       origin,
-      "Your email was verified, but Yacht OS could not load the new account."
+      "Your email was verified, but Bahari OS could not load the new account."
     );
   }
 
@@ -113,7 +113,7 @@ export async function GET(
       origin,
       error instanceof Error
         ? error.message
-        : "Yacht OS could not create the company workspace."
+        : "Bahari OS could not create the company workspace."
     );
   }
 

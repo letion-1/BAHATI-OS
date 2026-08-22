@@ -253,7 +253,7 @@ export async function POST(
 
     if (updateResult.error) {
       throw new Error(
-        `Email was sent, but Yacht OS could not save the sent state: ${updateResult.error.message}`
+        `Email was sent, but Bahari OS could not save the sent state: ${updateResult.error.message}`
       );
     }
 

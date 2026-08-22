@@ -625,7 +625,7 @@ export function NotificationsPanel() {
             </div>
 
             <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground dark:border-white/[0.08] dark:text-slate-700">
-              Refreshes every 15 seconds and when you return to Yacht OS
+              Refreshes every 15 seconds and when you return to Bahari OS
             </div>
           </section>,
           document.body

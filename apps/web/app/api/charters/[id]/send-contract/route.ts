@@ -408,7 +408,7 @@ export async function POST(
         buildContractEmail({
           companyName:
             workspace.companyName ||
-            "Yacht OS",
+            "Bahari OS",
           charter,
           recipient,
           fileName:

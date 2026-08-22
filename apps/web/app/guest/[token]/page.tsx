@@ -533,7 +533,7 @@ export default function GuestPreferencePage() {
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-500">
-                Intrigue Yacht OS
+                Bahari OS
               </p>
               <p className="mt-0.5 text-sm font-semibold">
                 Private charter portal

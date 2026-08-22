@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
 
 export function ProposalPdf({
   proposal,
-  companyName = "Intrigue Yacht OS",
+  companyName = "Bahari OS",
 }: ProposalPdfProps) {
   const yachts = normalizeYachts(proposal);
   const firstYacht = yachts[0];

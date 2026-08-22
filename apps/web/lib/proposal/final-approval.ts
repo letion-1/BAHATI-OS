@@ -81,7 +81,7 @@ export function resolveFinalApprovalDecision(
       canProceed: false,
       title: "Reference yacht",
       description:
-        "This yacht is available for reference or presentation only. Yacht OS cannot operationally confirm it for charter.",
+        "This yacht is available for reference or presentation only. Bahari OS cannot operationally confirm it for charter.",
       primaryActionLabel: null,
       reason:
         "The yacht access profile or booking model marks this yacht as reference-only.",
@@ -181,23 +181,23 @@ export function resolveFinalApprovalDecision(
   switch (operatingModel) {
     case "controlled_fleet":
       return internalConfirmationDecision(
-        "No yacht-level approval rule was available, so Yacht OS used the company's controlled-fleet onboarding model as the default."
+        "No yacht-level approval rule was available, so Bahari OS used the company's controlled-fleet onboarding model as the default."
       );
 
     case "yacht_management":
       return ownerApprovalDecision(
-        "No yacht-level approval rule was available, so Yacht OS used the company's yacht-management onboarding model as the default."
+        "No yacht-level approval rule was available, so Bahari OS used the company's yacht-management onboarding model as the default."
       );
 
     case "independent_brokerage":
       return managerConfirmationDecision(
-        "No yacht-level approval rule was available, so Yacht OS used the company's independent-brokerage onboarding model as the default."
+        "No yacht-level approval rule was available, so Bahari OS used the company's independent-brokerage onboarding model as the default."
       );
 
     case "mixed_operation":
     default:
       return managerConfirmationDecision(
-        "The yacht-level relationship is incomplete. Yacht OS uses the safer external-confirmation path until the yacht access profile is classified."
+        "The yacht-level relationship is incomplete. Bahari OS uses the safer external-confirmation path until the yacht access profile is classified."
       );
   }
 }

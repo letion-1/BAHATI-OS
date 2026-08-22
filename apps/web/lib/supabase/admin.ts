@@ -45,7 +45,7 @@ export function createAdminClient(): SupabaseClient {
       global: {
         headers: {
           "X-Client-Info":
-            "intrigue-yacht-os-service-role",
+            "intrigue-bahari-os-service-role",
         },
       },
     }

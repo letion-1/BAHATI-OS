@@ -586,7 +586,7 @@ export async function PATCH(
           !membershipResult.data
         ) {
           return badRequest(
-            "The selected assignee is not a member of this Yacht OS workspace."
+            "The selected assignee is not a member of this Bahari OS workspace."
           );
         }
       }

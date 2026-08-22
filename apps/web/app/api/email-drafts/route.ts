@@ -602,7 +602,7 @@ export async function PATCH(request: Request) {
           end_date: currentResult.data.end_date,
           checked_at: now,
           checked_by: workspace.userId,
-          notes: `Availability verification email sent from Yacht OS. Draft ${id}.`,
+          notes: `Availability verification email sent from Bahari OS. Draft ${id}.`,
           created_at: now,
           updated_at: now,
         });

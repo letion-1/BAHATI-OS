@@ -61,14 +61,14 @@ export default async function SignUpPage({
             </h1>
 
             <p className="mt-6 max-w-lg text-base leading-7 text-muted-foreground">
-              Verify your work email, create your company workspace and configure Yacht OS around the way your brokerage actually operates.
+              Verify your work email, create your company workspace and configure Bahari OS around the way your brokerage actually operates.
             </p>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-2">
               <Feature
                 icon={Building2}
                 title="Your own company workspace"
-                description="A verified signup provisions a new isolated Yacht OS company."
+                description="A verified signup provisions a new isolated Bahari OS company."
               />
 
               <Feature
@@ -86,7 +86,7 @@ export default async function SignUpPage({
           </div>
 
           <p className="text-xs text-muted-foreground/70">
-            Intrigue Studios · Yacht OS
+            Intrigue Studios · Bahari OS
           </p>
         </section>
 
@@ -102,7 +102,7 @@ export default async function SignUpPage({
               </p>
 
               <h2 className="mt-3 text-4xl leading-none tracking-[0.05em] text-foreground">
-                Create Yacht OS account
+                Create Bahari OS account
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -133,7 +133,7 @@ function Brand() {
 
       <div>
         <p className="font-heading text-2xl leading-none tracking-[0.08em] text-foreground">
-          Intrigue Yacht OS
+          Bahari OS
         </p>
 
         <p className="mt-1 text-xs text-muted-foreground">

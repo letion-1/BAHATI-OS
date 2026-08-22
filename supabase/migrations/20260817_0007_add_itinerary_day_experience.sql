@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Itinerary day structure and guest-facing experience planning
 
 create table if not exists public.charter_itinerary_days (

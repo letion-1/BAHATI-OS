@@ -61,7 +61,7 @@ export function OnboardingForm({
         <StepHeader
           number="01"
           eyebrow="Your profile"
-          title="Who is using Yacht OS?"
+          title="Who is using Bahari OS?"
           description="These details identify you inside the brokerage workspace."
         />
 
@@ -107,7 +107,7 @@ export function OnboardingForm({
           number="02"
           eyebrow="Company"
           title="How does your business operate?"
-          description="This selects the default Yacht OS workflow. It does not restrict the access type of individual yachts."
+          description="This selects the default Bahari OS workflow. It does not restrict the access type of individual yachts."
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -175,7 +175,7 @@ export function OnboardingForm({
           number="03"
           eyebrow="Charter footprint"
           title="Tune the workspace"
-          description="Give Yacht OS enough context to personalize the command deck and matching workflow."
+          description="Give Bahari OS enough context to personalize the command deck and matching workflow."
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -270,7 +270,7 @@ export function OnboardingForm({
             </>
           ) : (
             <>
-              Enter Yacht OS
+              Enter Bahari OS
               <ArrowRight className="size-4" />
             </>
           )}

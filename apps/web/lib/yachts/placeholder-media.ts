@@ -4,7 +4,7 @@ export type YachtPlaceholderMedia = {
 };
 
 /**
- * Distinct stock yacht photography already bundled with Yacht OS.
+ * Distinct stock yacht photography already bundled with Bahari OS.
  *
  * Duplicate JPG/PNG exports of the same scene are intentionally not repeated.
  * Uploaded broker photography always takes precedence over these fallbacks.

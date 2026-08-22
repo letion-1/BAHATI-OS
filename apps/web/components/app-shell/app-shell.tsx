@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   useEffect,
@@ -211,7 +211,7 @@ function isPublicRoute(
   );
 }
 
-function YachtOsBrandMark() {
+function BahariBrandMark() {
   return (
     <div
       className="
@@ -228,7 +228,7 @@ function YachtOsBrandMark() {
       "
     >
       <Image
-        src="/brand/yacht-os-mark.png"
+        src="/brand/bahari-os-mark.png"
         alt=""
         width={32}
         height={32}
@@ -243,18 +243,18 @@ function YachtOsBrandMark() {
   );
 }
 
-function YachtOsBrandLockup({
+function BahariBrandLockup({
   companyName,
 }: {
   companyName: string;
 }) {
   return (
     <>
-      <YachtOsBrandMark />
+      <BahariBrandMark />
 
       <div className="min-w-0">
         <p className="font-heading text-2xl leading-none tracking-[0.08em]">
-          Yacht OS
+          Bahari OS
         </p>
 
         <p className="mt-1 max-w-[170px] truncate text-[11px] text-muted-foreground">
@@ -534,7 +534,7 @@ export function AppShell({
             href="/"
             className="apple-transition flex items-center gap-3 rounded-2xl px-2 py-3 hover:bg-sidebar-accent"
           >
-            <YachtOsBrandLockup
+            <BahariBrandLockup
               companyName={
                 companyName
               }
@@ -595,7 +595,7 @@ export function AppShell({
               }
               className="apple-transition flex min-w-0 items-center gap-3 rounded-2xl px-2 py-3 hover:bg-sidebar-accent"
             >
-              <YachtOsBrandLockup
+              <BahariBrandLockup
                 companyName={
                   companyName
                 }
@@ -667,7 +667,7 @@ export function AppShell({
 
             <div className="min-w-0">
               <p className="truncate font-heading text-[17px] leading-none tracking-[0.04em] sm:text-xl sm:tracking-[0.06em]">
-                Yacht OS
+                Bahari OS
               </p>
 
               <p className="mt-1 hidden max-w-[46vw] truncate text-[10px] leading-tight text-muted-foreground min-[390px]:block sm:max-w-none sm:text-[11px]">

@@ -319,7 +319,7 @@ export default function MissionControlPage() {
         <HeroCard
           eyebrow="Mission Control"
           title="Dashboard unavailable"
-          description="Yacht OS could not load the company-aware operating view."
+          description="Bahari OS could not load the company-aware operating view."
         />
 
         <div className="mt-7 rounded-[24px] border border-red-500/25 bg-red-500/10 p-5 text-sm text-red-700 dark:text-red-200">
@@ -711,7 +711,7 @@ export default function MissionControlPage() {
         0 ? (
           <EmptyState
             title="No recent activity"
-            description="Imports, proposals and other Yacht OS events will appear here."
+            description="Imports, proposals and other Bahari OS events will appear here."
           />
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -772,7 +772,7 @@ function buildCockpit(
       description:
         modelDescriptions[operatingModel],
       modelExplanation:
-        "Yacht OS assumes most charter inventory is not controlled by your company. Matching therefore emphasizes source intelligence, Yachtfolio or network checks and fresh Charter Manager confirmation.",
+        "Bahari OS assumes most charter inventory is not controlled by your company. Matching therefore emphasizes source intelligence, Yachtfolio or network checks and fresh Charter Manager confirmation.",
       defaultWorkflow:
         "Inquiry → Match → Verify → Proposal",
       bookingAuthority:
@@ -871,7 +871,7 @@ function buildCockpit(
       description:
         modelDescriptions[operatingModel],
       modelExplanation:
-        "Yacht OS assumes your company manages charter yachts for owners. Internal calendar intelligence matters, but an owner or Charter Manager approval step can still control whether a charter proceeds.",
+        "Bahari OS assumes your company manages charter yachts for owners. Internal calendar intelligence matters, but an owner or Charter Manager approval step can still control whether a charter proceeds.",
       defaultWorkflow:
         "Request → Calendar → Owner approval → Contract",
       bookingAuthority:
@@ -971,7 +971,7 @@ function buildCockpit(
       description:
         modelDescriptions[operatingModel],
       modelExplanation:
-        "Yacht OS assumes your company controls the primary booking calendar for its charter fleet. Controlled yachts can therefore use internal availability as the authoritative operating signal.",
+        "Bahari OS assumes your company controls the primary booking calendar for its charter fleet. Controlled yachts can therefore use internal availability as the authoritative operating signal.",
       defaultWorkflow:
         "Inquiry → Controlled availability → Proposal / booking",
       bookingAuthority:
@@ -1067,7 +1067,7 @@ function buildCockpit(
     description:
       modelDescriptions.mixed_operation,
     modelExplanation:
-      "Yacht OS assumes your company operates across more than one charter model. The cockpit therefore separates controlled, managed and external broker-access inventory instead of forcing a single workflow.",
+      "Bahari OS assumes your company operates across more than one charter model. The cockpit therefore separates controlled, managed and external broker-access inventory instead of forcing a single workflow.",
     defaultWorkflow:
       "Workflow selected by yacht relationship",
     bookingAuthority:

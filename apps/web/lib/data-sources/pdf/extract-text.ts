@@ -73,7 +73,7 @@ export async function extractPdfText(
 
   if (pageCount > MAX_PAGES) {
     throw new Error(
-      `This PDF has ${pageCount} pages. Yacht OS reads up to ${MAX_PAGES}. Please split it or link the availability section directly.`
+      `This PDF has ${pageCount} pages. Bahari OS reads up to ${MAX_PAGES}. Please split it or link the availability section directly.`
     );
   }
 

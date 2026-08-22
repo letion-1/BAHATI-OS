@@ -11,7 +11,7 @@ import { AppShell } from "@/components/app-shell/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Intrigue Yacht OS",
+  title: "Bahari OS",
   description: "AI operating system for yacht charter brokers",
 };
 

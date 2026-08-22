@@ -8,7 +8,7 @@ import {
 import { FILL, makeSheet, makeWorkbook } from "../fixtures/workbook";
 
 /**
- * These tests cover the availability parsers, which are the part of Yacht OS
+ * These tests cover the availability parsers, which are the part of Bahari OS
  * most likely to break silently. A parser regression does not throw: it
  * quietly returns fewer yachts, or marks a booked week available, and nobody
  * notices until a client is quoted a yacht that is already chartered.

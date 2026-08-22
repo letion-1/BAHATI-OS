@@ -556,7 +556,7 @@ export default function CharterPortalManagementPage() {
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Yacht OS keeps the public lookup token hashed and stores the
+                Bahari OS keeps the public lookup token hashed and stores the
                 recoverable token encrypted at rest. Resending uses the same
                 secure client URL. Rotate the link only when you intentionally
                 want to invalidate and replace the previous URL.
@@ -666,7 +666,7 @@ export default function CharterPortalManagementPage() {
           {!readiness
             ?.gmailConnected ? (
             <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
-              Connect Gmail before sending the Charter Portal from Yacht OS.
+              Connect Gmail before sending the Charter Portal from Bahari OS.
             </p>
           ) : null}
 
@@ -772,7 +772,7 @@ export default function CharterPortalManagementPage() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Latest submission from {charter.clientName}. Yacht OS also
+                  Latest submission from {charter.clientName}. Bahari OS also
                   synchronizes actionable sections into Concierge for broker
                   review.
                 </p>

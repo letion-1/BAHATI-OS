@@ -33,7 +33,7 @@ export async function fetchWebsiteSource(
     redirect: "follow",
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (compatible; IntrigueYachtOS/2.0)",
+        "Mozilla/5.0 (compatible; BahariOS/1.0 (+https://bahari-os.com))",
       Accept:
         "text/html,application/xhtml+xml,application/xml;q=0.9",
     },
@@ -117,7 +117,7 @@ export async function fetchAdaptiveWebsiteSource(
       redirect: "follow",
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; IntrigueYachtOS/2.0)",
+          "Mozilla/5.0 (compatible; BahariOS/1.0 (+https://bahari-os.com))",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9",
       },

@@ -60,7 +60,7 @@ export default async function LoginPage({
             </h1>
 
             <p className="mt-6 max-w-lg text-base leading-7 text-muted-foreground">
-              Sign in to your protected Yacht OS company workspace. Company membership keeps each brokerage&apos;s operational data isolated.
+              Sign in to your protected Bahari OS company workspace. Company membership keeps each brokerage&apos;s operational data isolated.
             </p>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-2">
@@ -79,7 +79,7 @@ export default async function LoginPage({
           </div>
 
           <p className="text-xs text-muted-foreground/70">
-            Intrigue Studios · Yacht OS
+            Intrigue Studios · Bahari OS
           </p>
         </section>
 
@@ -95,11 +95,11 @@ export default async function LoginPage({
               </p>
 
               <h2 className="mt-3 text-4xl leading-none tracking-[0.05em] text-foreground">
-                Sign in to Yacht OS
+                Sign in to Bahari OS
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Enter the email and password attached to your Yacht OS account.
+                Enter the email and password attached to your Bahari OS account.
               </p>
 
               <LoginForm
@@ -115,7 +115,7 @@ export default async function LoginPage({
                   href="/sign-up"
                   className="ui-secondary-button mt-3 inline-flex min-h-10 w-full items-center justify-center px-4 text-xs font-semibold"
                 >
-                  Create a Yacht OS account
+                  Create a Bahari OS account
                 </Link>
               </div>
             </div>
@@ -135,7 +135,7 @@ function Brand() {
 
       <div>
         <p className="font-heading text-2xl leading-none tracking-[0.08em] text-foreground">
-          Intrigue Yacht OS
+          Bahari OS
         </p>
 
         <p className="mt-1 text-xs text-muted-foreground">

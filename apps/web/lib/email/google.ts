@@ -471,7 +471,7 @@ function buildRawEmailWithAttachment({
   };
 }): string {
   const boundary =
-    `yachtos_${crypto.randomUUID().replace(/-/g, "")}`;
+    `baharios_${crypto.randomUUID().replace(/-/g, "")}`;
 
   const safeTo =
     sanitizeHeader(to);

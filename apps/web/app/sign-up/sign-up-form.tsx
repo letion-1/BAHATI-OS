@@ -54,7 +54,7 @@ export function SignUpForm() {
         </div>
 
         <p className="mt-5 border-t border-emerald-500/15 pt-4 text-xs leading-5 text-muted-foreground">
-          After confirmation, Yacht OS will create the company workspace, make this account its owner and open first-time onboarding.
+          After confirmation, Bahari OS will create the company workspace, make this account its owner and open first-time onboarding.
         </p>
 
         <Link
@@ -164,7 +164,7 @@ export function SignUpForm() {
       </button>
 
       <p className="text-center text-xs leading-5 text-muted-foreground">
-        Already have a Yacht OS account?{" "}
+        Already have a Bahari OS account?{" "}
         <Link
           href="/login"
           className="font-semibold text-foreground underline-offset-4 hover:underline"

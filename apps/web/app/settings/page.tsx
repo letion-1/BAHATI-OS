@@ -178,7 +178,7 @@ export default function SettingsPage() {
       <HeroCard
         eyebrow="Workspace settings"
         title="Settings"
-        description="Manage the identity, appearance and account details connected to your Yacht OS workspace."
+        description="Manage the identity, appearance and account details connected to your Bahari OS workspace."
         actions={
           <div className="flex items-center gap-3">
             <span className="ui-hero-muted text-xs">
@@ -273,7 +273,7 @@ export default function SettingsPage() {
               <SectionHeader
                 eyebrow="Personal details"
                 title="Edit profile"
-                subtitle="Update the name and professional role displayed in Yacht OS."
+                subtitle="Update the name and professional role displayed in Bahari OS."
               />
 
               <div className="mt-7 grid gap-5">
@@ -345,7 +345,7 @@ export default function SettingsPage() {
             <SectionHeader
               eyebrow="Workspace"
               title="Account identifiers"
-              subtitle="Read-only identifiers used by Supabase and Yacht OS."
+              subtitle="Read-only identifiers used by Supabase and Bahari OS."
             />
 
             <div className="mt-7 grid gap-4 md:grid-cols-2">

@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Final Approval Workflow
 -- Created: 2026-08-16
 --

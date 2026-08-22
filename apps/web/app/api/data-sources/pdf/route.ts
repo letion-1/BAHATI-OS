@@ -95,7 +95,7 @@ export async function POST(request: Request) {
             message:
               result.pdf.scannedPages.length > 0
                 ? "This PDF has no readable text layer, so it looks like a scan. AI extraction can read it visually."
-                : "This PDF has text but no table Yacht OS could read. AI extraction can interpret it instead.",
+                : "This PDF has text but no table Bahari OS could read. AI extraction can interpret it instead.",
           },
         },
         { status: 200, headers: rateLimitHeaders(limit) }

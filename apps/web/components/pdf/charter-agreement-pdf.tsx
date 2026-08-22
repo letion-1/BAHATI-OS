@@ -313,7 +313,7 @@ export function CharterAgreementPdf({
             Draft status
           </Text>
           <Text style={styles.noticeText}>
-            This generated document records the operational and commercial information currently stored in Yacht OS. It does not add legal clauses, cancellation provisions, governing-law terms, special conditions, or other terms that are not recorded in the workspace. The definitive charter agreement should be reviewed and completed using the contract form approved by the parties before signature.
+            This generated document records the operational and commercial information currently stored in Bahari OS. It does not add legal clauses, cancellation provisions, governing-law terms, special conditions, or other terms that are not recorded in the workspace. The definitive charter agreement should be reviewed and completed using the contract form approved by the parties before signature.
           </Text>
         </View>
 

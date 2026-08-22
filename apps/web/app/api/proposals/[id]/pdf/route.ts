@@ -332,7 +332,7 @@ export async function POST(
           proposal,
           companyName:
             workspace.companyName ||
-            "Intrigue Yacht OS",
+            "Bahari OS",
         }
       );
 

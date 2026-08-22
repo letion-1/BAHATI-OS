@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Itinerary + Fuel Intelligence foundation
 
 create table if not exists public.charter_itineraries (

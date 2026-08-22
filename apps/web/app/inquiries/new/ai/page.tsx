@@ -266,7 +266,7 @@ export default function AIImportPage() {
       <HeroCard
         eyebrow="AI inquiry intake"
         title="Turn messages into structured inquiries"
-        description="Paste an email, WhatsApp message or copied conversation. Yacht OS extracts the client, destination, dates, budget and preferences for broker review."
+        description="Paste an email, WhatsApp message or copied conversation. Bahari OS extracts the client, destination, dates, budget and preferences for broker review."
         actions={
           <>
             <Link

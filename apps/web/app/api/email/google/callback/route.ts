@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         statePayload.userId
     ) {
       throw new Error(
-        "Google connection does not match the active Yacht OS workspace."
+        "Google connection does not match the active Bahari OS workspace."
       );
     }
 

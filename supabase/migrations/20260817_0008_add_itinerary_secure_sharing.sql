@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Secure public sharing for charter itineraries.
 
 create table if not exists public.charter_itinerary_shares (
@@ -55,4 +55,4 @@ comment on table public.charter_itinerary_shares is
   'Secure public-share records for guest-facing charter itineraries.';
 
 comment on column public.charter_itinerary_shares.hero_image_url is
-  'Optional broker-selected hero image. Public itinerary falls back to the bundled Yacht OS yacht hero placeholder when unset or invalid.';
+  'Optional broker-selected hero image. Public itinerary falls back to the bundled Bahari OS yacht hero placeholder when unset or invalid.';

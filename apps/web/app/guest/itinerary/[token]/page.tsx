@@ -171,7 +171,7 @@ export default function PublicItineraryPage() {
       <main className="flex min-h-screen items-center justify-center bg-[#f3f1eb] px-4 py-12 text-slate-950">
         <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-7 text-center shadow-sm">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-            Intrigue Yacht OS
+            Bahari OS
           </p>
 
           <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em]">
@@ -220,7 +220,7 @@ export default function PublicItineraryPage() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/70">
-                Intrigue Yacht OS
+                Bahari OS
               </p>
               <p className="mt-1 text-xs font-semibold text-white">
                 Private charter itinerary

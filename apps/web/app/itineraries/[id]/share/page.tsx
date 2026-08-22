@@ -417,7 +417,7 @@ export default function ItinerarySharePage() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Paste a yacht image URL here. If the field is empty or the image fails to load, Yacht OS automatically uses the bundled yacht placeholder.
+              Paste a yacht image URL here. If the field is empty or the image fails to load, Bahari OS automatically uses the bundled yacht placeholder.
             </p>
 
             <label className="mt-5 block">
@@ -620,7 +620,7 @@ export default function ItinerarySharePage() {
             ) : (
               <div className="mt-5">
                 <div className="ui-panel-soft rounded-2xl p-4 text-sm leading-6 text-muted-foreground">
-                  Publishing creates a random secure token. The client does not need a Yacht OS login and sees only guest-visible itinerary content.
+                  Publishing creates a random secure token. The client does not need a Bahari OS login and sees only guest-visible itinerary content.
                 </div>
 
                 <button

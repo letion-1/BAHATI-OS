@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Charter / Contract Workflow
 -- Created: 2026-08-16
 --

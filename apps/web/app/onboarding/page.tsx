@@ -139,7 +139,7 @@ export default async function OnboardingPage({
 
                 <div>
                   <p className="ui-hero-muted text-[10px] font-semibold uppercase tracking-[0.2em]">
-                    Intrigue Yacht OS
+                    Bahari OS
                   </p>
 
                   <p className="mt-1 text-xs text-[var(--hero-foreground)]/75">
@@ -153,7 +153,7 @@ export default async function OnboardingPage({
               </h1>
 
               <p className="ui-hero-muted mt-5 max-w-2xl text-sm leading-7 sm:text-base">
-                Tell Yacht OS whether you primarily broker, manage or control yachts. Individual yacht relationships remain flexible inside the workspace.
+                Tell Bahari OS whether you primarily broker, manage or control yachts. Individual yacht relationships remain flexible inside the workspace.
               </p>
             </div>
 
@@ -239,7 +239,7 @@ function OnboardingBlocked({
         </h1>
 
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          {companyName} has not completed its Yacht OS company setup yet. A workspace owner or admin needs to finish onboarding first.
+          {companyName} has not completed its Bahari OS company setup yet. A workspace owner or admin needs to finish onboarding first.
         </p>
       </div>
     </main>

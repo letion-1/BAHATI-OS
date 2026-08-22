@@ -425,7 +425,7 @@ export async function POST(
       generatedAt,
       companyName:
         workspace.companyName ||
-        "Intrigue Yacht OS",
+        "Bahari OS",
 
       client: {
         name:

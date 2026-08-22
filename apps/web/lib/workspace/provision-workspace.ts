@@ -134,7 +134,7 @@ export async function provisionWorkspaceForUser({
 
   if (!company) {
     throw new Error(
-      `Could not create Yacht OS company workspace: ${
+      `Could not create Bahari OS company workspace: ${
         lastCompanyError?.message ??
         "Unknown database error."
       }`
@@ -208,7 +208,7 @@ function normalizeCompanyName(
     );
   }
 
-  return "New Yacht OS Workspace";
+  return "New Bahari OS Workspace";
 }
 
 function buildUniqueSlug(

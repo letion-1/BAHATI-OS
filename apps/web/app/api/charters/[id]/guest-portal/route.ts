@@ -572,7 +572,7 @@ export async function POST(
       buildCharterPortalEmail({
         companyName:
           workspace.companyName ||
-          "Yacht OS",
+          "Bahari OS",
         charter,
         guestUrl,
       });

@@ -1,4 +1,4 @@
--- Yacht OS
+-- Bahari OS
 -- Guest Preference Portal foundation
 
 create extension if not exists pgcrypto;

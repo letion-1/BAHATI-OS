@@ -53,7 +53,7 @@ export function ConfirmEmailClient({
 
           <div>
             <p className="font-heading text-2xl leading-none tracking-[0.08em]">
-              Intrigue Yacht OS
+              Bahari OS
             </p>
 
             <p className="mt-1 text-xs text-muted-foreground">
@@ -71,7 +71,7 @@ export function ConfirmEmailClient({
         </p>
 
         <h1 className="mt-2 font-heading text-4xl leading-[1.05] tracking-[0.045em] sm:text-5xl">
-          Confirm your Yacht OS account.
+          Confirm your Bahari OS account.
         </h1>
 
         <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground">
@@ -138,7 +138,7 @@ export function ConfirmEmailClient({
 
         <div className="mt-6 border-t border-border pt-5">
           <p className="text-xs leading-5 text-muted-foreground">
-            This extra click also prevents email security scanners from consuming your one-time verification before you reach Yacht OS.
+            This extra click also prevents email security scanners from consuming your one-time verification before you reach Bahari OS.
           </p>
 
           <Link

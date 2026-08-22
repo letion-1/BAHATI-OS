@@ -294,7 +294,7 @@ function EmailWorkspace() {
   useEffect(() => {
     if (connectedProvider === "gmail") {
       setMessage(
-        "Gmail connected. Yacht OS can now send approved drafts from this mailbox."
+        "Gmail connected. Bahari OS can now send approved drafts from this mailbox."
       );
     }
 
@@ -532,7 +532,7 @@ function EmailWorkspace() {
       });
 
       setMessage(
-        "Gmail disconnected from Yacht OS."
+        "Gmail disconnected from Bahari OS."
       );
     } catch (caughtError) {
       setError(
@@ -667,7 +667,7 @@ function EmailWorkspace() {
         <StatCard
           label="Workspace emails"
           value={overview.total}
-          subtitle="All Yacht OS email records"
+          subtitle="All Bahari OS email records"
           tone="cyan"
         />
 
@@ -697,7 +697,7 @@ function EmailWorkspace() {
         <SectionHeader
           eyebrow="Email connections"
           title="Connect the broker's mailbox here"
-          subtitle="This is the transport layer. Yacht OS drafts remain internal, then Gmail or Outlook can send and sync replies through OAuth."
+          subtitle="This is the transport layer. Bahari OS drafts remain internal, then Gmail or Outlook can send and sync replies through OAuth."
           className="mb-5"
         />
 
@@ -709,8 +709,8 @@ function EmailWorkspace() {
                 ? `Connected as ${
                     gmailConnection.emailAddress ??
                     "Google account"
-                  }. Yacht OS can send approved email drafts from this mailbox.`
-                : "Connect a Google mailbox so Yacht OS can send approved Charter Manager verification emails directly."
+                  }. Bahari OS can send approved email drafts from this mailbox.`
+                : "Connect a Google mailbox so Bahari OS can send approved Charter Manager verification emails directly."
             }
             connected={
               gmailConnection.connected
@@ -766,7 +766,7 @@ function EmailWorkspace() {
                 <Inbox className="mx-auto size-7 text-muted-foreground" />
 
                 <p className="mt-3 text-sm font-semibold text-foreground">
-                  No Yacht OS emails yet
+                  No Bahari OS emails yet
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">

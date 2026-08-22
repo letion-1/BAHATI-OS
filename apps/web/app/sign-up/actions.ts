@@ -88,7 +88,7 @@ export async function signUp(
     return {
       status: "error",
       message: isConfirmed
-        ? "A Yacht OS account already exists with this email. Sign in instead."
+        ? "A Bahari OS account already exists with this email. Sign in instead."
         : "An account already exists with this email and is waiting for email confirmation. Open the latest confirmation email before signing in.",
       fieldErrors: {
         email: isConfirmed
@@ -120,7 +120,7 @@ export async function signUp(
 
   if (error) {
     console.error(
-      "Yacht OS signup failed:",
+      "Bahari OS signup failed:",
       error.message
     );
 
@@ -138,8 +138,8 @@ export async function signUp(
               normalizedMessage.includes(
                 "already exists"
               )
-            ? "A Yacht OS account already exists with this email. Sign in instead."
-            : "Yacht OS could not create the account. Check the details and try again.",
+            ? "A Bahari OS account already exists with this email. Sign in instead."
+            : "Bahari OS could not create the account. Check the details and try again.",
     };
   }
 
@@ -159,7 +159,7 @@ export async function signUp(
   return {
     status: "success",
     message:
-      "Check your inbox and confirm your email address to finish creating your Yacht OS workspace.",
+      "Check your inbox and confirm your email address to finish creating your Bahari OS workspace.",
     email,
   };
 }
