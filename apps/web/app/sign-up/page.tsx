@@ -1,5 +1,4 @@
 import {
-  Anchor,
   Building2,
   Database,
   ShieldCheck,
@@ -10,6 +9,7 @@ import { redirect } from "next/navigation";
 
 import { SignUpForm } from "@/app/sign-up/sign-up-form";
 import { createClient } from "@/lib/supabase/server";
+import { BrandMark } from "@/components/brand/brand-mark";
 
 export const dynamic = "force-dynamic";
 
@@ -127,9 +127,7 @@ export default async function SignUpPage({
 function Brand() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-        <Anchor className="size-5" />
-      </div>
+      <BrandMark size={44} priority />
 
       <div>
         <p className="font-heading text-2xl leading-none tracking-[0.08em] text-foreground">

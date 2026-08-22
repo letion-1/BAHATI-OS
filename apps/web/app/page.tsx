@@ -23,6 +23,10 @@ import {
 } from "react";
 
 import { HeroCard } from "@/components/ui/hero-card";
+import {
+  AvailabilityOverview,
+  TopDestinations,
+} from "@/components/dashboard/availability-overview";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -69,6 +73,11 @@ type DashboardResponse = {
     AvailabilityStatus,
     number
   >;
+
+  destinations: Array<{
+    region: string;
+    count: number;
+  }>;
 
   upcomingAvailability: Array<{
     id: string;
@@ -700,6 +709,23 @@ export default function MissionControlPage() {
             </div>
           )}
         </DashboardPanel>
+      </section>
+
+      {/*
+        Availability overview and destinations, side by side on wide screens
+        and stacked below. The map is two thirds of the width because it is
+        the orienting element; the ranked list reads fine narrow.
+      */}
+      <section className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <AvailabilityOverview
+            destinations={dashboard.destinations ?? []}
+          />
+        </div>
+
+        <TopDestinations
+          destinations={dashboard.destinations ?? []}
+        />
       </section>
 
       <DashboardPanel

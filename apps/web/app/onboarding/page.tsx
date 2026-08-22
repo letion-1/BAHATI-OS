@@ -1,5 +1,4 @@
 ﻿import {
-  Anchor,
   Building2,
   Compass,
   ShieldCheck,
@@ -12,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentWorkspace,
 } from "@/lib/workspace/get-current-workspace";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -133,8 +133,21 @@ export default async function OnboardingPage({
           <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-[var(--hero-foreground)]">
-                  <Anchor className="size-5" />
+                {/*
+                  The onboarding header always sits on the dark hero panel, so
+                  the cream mark is used directly rather than swapping with the
+                  page theme. The navy mark would disappear here.
+                */}
+                <div className="flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10">
+                  <Image
+                    src="/brand/bahari-mark-cream.png"
+                    alt=""
+                    width={26}
+                    height={26}
+                    priority
+                    aria-hidden
+                    className="size-[26px] object-contain"
+                  />
                 </div>
 
                 <div>

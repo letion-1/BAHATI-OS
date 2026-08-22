@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
@@ -33,6 +33,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+
+import { BrandMarkPlate } from "@/components/brand/brand-mark";
 
 import {
   logout,
@@ -211,38 +213,6 @@ function isPublicRoute(
   );
 }
 
-function BahariBrandMark() {
-  return (
-    <div
-      className="
-        flex size-11 shrink-0 items-center justify-center
-        rounded-full
-        border border-sidebar-border/90
-        bg-background/65
-        shadow-sm
-        ring-1 ring-black/[0.025]
-        backdrop-blur-xl
-        dark:border-white/10
-        dark:bg-white/[0.04]
-        dark:ring-white/[0.035]
-      "
-    >
-      <Image
-        src="/brand/bahari-os-mark.png"
-        alt=""
-        width={32}
-        height={32}
-        priority
-        className="
-          h-8 w-8 object-contain
-          drop-shadow-[0_1px_1px_rgba(0,0,0,0.10)]
-          dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.34)]
-        "
-      />
-    </div>
-  );
-}
-
 function BahariBrandLockup({
   companyName,
 }: {
@@ -250,7 +220,7 @@ function BahariBrandLockup({
 }) {
   return (
     <>
-      <BahariBrandMark />
+      <BrandMarkPlate priority />
 
       <div className="min-w-0">
         <p className="font-heading text-2xl leading-none tracking-[0.08em]">

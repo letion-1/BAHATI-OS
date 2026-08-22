@@ -26,6 +26,9 @@ type FleetRow = {
 type AvailabilityRow = {
   id: string;
   fleet_id: string;
+  region?: string | null;
+  location?: string | null;
+  embarkation_port?: string | null;
   source_id: string | null;
   start_date: string;
   end_date: string;
@@ -116,6 +119,9 @@ export async function GET() {
             "status",
             "weekly_rate",
             "currency",
+            "region",
+            "location",
+            "embarkation_port",
           ].join(",")
         )
         .eq("company_id", workspace.companyId)
@@ -441,6 +447,7 @@ export async function GET() {
         },
 
         availability: statusCounts,
+        destinations: summariseDestinations(availability),
         upcomingAvailability,
         upcomingEmbarkations,
         proposalPipeline,
@@ -894,4 +901,63 @@ function formatDateKey(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+/**
+ * Group open availability by cruising region for the dashboard map and the
+ * destinations panel.
+ *
+ * Only rows with status "available" are counted. A booked week is not a
+ * destination a broker can offer, and showing it as one is how a client ends
+ * up quoted a yacht that is already chartered.
+ *
+ * Region is preferred over location because operators write location
+ * inconsistently ("Split", "Split, Croatia", "SPLIT"), whereas region is
+ * normalised by the parsers. Location is the fallback when region is absent.
+ */
+function summariseDestinations(
+  rows: AvailabilityRow[]
+): { region: string; count: number }[] {
+  const counts = new Map<string, number>();
+
+  for (const row of rows) {
+    if (row.status !== "available") {
+      continue;
+    }
+
+    const label =
+      cleanRegionLabel(row.region) ??
+      cleanRegionLabel(row.location) ??
+      cleanRegionLabel(row.embarkation_port);
+
+    if (!label) {
+      continue;
+    }
+
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .map(([region, count]) => ({ region, count }))
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 8);
+}
+
+function cleanRegionLabel(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  // "Split, Croatia" -> "Croatia". Operators frequently qualify a port with
+  // its country, and the country is the useful grouping.
+  const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean);
+  const label = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }

@@ -2,6 +2,12 @@
 
 import { redirect } from "next/navigation";
 
+import { headers } from "next/headers";
+
+import {
+  checkRateLimit,
+  clientIdentifier,
+} from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import {
   provisionWorkspaceForUser,
@@ -49,6 +55,47 @@ export async function login(
     return {
       status: "error",
       message: "Enter your account password.",
+    };
+  }
+
+  /*
+   * Rate limit before touching the auth provider.
+   *
+   * Two independent limits, because they defend against different attacks:
+   *
+   *   per account - stops someone guessing one user's password. Keyed on the
+   *                 email, so an attacker cannot dodge it by rotating IPs.
+   *   per address - stops credential stuffing, where a leaked list is tried
+   *                 one attempt per account across thousands of accounts.
+   *
+   * Both must pass. The response is identical either way and does not reveal
+   * whether the account exists.
+   */
+  const requestHeaders = await headers();
+
+  const address = clientIdentifier(
+    new Request("https://internal", { headers: requestHeaders })
+  );
+
+  const perAccount = checkRateLimit(`login:account:${email}`, {
+    limit: 5,
+    windowSeconds: 300,
+  });
+
+  const perAddress = checkRateLimit(`login:address:${address}`, {
+    limit: 20,
+    windowSeconds: 300,
+  });
+
+  if (!perAccount.ok || !perAddress.ok) {
+    const wait = Math.max(
+      perAccount.retryAfterSeconds,
+      perAddress.retryAfterSeconds
+    );
+
+    return {
+      status: "error",
+      message: `Too many sign-in attempts. Please wait ${Math.ceil(wait / 60)} minute${wait > 60 ? "s" : ""} and try again.`,
     };
   }
 

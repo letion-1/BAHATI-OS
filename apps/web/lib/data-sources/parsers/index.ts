@@ -37,6 +37,7 @@ export type {
   WorkbookParser,
   WorksheetAnalysis,
 } from "./types";
+import { sanitizeParsedValue } from "@/lib/security/sanitize-parsed";
 
 const parsers:
   WorkbookParser[] = [
@@ -100,11 +101,22 @@ export function parseYachtWorkbook(
         parser.id,
   };
 
-  const result =
+  /*
+   * Sanitise before anything downstream touches the result.
+   *
+   * xlsx@0.18.5 has an open prototype pollution advisory and no npm fix, and
+   * the workbooks parsed here come from third-party yacht operators. A crafted
+   * file can introduce `__proto__` or `constructor` keys that mutate
+   * Object.prototype for the whole process when assigned through.
+   *
+   * See lib/security/sanitize-parsed.ts.
+   */
+  const result = sanitizeParsedValue(
     parser.parse(
       workbook,
       compatibleDetection
-    );
+    )
+  );
 
   if (
     result.yachts.length ===
