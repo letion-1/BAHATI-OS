@@ -82,63 +82,88 @@ export function parseYachtWorkbook(
         detection.layout
     );
 
-  if (!parser) {
-    throw new Error(
-      `Unsupported workbook layout "${detection.layout}" ` +
-        `with parser ID "${detection.parserId}".`
-    );
-  }
+  /*
+   * Ordered list of parsers to attempt.
+   *
+   * The detector's choice goes first, then every other parser as a fallback.
+   * Previously only the detected parser ran, and if it threw, the whole
+   * import died. That is what happened with real operator files: the
+   * detector committed to the single-yacht weekly calendar on a management
+   * company's per-yacht block layout, that parser raised "found the yacht
+   * title but no weekly date ranges", and the broker saw a raw internal
+   * error instead of a working import or a clean fallback to AI extraction.
+   *
+   * A parser that cannot handle a workbook should step aside, not stop the
+   * chain.
+   */
+  const candidates = parser
+    ? [parser, ...parsers.filter((other) => other.id !== parser.id)]
+    : [...parsers];
 
-  const compatibleDetection:
-    ParserDetection = {
+  const attempts: { parserId: string; reason: string }[] = [];
+
+  for (const candidate of candidates) {
+    const compatibleDetection: ParserDetection = {
       ...detection,
 
       /*
-       * Use the selected parser's current ID so the parser result,
-       * activity log and stored metadata remain internally consistent.
+       * Use the attempted parser's own ID so the parser result, activity log
+       * and stored metadata stay internally consistent.
        */
-      parserId:
-        parser.id,
-  };
+      parserId: candidate.id,
+      layout: candidate.layout,
+    };
 
-  /*
-   * Sanitise before anything downstream touches the result.
-   *
-   * xlsx@0.18.5 has an open prototype pollution advisory and no npm fix, and
-   * the workbooks parsed here come from third-party yacht operators. A crafted
-   * file can introduce `__proto__` or `constructor` keys that mutate
-   * Object.prototype for the whole process when assigned through.
-   *
-   * See lib/security/sanitize-parsed.ts.
-   */
-  const result = sanitizeParsedValue(
-    parser.parse(
-      workbook,
-      compatibleDetection
-    )
-  );
+    let attempt: ParserResult;
 
-  if (
-    result.yachts.length ===
-      0 &&
-    result.availability.length ===
-      0
-  ) {
-    const warnings =
-      result.warnings.length >
-      0
-        ? ` ${result.warnings.join(
-            " "
-          )}`
-        : "";
+    try {
+      attempt = sanitizeParsedValue(
+        candidate.parse(workbook, compatibleDetection)
+      );
+    } catch (error) {
+      attempts.push({
+        parserId: candidate.id,
+        reason:
+          error instanceof Error ? error.message : "parser threw",
+      });
+      continue;
+    }
 
-    throw new Error(
-      `Parser "${result.parserId}" produced no yachts or ` +
-        `availability records.${warnings}`
-    );
+    // A parser that returns nothing has not understood the file either.
+    if (
+      attempt.yachts.length === 0 &&
+      attempt.availability.length === 0
+    ) {
+      attempts.push({
+        parserId: candidate.id,
+        reason: "no yachts or availability found",
+      });
+      continue;
+    }
+
+    return {
+      ...attempt,
+      warnings: [
+        ...(attempt.warnings ?? []),
+        ...attempts.map(
+          (failed) => `${failed.parserId}: ${failed.reason}`
+        ),
+      ],
+    };
   }
 
-  return result;
+  /*
+   * Nothing could read it. The message names what was tried, because "could
+   * not parse" tells a broker nothing about whether to fix the file or send
+   * it to AI extraction.
+   */
+  throw new Error(
+    "No parser could read this file. " +
+      `Tried ${attempts.length} layout${attempts.length === 1 ? "" : "s"}: ` +
+      attempts.map((failed) => failed.parserId).join(", ") +
+      ". If the availability is laid out as prose or a designed brochure, " +
+      "use AI extraction instead."
+  );
 }
 
 export function detectYachtWorkbook(

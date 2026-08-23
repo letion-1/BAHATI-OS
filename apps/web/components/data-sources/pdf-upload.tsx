@@ -77,10 +77,20 @@ export function PdfUpload({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadResult | null>(null);
 
+  /*
+   * The file is kept so "Add to fleet" can re-send it. The commit endpoint
+   * re-parses server-side rather than trusting rows posted from the browser,
+   * because a client that can inject arbitrary yacht and availability records
+   * is a data integrity problem regardless of who is signed in.
+   */
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isCommitting, setIsCommitting] = useState(false);
+
   async function upload(file: File) {
     setError(null);
     setResult(null);
     setFileName(file.name);
+    setPendingFile(file);
 
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       setError("That is not a PDF file.");
@@ -120,10 +130,45 @@ export function PdfUpload({
     }
   }
 
+  async function commit() {
+    if (!pendingFile) {
+      setError("The file is no longer available. Please upload it again.");
+      return;
+    }
+
+    setIsCommitting(true);
+    setError(null);
+
+    try {
+      const body = new FormData();
+      body.append("file", pendingFile);
+
+      const response = await fetch("/api/data-sources/pdf/commit", {
+        method: "POST",
+        body,
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok || !payload.success) {
+        setError(payload.error ?? "Could not import that PDF.");
+        return;
+      }
+
+      onConfirm?.(result as Extract<UploadResult, { parsed: true }>);
+      onClose?.();
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setIsCommitting(false);
+    }
+  }
+
   function reset() {
     setResult(null);
     setError(null);
     setFileName(null);
+    setPendingFile(null);
 
     if (inputRef.current) {
       inputRef.current.value = "";
@@ -345,14 +390,21 @@ export function PdfUpload({
           {result.parsed ? (
             <button
               type="button"
-              onClick={() => {
-                onConfirm?.(result);
-                onClose?.();
-              }}
-              className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-6 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90"
+              onClick={() => void commit()}
+              disabled={isCommitting}
+              className="ui-primary-button apple-transition inline-flex min-h-11 items-center justify-center gap-2 px-6 text-sm font-semibold hover:-translate-y-0.5 hover:opacity-90 disabled:pointer-events-none disabled:opacity-60"
             >
-              <FileText className="size-4" />
-              Add to fleet
+              {isCommitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Importing
+                </>
+              ) : (
+                <>
+                  <FileText className="size-4" />
+                  Add to fleet
+                </>
+              )}
             </button>
           ) : null}
         </div>
@@ -393,7 +445,14 @@ function StatusPill({ status }: { status?: string | null }) {
   );
 }
 
-export function PdfUploadPanel({ onClose }: { onClose: () => void }) {
+export function PdfUploadPanel({
+  onClose,
+  onImported,
+}: {
+  onClose: () => void;
+  /** Fired after a successful import so the source list can refresh. */
+  onImported?: () => void;
+}) {
   return (
     /*
       Three bands: a header that stays put, a body that scrolls, and actions
@@ -425,7 +484,7 @@ export function PdfUploadPanel({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <PdfUpload onClose={onClose} />
+      <PdfUpload onClose={onClose} onConfirm={() => onImported?.()} />
     </div>
   );
 }

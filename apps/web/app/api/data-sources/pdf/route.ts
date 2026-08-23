@@ -102,8 +102,36 @@ export async function POST(request: Request) {
       );
     }
 
-    const detection = detectYachtWorkbook(result.workbook);
-    const parsed = parseYachtWorkbook(result.workbook);
+    /*
+     * A grid was reconstructed, but that does not mean any parser understands
+     * its shape. Management companies use per-yacht blocks, partner networks
+     * use week-column grids, and neither matches a flat booking table.
+     *
+     * When no parser can read it, that is the same outcome as a scan or a
+     * brochure: it needs AI extraction. Treating it as an error instead put a
+     * raw internal message in front of the broker.
+     */
+    let detection;
+    let parsed;
+
+    try {
+      detection = detectYachtWorkbook(result.workbook);
+      parsed = parseYachtWorkbook(result.workbook);
+    } catch {
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            parsed: false,
+            reason: "unstructured",
+            pdf: result.pdf,
+            message:
+              "This PDF has a table, but not in a layout Bahari OS recognises yet. AI extraction can interpret it instead.",
+          },
+        },
+        { status: 200, headers: rateLimitHeaders(limit) }
+      );
+    }
 
     return NextResponse.json(
       {

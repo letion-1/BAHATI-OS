@@ -1106,7 +1106,10 @@ export default function DataSourcesPage() {
             to dismiss the dialog.
           */}
           <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-border bg-card shadow-[var(--strong-shadow)]">
-            <PdfUploadPanel onClose={() => setIsUploadOpen(false)} />
+            <PdfUploadPanel
+              onClose={() => setIsUploadOpen(false)}
+              onImported={() => void loadSources()}
+            />
           </div>
         </div>
       ) : null}
