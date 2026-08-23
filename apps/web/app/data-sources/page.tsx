@@ -1099,7 +1099,13 @@ export default function DataSourcesPage() {
 
       {isUploadOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 dark:bg-black/80 p-4 backdrop-blur-md">
-          <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-border bg-card p-6 shadow-[var(--strong-shadow)]">
+          {/*
+            max-h + flex so the panel can cap its own height and scroll its
+            middle. Without the cap a long extraction preview grows past the
+            viewport and pushes the action buttons off screen, leaving no way
+            to dismiss the dialog.
+          */}
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-border bg-card shadow-[var(--strong-shadow)]">
             <PdfUploadPanel onClose={() => setIsUploadOpen(false)} />
           </div>
         </div>

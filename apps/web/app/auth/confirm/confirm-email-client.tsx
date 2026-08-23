@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Anchor,
   ArrowRight,
   CheckCircle2,
   LoaderCircle,
@@ -14,6 +13,7 @@ import {
   confirmSignup,
   type ConfirmSignupState,
 } from "@/app/auth/confirm/actions";
+import { BrandMark } from "@/components/brand/brand-mark";
 
 const initialState: ConfirmSignupState = {
   status: "idle",
@@ -48,7 +48,7 @@ export function ConfirmEmailClient({
       <section className="ui-panel relative w-full max-w-xl rounded-[30px] p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-            <Anchor className="size-5" />
+            <BrandMark size={22} priority />
           </div>
 
           <div>

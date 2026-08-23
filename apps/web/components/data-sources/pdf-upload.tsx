@@ -131,7 +131,12 @@ export function PdfUpload({
   }
 
   return (
-    <div className="space-y-5">
+    /*
+      min-h-0 is required: without it a flex child refuses to shrink below its
+      content height and overflow-y-auto never engages.
+    */
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
       {/* ---------------------------------------------------- drop zone */}
       {!result ? (
         <div
@@ -238,15 +243,6 @@ export function PdfUpload({
             />
           </dl>
 
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={reset}
-              className="ui-secondary-button apple-transition inline-flex min-h-11 items-center px-5 text-sm font-semibold"
-            >
-              Try another file
-            </button>
-          </div>
         </div>
       ) : null}
 
@@ -328,15 +324,25 @@ export function PdfUpload({
             </p>
           ) : null}
 
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={reset}
-              className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-5 text-sm font-semibold"
-            >
-              Discard
-            </button>
+        </div>
+      ) : null}
+      </div>
 
+      {/*
+        Actions live outside the scroll area so they are always reachable,
+        however many rows the preview contains.
+      */}
+      {result ? (
+        <div className="flex flex-col-reverse gap-3 border-t border-border p-6 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={reset}
+            className="ui-secondary-button apple-transition inline-flex min-h-11 items-center justify-center px-5 text-sm font-semibold"
+          >
+            {result.parsed ? "Discard" : "Try another file"}
+          </button>
+
+          {result.parsed ? (
             <button
               type="button"
               onClick={() => {
@@ -348,7 +354,7 @@ export function PdfUpload({
               <FileText className="size-4" />
               Add to fleet
             </button>
-          </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -389,8 +395,14 @@ function StatusPill({ status }: { status?: string | null }) {
 
 export function PdfUploadPanel({ onClose }: { onClose: () => void }) {
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
+    /*
+      Three bands: a header that stays put, a body that scrolls, and actions
+      pinned to the bottom by PdfUpload itself. Previously the whole panel was
+      one growing column, so a sixteen-row extraction preview pushed the
+      buttons past the bottom of the screen with no way to reach them.
+    */
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-start justify-between gap-4 border-b border-border p-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             New connection

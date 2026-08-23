@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentWorkspace,
 } from "@/lib/workspace/get-current-workspace";
-import Image from "next/image";
+import { BrandMark } from "@/components/brand/brand-mark";
 
 export const dynamic = "force-dynamic";
 
@@ -134,20 +134,14 @@ export default async function OnboardingPage({
             <div className="max-w-3xl">
               <div className="flex items-center gap-3">
                 {/*
-                  The onboarding header always sits on the dark hero panel, so
-                  the cream mark is used directly rather than swapping with the
-                  page theme. The navy mark would disappear here.
+                  The hero gradient follows the colour scheme
+                  (--hero-foreground is dark brown in light mode, white in
+                  dark), so the mark has to swap with it. An earlier version
+                  hardcoded the cream mark on the assumption the hero was
+                  always dark, and it washed out in light mode.
                 */}
-                <div className="flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10">
-                  <Image
-                    src="/brand/bahari-mark-cream.png"
-                    alt=""
-                    width={26}
-                    height={26}
-                    priority
-                    aria-hidden
-                    className="size-[26px] object-contain"
-                  />
+                <div className="flex size-11 items-center justify-center rounded-2xl border border-black/10 bg-black/[0.04] dark:border-white/10 dark:bg-white/10">
+                  <BrandMark size={26} priority />
                 </div>
 
                 <div>
