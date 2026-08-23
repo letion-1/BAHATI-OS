@@ -340,7 +340,7 @@ export function PdfUpload({
               </thead>
 
               <tbody>
-                {result.availability.slice(0, 8).map((row, index) => (
+                {result.availability.map((row, index) => (
                   <tr
                     key={`${row.yachtName}-${row.startDate}-${index}`}
                     className="border-t border-border/60"
@@ -363,9 +363,10 @@ export function PdfUpload({
             </table>
           </div>
 
-          {result.availabilityCount > 8 ? (
+          {result.availabilityCount > result.availability.length ? (
             <p className="text-xs text-muted-foreground">
-              Showing 8 of {result.availabilityCount} rows.
+              Showing {result.availability.length} of{" "}
+              {result.availabilityCount} rows.
             </p>
           ) : null}
 

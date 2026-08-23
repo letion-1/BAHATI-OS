@@ -148,8 +148,25 @@ export async function POST(request: Request) {
     if (sourceResult.error || !sourceResult.data) {
       console.error("Could not create data source:", sourceResult.error);
 
+      /*
+       * Surface the database's own message. A generic "could not create"
+       * tells the broker nothing and tells whoever is debugging even less:
+       * the useful information is whether a check constraint rejected the
+       * source type, a column is missing, or the write was blocked.
+       */
+      const detail = sourceResult.error?.message ?? "";
+
+      const isSourceTypeRejected =
+        sourceResult.error?.code === "23514" ||
+        detail.toLowerCase().includes("source_type");
+
       return NextResponse.json(
-        { success: false, error: "Could not create the data source." },
+        {
+          success: false,
+          error: isSourceTypeRejected
+            ? "The database does not yet accept 'pdf' as a source type. Apply migration 20260823_0012_allow_pdf_source_type.sql and try again."
+            : `Could not create the data source. ${detail}`.trim(),
+        },
         { status: 500 }
       );
     }
