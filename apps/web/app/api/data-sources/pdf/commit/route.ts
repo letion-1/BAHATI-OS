@@ -24,9 +24,16 @@ import { importParsedWorkbook } from "@/lib/data-sources/importer";
  * data integrity problem regardless of who is signed in.
  *
  * A one-off upload becomes a data source with no URL. It cannot re-sync on a
- * schedule, so `sync_frequency_minutes` is 0 and `is_active` is false. It
- * still appears in the source list, which is where a broker expects to find
- * the file they imported.
+ * schedule, so `is_active` is false and `next_sync_at` is null.
+ *
+ * Values are chosen to satisfy the table's own check constraints, read from
+ * the database rather than assumed:
+ *
+ *   status       pending | syncing | healthy | error | paused | disabled
+ *   source_type  google_sheets | dropbox_excel | website | pdf
+ *
+ * The import is already complete by the time this row is written, so
+ * "healthy" is the accurate state. "pending" would imply a sync yet to run.
  */
 
 export const runtime = "nodejs";
@@ -125,12 +132,24 @@ export async function POST(request: Request) {
         source_type: "pdf",
         source_url: null,
         file_name: file.name,
-        status: "connected",
-        // A one-off upload has no URL to poll, so it never re-syncs.
-        sync_frequency_minutes: 0,
+        /*
+         * data_sources_status_check allows only:
+         *   pending, syncing, healthy, error, paused, disabled
+         *
+         * "connected" is not among them, and that single wrong value is what
+         * failed every import. It was diagnosed twice by inference and twice
+         * wrongly before the constraint was read directly.
+         */
+        status: "healthy",
+        // The column is constrained to 5..1440. An upload has no URL to
+        // poll, so the value is inert; `is_active: false` is what actually
+        // stops it being scheduled.
+        sync_frequency_minutes: 1440,
         is_active: false,
         last_synced_at: syncedAt,
         last_sync_status: "success",
+        // No URL to poll, so nothing to schedule.
+        next_sync_at: null,
         last_sync_message: `Imported from ${file.name}`,
         yacht_count: 0,
         availability_count: 0,
@@ -149,23 +168,23 @@ export async function POST(request: Request) {
       console.error("Could not create data source:", sourceResult.error);
 
       /*
-       * Surface the database's own message. A generic "could not create"
-       * tells the broker nothing and tells whoever is debugging even less:
-       * the useful information is whether a check constraint rejected the
-       * source type, a column is missing, or the write was blocked.
+       * Report what the database actually said.
+       *
+       * An earlier version guessed: any check-constraint violation was
+       * reported as "the database does not accept pdf". The real failure was
+       * a different constraint entirely, and the guess sent the reader off to
+       * apply a migration that was already applied. A wrong diagnosis is
+       * worse than no diagnosis.
        */
-      const detail = sourceResult.error?.message ?? "";
-
-      const isSourceTypeRejected =
-        sourceResult.error?.code === "23514" ||
-        detail.toLowerCase().includes("source_type");
+      const detail =
+        sourceResult.error?.message ??
+        sourceResult.error?.details ??
+        "no detail returned";
 
       return NextResponse.json(
         {
           success: false,
-          error: isSourceTypeRejected
-            ? "The database does not yet accept 'pdf' as a source type. Apply migration 20260823_0012_allow_pdf_source_type.sql and try again."
-            : `Could not create the data source. ${detail}`.trim(),
+          error: `Could not create the data source: ${detail}`,
         },
         { status: 500 }
       );

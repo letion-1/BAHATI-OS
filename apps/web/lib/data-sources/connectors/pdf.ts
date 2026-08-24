@@ -28,8 +28,21 @@ import { pdfGridsToWorkbook } from "../pdf/grid-to-workbook";
 /** Refuse anything larger than this. A fleet calendar is never this big. */
 const MAX_BYTES = 25 * 1024 * 1024;
 
-/** Below this table-likeness score, parsing will not produce useful rows. */
-export const AI_FALLBACK_THRESHOLD = 0.45;
+/**
+ * Below this table-likeness score, no grid is built and the page is sent to
+ * AI extraction.
+ *
+ * Lowered from 0.45 after a partner-network weekly grid scored 0.40 and was
+ * rejected before any parser saw it. That layout is sparse by nature: a wide
+ * page of single-letter status codes fills few of its grid positions, which
+ * is exactly what the fill component of the score measures.
+ *
+ * The cost of being too permissive is small, because a page that reconstructs
+ * badly still produces no yachts and falls through to AI extraction anyway.
+ * The cost of being too strict is a whole layout class never reaching the
+ * parsers.
+ */
+export const AI_FALLBACK_THRESHOLD = 0.3;
 
 export type PdfConnectorResult = WorkbookConnectorResult & {
   pdf: {

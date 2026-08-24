@@ -3,6 +3,9 @@ import type {
 } from "../source-types";
 
 import {
+  blockAndGridParser,
+} from "./block-and-grid";
+import {
   bookingTableParser,
 } from "./booking-table";
 import {
@@ -46,7 +49,8 @@ const parsers:
     bookingTableParser,
     genericYachtTableParser,
     monthlyCalendarParser,
-  ];
+  blockAndGridParser,
+];
 
 export function parseYachtWorkbook(
   workbook:
@@ -102,6 +106,8 @@ export function parseYachtWorkbook(
 
   const attempts: { parserId: string; reason: string }[] = [];
 
+  let yachtsOnlyFallback: ParserResult | null = null;
+
   for (const candidate of candidates) {
     const compatibleDetection: ParserDetection = {
       ...detection,
@@ -141,10 +147,49 @@ export function parseYachtWorkbook(
       continue;
     }
 
+    /*
+     * Availability is the point. A parser that finds yacht names but no
+     * dates has recognised some text, not read the calendar, and accepting
+     * it stops better-matched parsers from ever running.
+     *
+     * That is not hypothetical: on a partner-network weekly grid the generic
+     * table parser returned seven yacht names and zero availability rows,
+     * winning ahead of the parser that actually reads that layout.
+     *
+     * So a yachts-only result is held as a fallback and the loop continues.
+     */
+    if (attempt.availability.length === 0) {
+      if (!yachtsOnlyFallback) {
+        yachtsOnlyFallback = attempt;
+      }
+
+      attempts.push({
+        parserId: candidate.id,
+        reason: `${attempt.yachts.length} yachts but no availability`,
+      });
+      continue;
+    }
+
     return {
       ...attempt,
       warnings: [
         ...(attempt.warnings ?? []),
+        ...attempts.map(
+          (failed) => `${failed.parserId}: ${failed.reason}`
+        ),
+      ],
+    };
+  }
+
+  // Nothing produced availability. A yachts-only result is still better than
+  // failing outright: the fleet import succeeds and the broker can connect
+  // the calendar separately.
+  if (yachtsOnlyFallback) {
+    return {
+      ...yachtsOnlyFallback,
+      warnings: [
+        ...(yachtsOnlyFallback.warnings ?? []),
+        "No availability could be read from this file.",
         ...attempts.map(
           (failed) => `${failed.parserId}: ${failed.reason}`
         ),
