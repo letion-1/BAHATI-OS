@@ -40,10 +40,18 @@ type PdfMeta = {
   bestConfidence: number;
 };
 
+type DuplicateSource = {
+  id: string;
+  name: string;
+  importedAt: string | null;
+};
+
 type UploadResult =
   | {
       parsed: true;
       fileName: string | null;
+      /** Set when these exact bytes were already imported for this company. */
+      duplicateOf?: DuplicateSource | null;
       pdf: PdfMeta;
       layout: string;
       detectionConfidence: number;
@@ -353,6 +361,26 @@ export function PdfUpload({
             </div>
           </div>
 
+          {result.duplicateOf ? (
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  Already imported
+                </p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  This file was imported as{" "}
+                  <span className="font-medium text-foreground">
+                    {result.duplicateOf.name}
+                  </span>
+                  . Importing it again would list every yacht in it twice.
+                  Delete that data source first if you meant to replace it.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           <dl className="grid grid-cols-3 gap-3 text-center">
             <Stat label="Yachts" value={String(result.yachtCount)} />
             <Stat
@@ -434,7 +462,13 @@ export function PdfUpload({
             {result.parsed ? "Discard" : "Try another file"}
           </button>
 
-          {result.parsed ? (
+          {/*
+            The button is hidden rather than disabled for a duplicate. A
+            disabled primary action reads as a bug the broker should work
+            around; removing it, with the amber panel above saying why, reads
+            as a decision. The server rejects the request either way.
+          */}
+          {result.parsed && !result.duplicateOf ? (
             <button
               type="button"
               onClick={() => void commit()}

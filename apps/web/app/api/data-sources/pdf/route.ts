@@ -9,8 +9,13 @@ import {
   checkRateLimit,
   rateLimitHeaders,
 } from "@/lib/security/rate-limit";
+import { createClient } from "@/lib/supabase/server";
 import { parsePdfBuffer } from "@/lib/data-sources/connectors/pdf";
 import { parseYachtWorkbook } from "@/lib/data-sources/parsers";
+import {
+  findDuplicateUpload,
+  hashPdfContent,
+} from "@/lib/data-sources/pdf/content-hash";
 
 /**
  * Preview an uploaded PDF. Reads only, writes nothing.
@@ -157,12 +162,24 @@ export async function POST(request: Request) {
       );
     }
 
+    /*
+     * A read, not a write. The preview stays free of side effects; this only
+     * tells the broker what confirming would do, which is the difference
+     * between a warning and a surprise.
+     */
+    const duplicateOf = await findDuplicateUpload({
+      supabase: await createClient(),
+      companyId: workspace.companyId,
+      contentHash: hashPdfContent(data),
+    });
+
     return NextResponse.json(
       {
         success: true,
         data: {
           parsed: true,
           fileName: file.name,
+          duplicateOf,
           pdf: read.pdf,
           layout: parsed.layout,
           detectionConfidence: parsed.confidence,

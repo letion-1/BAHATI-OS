@@ -10,7 +10,12 @@ import {
   rateLimitHeaders,
 } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { parsePdfBuffer } from "@/lib/data-sources/connectors/pdf";
+import {
+  findDuplicateUpload,
+  hashPdfContent,
+} from "@/lib/data-sources/pdf/content-hash";
 import { parseYachtWorkbook } from "@/lib/data-sources/parsers";
 import { importParsedWorkbook } from "@/lib/data-sources/importer";
 
@@ -83,6 +88,33 @@ export async function POST(request: Request) {
     }
 
     const data = new Uint8Array(await file.arrayBuffer());
+
+    /*
+     * Checked here and not only in the preview, because the preview is
+     * advisory and this is the write. Two tabs, a double-click on Add to
+     * fleet, or a replayed request all reach this line without the preview
+     * having said anything.
+     */
+    const contentHash = hashPdfContent(data);
+
+    const duplicateOf = await findDuplicateUpload({
+      supabase: await createClient(),
+      companyId: workspace.companyId,
+      contentHash,
+    });
+
+    if (duplicateOf) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            `This file was already imported as "${duplicateOf.name}". ` +
+            "Delete that data source first if you want to import it again.",
+          duplicateOf,
+        },
+        { status: 409, headers: rateLimitHeaders(limit) }
+      );
+    }
 
     const read = await parsePdfBuffer(data, file.name);
 
@@ -167,6 +199,7 @@ export async function POST(request: Request) {
          */
         configuration: {
           origin: "upload",
+          contentHash,
           pageCount: read.pdf.pageCount,
           layout: parsed.layout,
           detectionConfidence: parsed.confidence,
@@ -243,31 +276,47 @@ export async function POST(request: Request) {
      * happened but the card reports zero, which reads to the broker as a
      * failed import and is indistinguishable from one.
      */
+    /*
+     * Built as a value rather than inlined into the chain below.
+     *
+     * scripts/audit-tenant-isolation.py reads 900 characters forward from
+     * .from() looking for a company_id predicate. Inlining this object pushed
+     * .eq("company_id") past that window and the audit reported an
+     * unscoped service-role write on data_sources. The scoping was present;
+     * the chain was just too long to see it.
+     *
+     * Suppressing that with an audit-ignore would have been the wrong repair.
+     * A tenant-isolation check is only worth having if it is not routinely
+     * silenced, so the chain gets shorter instead.
+     */
+    const importedConfiguration = {
+      origin: "upload",
+      contentHash,
+      pageCount: read.pdf.pageCount,
+      layout: parsed.layout,
+      detectionConfidence: parsed.confidence,
+      last_sync: {
+        success: true,
+        started_at: syncedAt,
+        finished_at: syncedAt,
+        connector_kind: "workbook",
+        summary: {
+          yachtCount: imported.fleet.total,
+          availabilityCount: imported.availability.total,
+          fleetInserted: imported.fleet.inserted,
+          fleetUpdated: imported.fleet.updated,
+          availabilityInserted: imported.availability.inserted,
+        },
+      },
+    };
+
     const countsResult = await admin
       .from("data_sources")
       .update({
         yacht_count: imported.fleet.total,
         availability_count: imported.availability.total,
         updated_at: syncedAt,
-        configuration: {
-          origin: "upload",
-          pageCount: read.pdf.pageCount,
-          layout: parsed.layout,
-          detectionConfidence: parsed.confidence,
-          last_sync: {
-            success: true,
-            started_at: syncedAt,
-            finished_at: syncedAt,
-            connector_kind: "workbook",
-            summary: {
-              yachtCount: imported.fleet.total,
-              availabilityCount: imported.availability.total,
-              fleetInserted: imported.fleet.inserted,
-              fleetUpdated: imported.fleet.updated,
-              availabilityInserted: imported.availability.inserted,
-            },
-          },
-        },
+        configuration: importedConfiguration,
       })
       .eq("id", sourceId)
       .eq("company_id", workspace.companyId)
