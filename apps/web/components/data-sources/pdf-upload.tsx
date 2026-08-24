@@ -170,8 +170,29 @@ export function PdfUpload({
        */
       if (!isUploadResult(payload.data)) {
         console.error("Unexpected PDF preview payload:", payload.data);
+
+        /*
+         * Name the fields that were wrong rather than saying "unexpected".
+         *
+         * The generic message sent us hunting through server logs for a
+         * problem the browser already knew the shape of. If this ever fires
+         * again the message itself should say what was missing.
+         */
+        const received = payload.data as Record<string, unknown> | undefined;
+
+        const problems = [
+          received === undefined || received === null
+            ? "no data"
+            : typeof received.parsed !== "boolean"
+              ? "no parsed flag"
+              : null,
+          received && !received.pdf ? "no pdf details" : null,
+        ].filter(Boolean);
+
         setError(
-          "The server sent back something unexpected. Please try again."
+          `The server sent back an unexpected response (${
+            problems.length > 0 ? problems.join(", ") : "wrong shape"
+          }). Please try again.`
         );
         return;
       }

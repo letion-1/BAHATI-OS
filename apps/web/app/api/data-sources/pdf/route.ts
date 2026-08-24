@@ -9,9 +9,9 @@ import {
   checkRateLimit,
   rateLimitHeaders,
 } from "@/lib/security/rate-limit";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { parsePdfBuffer } from "@/lib/data-sources/connectors/pdf";
+import { parseYachtWorkbook } from "@/lib/data-sources/parsers";
 import {
   findDuplicateUpload,
   hashPdfContent,
@@ -20,44 +20,72 @@ import {
   detectReferenceDocument,
   referenceDocumentMessage,
 } from "@/lib/data-sources/pdf/reference-document";
-import { parseYachtWorkbook } from "@/lib/data-sources/parsers";
-import { importParsedWorkbook } from "@/lib/data-sources/importer";
 
 /**
- * Commit an uploaded PDF to the fleet.
+ * Preview an uploaded PDF. Reads only, writes nothing.
  *
- * The preview endpoint at /api/data-sources/pdf reads a file and returns what
- * it found without writing anything. This one does the write, and it re-parses
- * the file rather than trusting a payload from the browser: a client that can
- * post arbitrary yacht and availability rows straight into the database is a
- * data integrity problem regardless of who is signed in.
+ * This endpoint previously contained a verbatim copy of the commit handler at
+ * /api/data-sources/pdf/commit. Selecting a file therefore created a data
+ * source and imported the fleet before the broker had seen a single row, and
+ * confirming imported it a second time. Two rows for one file, and the preview
+ * step existed in name only.
  *
- * A one-off upload becomes a data source with no URL. It cannot re-sync on a
- * schedule, so `is_active` is false and `next_sync_at` is null.
+ * It also returned the commit response shape ({ sourceId, yachts, availability
+ * }), which the upload component reads as a preview result. `parsed` was
+ * undefined, the component took its "could not parse" branch, and that branch
+ * reads result.pdf.pageCount on an object with no `pdf` key. That threw during
+ * render and took the whole /data-sources page down.
  *
- * Values are chosen to satisfy the table's own check constraints, read from
- * the database rather than assumed:
- *
- *   status       pending | syncing | healthy | error | paused | disabled
- *   source_type  google_sheets | dropbox_excel | website | pdf
- *
- * The import is already complete by the time this row is written, so
- * "healthy" is the accurate state. "pending" would imply a sync yet to run.
+ * So the contract here is narrow and worth stating: this handler touches no
+ * table, and its response is exactly the UploadResult union the component
+ * declares. Nothing reaches the database until the broker confirms.
  */
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const RATE_LIMIT = { limit: 10, windowSeconds: 60 } as const;
+const RATE_LIMIT = { limit: 20, windowSeconds: 60 } as const;
 
 const MAX_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Preview rows are for eyeballing, not for storage. Sending an entire season
+ * of a large fleet back to the browser to render a sample table wastes a
+ * payload the broker will never scroll through.
+ */
+const PREVIEW_ROW_LIMIT = 50;
+
+/**
+ * The client renders three numbers from `pdf`: the page count, how many pages
+ * were scans, and how many had no readable table. It never touches the rest.
+ *
+ * `read.pdf` also carries `plainText`, which is every text item on every page.
+ * On a 54-page season calendar that is 198KB of prose shipped to the browser
+ * so it can draw "54". It exists for the reference-document check, which runs
+ * on the server, and has no business crossing the wire.
+ */
+function toPreviewPdf(pdf: {
+  pageCount: number;
+  scannedPages: number[];
+  lowConfidencePages: number[];
+  requiresAiExtraction: boolean;
+  bestConfidence: number;
+}) {
+  return {
+    pageCount: pdf.pageCount,
+    scannedPages: pdf.scannedPages,
+    lowConfidencePages: pdf.lowConfidencePages,
+    requiresAiExtraction: pdf.requiresAiExtraction,
+    bestConfidence: pdf.bestConfidence,
+  };
+}
 
 export async function POST(request: Request) {
   try {
     const workspace = await getCurrentWorkspace();
 
     const limit = checkRateLimit(
-      `pdf:commit:${workspace.companyId}`,
+      `pdf:preview:${workspace.companyId}`,
       RATE_LIMIT
     );
 
@@ -65,7 +93,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Too many imports. Please wait a moment and try again.",
+          error: "Too many uploads. Please wait a moment and try again.",
         },
         { status: 429, headers: rateLimitHeaders(limit) }
       );
@@ -93,60 +121,66 @@ export async function POST(request: Request) {
 
     const data = new Uint8Array(await file.arrayBuffer());
 
-    /*
-     * Checked here and not only in the preview, because the preview is
-     * advisory and this is the write. Two tabs, a double-click on Add to
-     * fleet, or a replayed request all reach this line without the preview
-     * having said anything.
-     */
-    const contentHash = hashPdfContent(data);
-
-    const duplicateOf = await findDuplicateUpload({
-      supabase: await createClient(),
-      companyId: workspace.companyId,
-      contentHash,
-    });
-
-    if (duplicateOf) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            `This file was already imported as "${duplicateOf.name}". ` +
-            "Delete that data source first if you want to import it again.",
-          duplicateOf,
-        },
-        { status: 409, headers: rateLimitHeaders(limit) }
-      );
-    }
-
     const read = await parsePdfBuffer(data, file.name);
 
-    // Enforced here too. The preview hides the button, but the endpoint is
-    // reachable without it.
+    /*
+     * Checked before the AI-extraction branch below, deliberately.
+     *
+     * A reference sheet is prose, so it reconstructs badly and would
+     * otherwise be offered to AI extraction, which is the one path capable of
+     * reading it. That is the wrong outcome: the document asks not to be
+     * treated as a live source, and honouring that is worth more than the
+     * rows it would yield.
+     */
     const reference = detectReferenceDocument(read.pdf.plainText);
 
     if (reference.isReferenceDocument) {
       return NextResponse.json(
         {
-          success: false,
-          error: referenceDocumentMessage(reference),
+          success: true,
+          data: {
+            parsed: false,
+            reason: "reference",
+            pdf: toPreviewPdf(read.pdf),
+            message: referenceDocumentMessage(reference),
+          },
         },
-        { status: 409, headers: rateLimitHeaders(limit) }
+        { status: 200, headers: rateLimitHeaders(limit) }
       );
     }
 
+    /*
+     * A PDF that cannot be read is not an error. It is a result, and the
+     * component has a branch for it. Returning 4xx here would put the file in
+     * the red error box instead of the amber panel, which is the difference
+     * between a dead end and a next step.
+     */
     if (read.pdf.requiresAiExtraction) {
+      const everyPageScanned =
+        read.pdf.scannedPages.length === read.pdf.pageCount &&
+        read.pdf.pageCount > 0;
+
       return NextResponse.json(
         {
-          success: false,
-          error:
-            "Nothing could be read from this PDF, so there is nothing to import.",
+          success: true,
+          data: {
+            parsed: false,
+            reason: everyPageScanned ? "scanned" : "unstructured",
+            pdf: toPreviewPdf(read.pdf),
+            message: everyPageScanned
+              ? "There is no text layer in this file, so it is an image of a calendar rather than a calendar. AI extraction can read it."
+              : "The text in this file is laid out as prose or a designed brochure rather than a table. AI extraction can read it.",
+          },
         },
-        { status: 409 }
+        { status: 200, headers: rateLimitHeaders(limit) }
       );
     }
 
+    /*
+     * parseYachtWorkbook walks every parser and only throws once all of them
+     * have declined, so reaching this catch means no layout matched. Same
+     * reasoning as above: a result, not an error.
+     */
     let parsed;
 
     try {
@@ -154,207 +188,74 @@ export async function POST(request: Request) {
     } catch {
       return NextResponse.json(
         {
-          success: false,
-          error:
-            "This PDF has a table, but not in a layout Bahari OS recognises yet. Nothing was imported.",
+          success: true,
+          data: {
+            parsed: false,
+            reason: "unstructured",
+            pdf: toPreviewPdf(read.pdf),
+            message:
+              "This PDF has a table, but not in a layout Bahari OS recognises yet. AI extraction can read it.",
+          },
         },
-        { status: 409 }
+        { status: 200, headers: rateLimitHeaders(limit) }
       );
     }
 
     if (parsed.yachts.length === 0) {
       return NextResponse.json(
-        { success: false, error: "No yachts were found in this PDF." },
-        { status: 409 }
-      );
-    }
-
-    const admin = createAdminClient();
-    const syncedAt = new Date().toISOString();
-
-    // The source row first, so imported fleet and availability have something
-    // to belong to and the broker can trace any row back to its file.
-    const sourceResult = await admin
-      .from("data_sources")
-      .insert({
-        company_id: workspace.companyId,
-        name: file.name.replace(/\.pdf$/i, ""),
-        source_type: "pdf",
-        source_url: null,
-        file_name: file.name,
-        /*
-         * data_sources_status_check allows only:
-         *   pending, syncing, healthy, error, paused, disabled
-         *
-         * "connected" is not among them, and that single wrong value is what
-         * failed every import. It was diagnosed twice by inference and twice
-         * wrongly before the constraint was read directly.
-         */
-        status: "healthy",
-        // The column is constrained to 5..1440. An upload has no URL to
-        // poll, so the value is inert; `is_active: false` is what actually
-        // stops it being scheduled.
-        sync_frequency_minutes: 1440,
-        is_active: false,
-        last_synced_at: syncedAt,
-        last_sync_status: "success",
-        // No URL to poll, so nothing to schedule.
-        next_sync_at: null,
-        last_sync_message: `Imported from ${file.name}`,
-        yacht_count: 0,
-        availability_count: 0,
-        error_count: 0,
-        /*
-         * The data sources list reads its Imported counts from
-         * configuration.last_sync.summary, not from the yacht_count and
-         * availability_count columns. An upload wrote a flat configuration
-         * with no last_sync key, so getImportCounts fell through to zero on
-         * all three fields and a card whose columns said 40 yachts rendered
-         * "0 links".
-         *
-         * An import is a sync that ran once, so it records itself the same
-         * way a scheduled sync does.
-         */
-        configuration: {
-          origin: "upload",
-          contentHash,
-          pageCount: read.pdf.pageCount,
-          layout: parsed.layout,
-          detectionConfidence: parsed.confidence,
-          last_sync: {
-            success: true,
-            started_at: syncedAt,
-            finished_at: syncedAt,
-            connector_kind: "workbook",
-            summary: {
-              yachtCount: 0,
-              availabilityCount: 0,
-            },
+        {
+          success: true,
+          data: {
+            parsed: false,
+            reason: "unstructured",
+            pdf: toPreviewPdf(read.pdf),
+            message:
+              "A table was read, but no yacht names were found in it. Check the file has a yacht column, or use AI extraction.",
           },
         },
-      })
-      .select("id")
-      .single();
-
-    if (sourceResult.error || !sourceResult.data) {
-      console.error("Could not create data source:", sourceResult.error);
-
-      /*
-       * Report what the database actually said.
-       *
-       * An earlier version guessed: any check-constraint violation was
-       * reported as "the database does not accept pdf". The real failure was
-       * a different constraint entirely, and the guess sent the reader off to
-       * apply a migration that was already applied. A wrong diagnosis is
-       * worse than no diagnosis.
-       */
-      const detail =
-        sourceResult.error?.message ??
-        sourceResult.error?.details ??
-        "no detail returned";
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Could not create the data source: ${detail}`,
-        },
-        { status: 500 }
+        { status: 200, headers: rateLimitHeaders(limit) }
       );
     }
 
-    const sourceId = sourceResult.data.id as string;
-
-    let imported;
-
-    try {
-      imported = await importParsedWorkbook({
-        supabase: admin,
-        companyId: workspace.companyId,
-        sourceId,
-        syncedAt,
-        parsed,
-      });
-    } catch (error) {
-      // Remove the orphan source rather than leave a row claiming an import
-      // that never happened.
-      // company_id as well as id: the admin client bypasses RLS, so scoping
-      // by primary key alone would let a wrong sourceId reach another
-      // company's row.
-      await admin
-        .from("data_sources")
-        .delete()
-        .eq("id", sourceId)
-        .eq("company_id", workspace.companyId);
-
-      throw error;
-    }
-
     /*
-     * Checked rather than fired and forgotten. If this fails the import has
-     * happened but the card reports zero, which reads to the broker as a
-     * failed import and is indistinguishable from one.
+     * A read, not a write. The preview stays free of side effects; this only
+     * tells the broker what confirming would do, which is the difference
+     * between a warning and a surprise.
      */
-    /*
-     * Built as a value rather than inlined into the chain below.
-     *
-     * scripts/audit-tenant-isolation.py reads 900 characters forward from
-     * .from() looking for a company_id predicate. Inlining this object pushed
-     * .eq("company_id") past that window and the audit reported an
-     * unscoped service-role write on data_sources. The scoping was present;
-     * the chain was just too long to see it.
-     *
-     * Suppressing that with an audit-ignore would have been the wrong repair.
-     * A tenant-isolation check is only worth having if it is not routinely
-     * silenced, so the chain gets shorter instead.
-     */
-    const importedConfiguration = {
-      origin: "upload",
-      contentHash,
-      pageCount: read.pdf.pageCount,
-      layout: parsed.layout,
-      detectionConfidence: parsed.confidence,
-      last_sync: {
-        success: true,
-        started_at: syncedAt,
-        finished_at: syncedAt,
-        connector_kind: "workbook",
-        summary: {
-          yachtCount: imported.fleet.total,
-          availabilityCount: imported.availability.total,
-          fleetInserted: imported.fleet.inserted,
-          fleetUpdated: imported.fleet.updated,
-          availabilityInserted: imported.availability.inserted,
-        },
-      },
-    };
-
-    const countsResult = await admin
-      .from("data_sources")
-      .update({
-        yacht_count: imported.fleet.total,
-        availability_count: imported.availability.total,
-        updated_at: syncedAt,
-        configuration: importedConfiguration,
-      })
-      .eq("id", sourceId)
-      .eq("company_id", workspace.companyId)
-      .select("id");
-
-    if (countsResult.error || !countsResult.data?.length) {
-      console.error(
-        "Imported but could not update counts:",
-        countsResult.error
-      );
-    }
+    const duplicateOf = await findDuplicateUpload({
+      supabase: await createClient(),
+      companyId: workspace.companyId,
+      contentHash: hashPdfContent(data),
+    });
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          sourceId,
+          parsed: true,
           fileName: file.name,
-          yachts: imported.fleet,
-          availability: imported.availability,
+          duplicateOf,
+          pdf: toPreviewPdf(read.pdf),
+          layout: parsed.layout,
+          detectionConfidence: parsed.confidence,
+          // Full totals, so the broker sees what the import will actually do
+          // rather than the size of the sample below it.
+          yachtCount: parsed.yachts.length,
+          availabilityCount: parsed.availability.length,
+          yachts: parsed.yachts
+            .slice(0, PREVIEW_ROW_LIMIT)
+            .map((yacht) => ({
+              name: yacht.name,
+              sourceKey: yacht.sourceKey,
+            })),
+          availability: parsed.availability
+            .slice(0, PREVIEW_ROW_LIMIT)
+            .map((window) => ({
+              yachtName: window.yachtName,
+              startDate: window.startDate,
+              endDate: window.endDate,
+              status: window.status,
+            })),
         },
       },
       { status: 200, headers: rateLimitHeaders(limit) }
@@ -374,15 +275,21 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error("PDF import failed:", error);
+    console.error("PDF preview failed:", error);
 
+    /*
+     * Everything above this line is a handled outcome, so anything arriving
+     * here is a genuine fault: a corrupt file, an oversized one, a broken
+     * extraction. parsePdfBuffer's messages are written for brokers, so pass
+     * them through rather than replacing them with something generic.
+     */
     return NextResponse.json(
       {
         success: false,
         error:
           error instanceof Error
             ? error.message
-            : "Could not import that PDF.",
+            : "Could not read that PDF.",
       },
       { status: 400 }
     );
