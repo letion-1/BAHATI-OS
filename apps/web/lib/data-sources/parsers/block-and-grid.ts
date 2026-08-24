@@ -108,11 +108,38 @@ function sourceKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+/**
+ * A weekly rate, or null.
+ *
+ * Two guards, both learned the hard way. An earlier version stripped every
+ * non-digit from the cell, so "2026-07-25 to 2026-08-01" became the number
+ * 2026072520260801 and the insert died with a numeric field overflow.
+ *
+ *   1. A cell containing a date is never a price.
+ *   2. The result must be within a plausible charter rate. No week costs
+ *      a billion euros, and nothing real costs less than a hundred.
+ */
+const MIN_WEEKLY_RATE = 100;
+const MAX_WEEKLY_RATE = 100_000_000;
+
 function priceFrom(value: string): number | null {
-  const digits = value.replace(/[^\d.]/g, "");
-  if (!digits) return null;
-  const n = Number(digits);
-  return Number.isFinite(n) && n > 0 ? n : null;
+  if (ISO_DATE.test(value) || /\d{4}-\d{2}/.test(value)) {
+    return null;
+  }
+
+  // Thousands separators only; a stray hyphen or slash means it is not a
+  // plain number.
+  const cleaned = value.replace(/[\s,'']/g, "");
+
+  if (!/^[€$£]?\d+(?:\.\d{1,2})?$/.test(cleaned)) {
+    return null;
+  }
+
+  const n = Number(cleaned.replace(/^[€$£]/, ""));
+
+  if (!Number.isFinite(n)) return null;
+
+  return n >= MIN_WEEKLY_RATE && n <= MAX_WEEKLY_RATE ? n : null;
 }
 
 /** Expand "06-13" against a year seen elsewhere on the sheet. */

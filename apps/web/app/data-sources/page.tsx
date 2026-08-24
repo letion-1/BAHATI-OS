@@ -1073,19 +1073,32 @@ export default function DataSourcesPage() {
                           >
                             Manage
                           </Button>
-                          <Button
-                            type="button"
-                            className="h-10 flex-1 rounded-2xl bg-white px-4 text-zinc-950 hover:opacity-90"
-                            onClick={() => void syncSource(source)}
-                            disabled={syncing || isSyncingAll || deletingIds.has(source.id)}
-                          >
-                            {syncing ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <RefreshCw className="size-4" />
-                            )}
-                            {syncing ? "Syncing" : "Sync now"}
-                          </Button>
+                          {/*
+                            An uploaded file has no URL to poll, so there is
+                            nothing to re-sync. Offering the button anyway
+                            produced "The data source does not have a source
+                            URL" and a Needs attention badge on a source that
+                            had imported perfectly well.
+                          */}
+                          {source.source_url ? (
+                            <Button
+                              type="button"
+                              className="h-10 flex-1 rounded-2xl bg-white px-4 text-zinc-950 hover:opacity-90"
+                              onClick={() => void syncSource(source)}
+                              disabled={syncing || isSyncingAll || deletingIds.has(source.id)}
+                            >
+                              {syncing ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="size-4" />
+                              )}
+                              {syncing ? "Syncing" : "Sync now"}
+                            </Button>
+                          ) : (
+                            <p className="flex-1 self-center text-xs text-muted-foreground">
+                              Uploaded file, nothing to re-sync
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>

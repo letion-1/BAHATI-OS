@@ -9,29 +9,37 @@ import {
   checkRateLimit,
   rateLimitHeaders,
 } from "@/lib/security/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parsePdfBuffer } from "@/lib/data-sources/connectors/pdf";
-import {
-  detectYachtWorkbook,
-  parseYachtWorkbook,
-} from "@/lib/data-sources/parsers";
+import { parseYachtWorkbook } from "@/lib/data-sources/parsers";
+import { importParsedWorkbook } from "@/lib/data-sources/importer";
 
 /**
- * Direct PDF upload.
+ * Commit an uploaded PDF to the fleet.
  *
- * The URL connector and this route share `parsePdfBuffer`, so a linked PDF
- * and an uploaded one go through an identical pipeline and cannot drift
- * apart in behaviour.
+ * The preview endpoint at /api/data-sources/pdf reads a file and returns what
+ * it found without writing anything. This one does the write, and it re-parses
+ * the file rather than trusting a payload from the browser: a client that can
+ * post arbitrary yacht and availability rows straight into the database is a
+ * data integrity problem regardless of who is signed in.
  *
- * This returns a preview rather than writing to the database. A broker should
- * see what was extracted and confirm it before it touches their fleet, since
- * a misread supplier PDF is worse than no data at all.
+ * A one-off upload becomes a data source with no URL. It cannot re-sync on a
+ * schedule, so `is_active` is false and `next_sync_at` is null.
+ *
+ * Values are chosen to satisfy the table's own check constraints, read from
+ * the database rather than assumed:
+ *
+ *   status       pending | syncing | healthy | error | paused | disabled
+ *   source_type  google_sheets | dropbox_excel | website | pdf
+ *
+ * The import is already complete by the time this row is written, so
+ * "healthy" is the accurate state. "pending" would imply a sync yet to run.
  */
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** PDF parsing is CPU-bound, so cap it per company. */
-const RATE_LIMIT = { limit: 20, windowSeconds: 60 } as const;
+const RATE_LIMIT = { limit: 10, windowSeconds: 60 } as const;
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
@@ -40,7 +48,7 @@ export async function POST(request: Request) {
     const workspace = await getCurrentWorkspace();
 
     const limit = checkRateLimit(
-      `pdf:upload:${workspace.companyId}`,
+      `pdf:commit:${workspace.companyId}`,
       RATE_LIMIT
     );
 
@@ -48,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Too many uploads. Please wait a moment and try again.",
+          error: "Too many imports. Please wait a moment and try again.",
         },
         { status: 429, headers: rateLimitHeaders(limit) }
       );
@@ -76,60 +84,157 @@ export async function POST(request: Request) {
 
     const data = new Uint8Array(await file.arrayBuffer());
 
-    const result = await parsePdfBuffer(data, file.name);
+    const read = await parsePdfBuffer(data, file.name);
 
-    // A PDF with no parseable table is not an error. It is a real and common
-    // case (scans, brochures) that the caller needs to know about so it can
-    // offer AI extraction instead.
-    if (result.pdf.requiresAiExtraction) {
+    if (read.pdf.requiresAiExtraction) {
       return NextResponse.json(
         {
-          success: true,
-          data: {
-            parsed: false,
-            reason:
-              result.pdf.scannedPages.length > 0
-                ? "scanned"
-                : "unstructured",
-            pdf: result.pdf,
-            message:
-              result.pdf.scannedPages.length > 0
-                ? "This PDF has no readable text layer, so it looks like a scan. AI extraction can read it visually."
-                : "This PDF has text but no table Bahari OS could read. AI extraction can interpret it instead.",
-          },
+          success: false,
+          error:
+            "Nothing could be read from this PDF, so there is nothing to import.",
         },
-        { status: 200, headers: rateLimitHeaders(limit) }
+        { status: 409 }
       );
     }
 
-    /*
-     * A grid was reconstructed, but that does not mean any parser understands
-     * its shape. Management companies use per-yacht blocks, partner networks
-     * use week-column grids, and neither matches a flat booking table.
-     *
-     * When no parser can read it, that is the same outcome as a scan or a
-     * brochure: it needs AI extraction. Treating it as an error instead put a
-     * raw internal message in front of the broker.
-     */
-    let detection;
     let parsed;
 
     try {
-      detection = detectYachtWorkbook(result.workbook);
-      parsed = parseYachtWorkbook(result.workbook);
+      parsed = parseYachtWorkbook(read.workbook);
     } catch {
       return NextResponse.json(
         {
-          success: true,
-          data: {
-            parsed: false,
-            reason: "unstructured",
-            pdf: result.pdf,
-            message:
-              "This PDF has a table, but not in a layout Bahari OS recognises yet. AI extraction can interpret it instead.",
-          },
+          success: false,
+          error:
+            "This PDF has a table, but not in a layout Bahari OS recognises yet. Nothing was imported.",
         },
-        { status: 200, headers: rateLimitHeaders(limit) }
+        { status: 409 }
+      );
+    }
+
+    if (parsed.yachts.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No yachts were found in this PDF." },
+        { status: 409 }
+      );
+    }
+
+    const admin = createAdminClient();
+    const syncedAt = new Date().toISOString();
+
+    // The source row first, so imported fleet and availability have something
+    // to belong to and the broker can trace any row back to its file.
+    const sourceResult = await admin
+      .from("data_sources")
+      .insert({
+        company_id: workspace.companyId,
+        name: file.name.replace(/\.pdf$/i, ""),
+        source_type: "pdf",
+        source_url: null,
+        file_name: file.name,
+        /*
+         * data_sources_status_check allows only:
+         *   pending, syncing, healthy, error, paused, disabled
+         *
+         * "connected" is not among them, and that single wrong value is what
+         * failed every import. It was diagnosed twice by inference and twice
+         * wrongly before the constraint was read directly.
+         */
+        status: "healthy",
+        // The column is constrained to 5..1440. An upload has no URL to
+        // poll, so the value is inert; `is_active: false` is what actually
+        // stops it being scheduled.
+        sync_frequency_minutes: 1440,
+        is_active: false,
+        last_synced_at: syncedAt,
+        last_sync_status: "success",
+        // No URL to poll, so nothing to schedule.
+        next_sync_at: null,
+        last_sync_message: `Imported from ${file.name}`,
+        yacht_count: 0,
+        availability_count: 0,
+        error_count: 0,
+        configuration: {
+          origin: "upload",
+          pageCount: read.pdf.pageCount,
+          layout: parsed.layout,
+          detectionConfidence: parsed.confidence,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (sourceResult.error || !sourceResult.data) {
+      console.error("Could not create data source:", sourceResult.error);
+
+      /*
+       * Report what the database actually said.
+       *
+       * An earlier version guessed: any check-constraint violation was
+       * reported as "the database does not accept pdf". The real failure was
+       * a different constraint entirely, and the guess sent the reader off to
+       * apply a migration that was already applied. A wrong diagnosis is
+       * worse than no diagnosis.
+       */
+      const detail =
+        sourceResult.error?.message ??
+        sourceResult.error?.details ??
+        "no detail returned";
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Could not create the data source: ${detail}`,
+        },
+        { status: 500 }
+      );
+    }
+
+    const sourceId = sourceResult.data.id as string;
+
+    let imported;
+
+    try {
+      imported = await importParsedWorkbook({
+        supabase: admin,
+        companyId: workspace.companyId,
+        sourceId,
+        syncedAt,
+        parsed,
+      });
+    } catch (error) {
+      // Remove the orphan source rather than leave a row claiming an import
+      // that never happened.
+      // company_id as well as id: the admin client bypasses RLS, so scoping
+      // by primary key alone would let a wrong sourceId reach another
+      // company's row.
+      await admin
+        .from("data_sources")
+        .delete()
+        .eq("id", sourceId)
+        .eq("company_id", workspace.companyId);
+
+      throw error;
+    }
+
+    // Checked rather than fired and forgotten: if this fails the import has
+    // happened but the source reports zero, which reads to the broker as a
+    // failure and is impossible to distinguish from one.
+    const countsResult = await admin
+      .from("data_sources")
+      .update({
+        yacht_count: imported.fleet.total,
+        availability_count: imported.availability.total,
+        updated_at: syncedAt,
+      })
+      .eq("id", sourceId)
+      .eq("company_id", workspace.companyId)
+      .select("id");
+
+    if (countsResult.error || !countsResult.data?.length) {
+      console.error(
+        "Imported but could not update counts:",
+        countsResult.error
       );
     }
 
@@ -137,17 +242,10 @@ export async function POST(request: Request) {
       {
         success: true,
         data: {
-          parsed: true,
-          fileName: result.fileName,
-          pdf: result.pdf,
-          layout: detection.layout,
-          detectionConfidence: detection.confidence,
-          yachtCount: parsed.yachts.length,
-          availabilityCount: parsed.availability.length,
-          // Enough for the broker to sanity-check before committing, without
-          // shipping the entire extraction over the wire.
-          yachts: parsed.yachts.slice(0, 25),
-          availability: parsed.availability.slice(0, 100),
+          sourceId,
+          fileName: file.name,
+          yachts: imported.fleet,
+          availability: imported.availability,
         },
       },
       { status: 200, headers: rateLimitHeaders(limit) }
@@ -167,17 +265,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Messages from parsePdfBuffer are written for brokers (size limits,
-    // wrong file type, page count) so they are safe and useful to surface.
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Could not read that PDF.";
-
-    console.error("PDF upload failed:", error);
+    console.error("PDF import failed:", error);
 
     return NextResponse.json(
-      { success: false, error: message },
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not import that PDF.",
+      },
       { status: 400 }
     );
   }
