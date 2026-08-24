@@ -25,7 +25,10 @@ import {
 } from "./single-yacht-weekly-calendar";
 
 import type {
+  NormalizedAvailability,
+  NormalizedYacht,
   ParserDetection,
+  ParserLayout,
   ParserResult,
   WorkbookParser,
 } from "./types";
@@ -52,7 +55,72 @@ const parsers:
   blockAndGridParser,
 ];
 
+/**
+ * Parse every sheet, not just the first one.
+ *
+ * Each page of a PDF becomes its own worksheet, and every parser resolves its
+ * target sheet as `workbook.sheets.find(...) ?? workbook.sheets[0]` while its
+ * `detect()` only ever inspects `sheets[0]`. On a single-page file that is
+ * invisible. On a 54-page season calendar it means page one is imported and
+ * the other fifty-three are discarded, silently, behind a green card
+ * reporting a successful sync.
+ *
+ * A 35-yacht test fixture of 1,820 rows imported as one yacht and 32 windows.
+ * The broker has no way to notice: the import succeeds, the card says
+ * healthy, and the fleet is simply missing.
+ *
+ * Rather than rewrite six parsers to be sheet-aware, each sheet is handed to
+ * the existing single-sheet chain on its own and the results are merged. A
+ * page that cannot be read no longer costs the pages that can.
+ */
 export function parseYachtWorkbook(
+  workbook: ParsedWorkbook
+): ParserResult {
+  if (workbook.sheets.length <= 1) {
+    return parseSingleSheet(workbook);
+  }
+
+  const sheetResults: ParserResult[] = [];
+  const sheetFailures: string[] = [];
+
+  for (const sheet of workbook.sheets) {
+    const singleSheetWorkbook: ParsedWorkbook = {
+      kind: "workbook",
+      sheetCount: 1,
+      rowCount: sheet.rowCount,
+      sheetNames: [sheet.name],
+      sheets: [sheet],
+    };
+
+    try {
+      sheetResults.push(parseSingleSheet(singleSheetWorkbook));
+    } catch (error) {
+      /*
+       * Expected, and not fatal. A cover page, a notes page or a page of
+       * terms will fail here while the calendar pages around it parse
+       * perfectly. Only a file where every page fails is a file that could
+       * not be read.
+       */
+      sheetFailures.push(
+        `${sheet.name}: ${
+          error instanceof Error ? error.message : "could not be parsed"
+        }`
+      );
+    }
+  }
+
+  if (sheetResults.length === 0) {
+    throw new Error(
+      `No parser could read any of the ${workbook.sheets.length} pages in ` +
+        "this file. If the availability is laid out as prose or a designed " +
+        "brochure, use AI extraction instead."
+    );
+  }
+
+  return mergeSheetResults(sheetResults, sheetFailures, workbook);
+}
+
+function parseSingleSheet(
   workbook:
     ParsedWorkbook
 ): ParserResult {
@@ -209,6 +277,170 @@ export function parseYachtWorkbook(
       ". If the availability is laid out as prose or a designed brochure, " +
       "use AI extraction instead."
   );
+}
+
+/**
+ * Fold per-sheet results into one.
+ *
+ * The delicate part is yacht identity. Every parser builds its sourceKey from
+ * the sheet name, so M/Y Solaris on page 1 is "…page-1:m-y-solaris" and the
+ * same hull on page 2 is "…page-2:m-y-solaris". Importing both would create
+ * one fleet row per page, which is the duplicate-yacht symptom arriving from
+ * a new direction.
+ *
+ * So yachts are keyed by name across sheets, the first sheet to mention a
+ * yacht owns its sourceKey, and every later reference is rewritten to point
+ * at it.
+ */
+/** Header labels from the parsers' own alias lists, lowercased. */
+const HEADER_WORDS = new Set([
+  "yacht",
+  "yacht name",
+  "boat",
+  "boat name",
+  "vessel",
+  "vessel name",
+  "name",
+]);
+
+function mergeSheetResults(
+  results: ParserResult[],
+  sheetFailures: string[],
+  workbook: ParsedWorkbook
+): ParserResult {
+  const yachtsByName = new Map<string, NormalizedYacht>();
+
+  /** Later sheets' keys mapped onto the canonical key for the same yacht. */
+  const keyRemap = new Map<string, string>();
+
+  for (const result of results) {
+    for (const yacht of result.yachts) {
+      const nameKey = yacht.name.trim().toLowerCase();
+
+      const existing = yachtsByName.get(nameKey);
+
+      if (existing) {
+        keyRemap.set(yacht.sourceKey, existing.sourceKey);
+        continue;
+      }
+
+      yachtsByName.set(nameKey, yacht);
+      keyRemap.set(yacht.sourceKey, yacht.sourceKey);
+    }
+  }
+
+  const availability: NormalizedAvailability[] = [];
+
+  /*
+   * A repeated header row, or a week straddling a page break, can produce the
+   * same window twice. Keyed on what makes a window distinct to a broker
+   * rather than on the parser's own sourceKey, which embeds the page number
+   * and would therefore never collide.
+   */
+  const seenWindows = new Set<string>();
+
+  for (const result of results) {
+    for (const window of result.availability) {
+      const yachtSourceKey =
+        keyRemap.get(window.yachtSourceKey) ?? window.yachtSourceKey;
+
+      const windowKey = [
+        yachtSourceKey,
+        window.startDate ?? "",
+        window.endDate ?? "",
+        window.status,
+      ].join("|");
+
+      if (seenWindows.has(windowKey)) {
+        continue;
+      }
+
+      seenWindows.add(windowKey);
+
+      availability.push({
+        ...window,
+        yachtSourceKey,
+      });
+    }
+  }
+
+  // The layout that read the most pages describes the file better than
+  // whichever one happened to read page one.
+  const layoutCounts = new Map<ParserLayout, number>();
+
+  for (const result of results) {
+    layoutCounts.set(
+      result.layout,
+      (layoutCounts.get(result.layout) ?? 0) + 1
+    );
+  }
+
+  const dominant = [...layoutCounts.entries()].sort(
+    (first, second) => second[1] - first[1]
+  )[0];
+
+  const dominantResult =
+    results.find((result) => result.layout === dominant[0]) ?? results[0];
+
+  /*
+   * Drop a header cell that was read as a yacht.
+   *
+   * Every page of a paginated export repeats its header row. On one page that
+   * row lands where a parser expects data and "Yacht" is imported as a hull,
+   * which then appears in the fleet list and in the match modal as a yacht
+   * with no availability.
+   *
+   * Kept narrow deliberately: the name has to be a bare header word AND the
+   * row has to have produced no windows at all. A fleet list with no dates is
+   * a legitimate import, and a real yacht called "Vessel" would keep its
+   * windows and survive this.
+   */
+  const yachtsWithWindows = new Set(
+    availability.map((window) => window.yachtSourceKey)
+  );
+
+  const yachts = [...yachtsByName.values()].filter((yacht) => {
+    if (yachtsWithWindows.has(yacht.sourceKey)) {
+      return true;
+    }
+
+    return !HEADER_WORDS.has(yacht.name.trim().toLowerCase());
+  });
+
+  const warnings = [
+    ...new Set(results.flatMap((result) => result.warnings ?? [])),
+  ];
+
+  if (sheetFailures.length > 0) {
+    warnings.push(
+      `${sheetFailures.length} of ${workbook.sheets.length} pages could not be read.`,
+      ...sheetFailures.slice(0, 5)
+    );
+  }
+
+  return {
+    parserId: dominantResult.parserId,
+    layout: dominantResult.layout,
+
+    // Averaged across the pages that parsed, so one strong page does not
+    // vouch for a file the parsers mostly struggled with.
+    confidence: Math.round(
+      results.reduce((total, result) => total + result.confidence, 0) /
+        results.length
+    ),
+    yachts,
+    availability,
+    warnings,
+    metadata: {
+      ...dominantResult.metadata,
+      sheetName: null,
+      yachtCount: yachts.length,
+      availabilityCount: availability.length,
+      sheetsParsed: results.length,
+      sheetsTotal: workbook.sheets.length,
+      sheetsFailed: sheetFailures.length,
+    },
+  };
 }
 
 export function detectYachtWorkbook(

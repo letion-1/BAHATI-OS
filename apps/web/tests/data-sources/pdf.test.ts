@@ -6,6 +6,10 @@ import { parsePdfBuffer } from "@/lib/data-sources/connectors/pdf";
 import { extractPdfText } from "@/lib/data-sources/pdf/extract-text";
 import { reconstructGrid } from "@/lib/data-sources/pdf/reconstruct-grid";
 import { detectReferenceDocument } from "@/lib/data-sources/pdf/reference-document";
+import type {
+  ParsedWorkbook,
+  ParsedWorksheet,
+} from "@/lib/data-sources/workbook-parser";
 import {
   detectYachtWorkbook,
   parseYachtWorkbook,
@@ -232,5 +236,108 @@ describe("detectReferenceDocument", () => {
 
   it("allows empty text rather than guessing", () => {
     expect(detectReferenceDocument("").isReferenceDocument).toBe(false);
+  });
+});
+
+describe("multi-page workbooks", () => {
+  function sheet(name: string, rows: string[][]): ParsedWorksheet {
+    const columnCount = Math.max(...rows.map((row) => row.length));
+
+    return {
+      name,
+      range: null,
+      rowCount: rows.length,
+      columnCount,
+      matrix: rows.map((row) => [...row]),
+      cells: rows.flatMap((row, rowIndex) =>
+        row.map((value, columnIndex) => ({
+          row: rowIndex + 1,
+          column: columnIndex + 1,
+          address: `${String.fromCharCode(65 + columnIndex)}${rowIndex + 1}`,
+          value,
+        }))
+      ),
+      merges: [],
+      records: [],
+    };
+  }
+
+  const header = ["Yacht", "Start Date", "End Date", "Status"];
+
+  function workbook(sheets: ParsedWorksheet[]): ParsedWorkbook {
+    return {
+      kind: "workbook" as const,
+      sheetCount: sheets.length,
+      rowCount: sheets.reduce((total, current) => total + current.rowCount, 0),
+      sheetNames: sheets.map((current) => current.name),
+      sheets,
+    };
+  }
+
+  it("reads every page, not only the first", () => {
+    const parsed = parseYachtWorkbook(
+      workbook([
+        sheet("page 1", [
+          header,
+          ["M/Y Alpha", "2027-07-03", "2027-07-10", "Available"],
+        ]),
+        sheet("page 2", [
+          header,
+          ["M/Y Beta", "2027-07-10", "2027-07-17", "Booked"],
+        ]),
+        sheet("page 3", [
+          header,
+          ["M/Y Gamma", "2027-07-17", "2027-07-24", "Available"],
+        ]),
+      ])
+    );
+
+    expect(parsed.yachts.map((yacht) => yacht.name).sort()).toEqual([
+      "M/Y Alpha",
+      "M/Y Beta",
+      "M/Y Gamma",
+    ]);
+
+    expect(parsed.availability).toHaveLength(3);
+  });
+
+  it("gives one yacht one row when it spans pages", () => {
+    const parsed = parseYachtWorkbook(
+      workbook([
+        sheet("page 1", [
+          header,
+          ["M/Y Solaris", "2027-07-03", "2027-07-10", "Available"],
+        ]),
+        sheet("page 2", [
+          header,
+          ["M/Y Solaris", "2027-07-10", "2027-07-17", "Booked"],
+        ]),
+      ])
+    );
+
+    expect(parsed.yachts).toHaveLength(1);
+    expect(parsed.availability).toHaveLength(2);
+
+    // Both windows must point at the surviving yacht, or the import orphans
+    // one of them.
+    const key = parsed.yachts[0].sourceKey;
+    expect(
+      parsed.availability.every((window) => window.yachtSourceKey === key)
+    ).toBe(true);
+  });
+
+  it("keeps the pages it can read when one page fails", () => {
+    const parsed = parseYachtWorkbook(
+      workbook([
+        sheet("cover", [["Season Brochure"], ["Prepared for our partners"]]),
+        sheet("page 1", [
+          header,
+          ["M/Y Delta", "2027-08-07", "2027-08-14", "Available"],
+        ]),
+      ])
+    );
+
+    expect(parsed.yachts).toHaveLength(1);
+    expect(parsed.metadata.sheetsFailed).toBe(1);
   });
 });
