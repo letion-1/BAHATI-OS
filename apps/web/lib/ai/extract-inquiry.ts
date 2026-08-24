@@ -1,5 +1,5 @@
 import { getOpenAIClient } from "@/lib/ai/client";
-import { inquiryExtractionInstructions } from "@/lib/ai/prompts/inquiry";
+import { buildInquiryExtractionInstructions } from "@/lib/ai/prompts/inquiry";
 import {
   inquiryExtractionSchema,
   type ExtractedInquiry,
@@ -47,10 +47,20 @@ export async function extractInquiry(
 
   const client = getOpenAIClient();
 
+  /*
+   * Captured once and used for both the instructions and the user turn.
+   *
+   * Relative dates are the majority of how clients write about timing, and
+   * none of them can be resolved without this. Reading it here rather than
+   * inside the prompt builder also keeps the function testable: a fixed date
+   * in, a deterministic prompt out.
+   */
+  const today = new Date();
+
   const response = await client.responses.create({
     model: process.env.OPENAI_MODEL ?? "gpt-5",
     store: false,
-    instructions: inquiryExtractionInstructions,
+    instructions: buildInquiryExtractionInstructions(today),
     input: [
       {
         role: "user",
@@ -59,7 +69,9 @@ export async function extractInquiry(
             type: "input_text",
             text: [
               "Extract this yacht charter inquiry.",
+              `Today is ${today.toISOString().slice(0, 10)}.`,
               "Resolve shared month and year context inside date ranges.",
+              "Resolve relative months, approximate periods and durations into concrete dates.",
               "",
               cleanedText,
             ].join("\n"),
@@ -95,13 +107,15 @@ export async function extractInquiry(
 
   return normalizeExtractedInquiry(
     extracted,
-    cleanedText
+    cleanedText,
+    today
   );
 }
 
 function normalizeExtractedInquiry(
   extracted: ExtractedInquiry,
-  originalText: string
+  originalText: string,
+  today: Date
 ): ExtractedInquiry {
   const repairedDates = inferSharedDateRange(
     originalText,
@@ -124,8 +138,9 @@ function normalizeExtractedInquiry(
     ),
     start_date: repairedDates.startDate,
     end_date: repairedDates.endDate,
-    guests: normalizePositiveInteger(
-      extracted.guests
+    guests: resolveGuestCount(extracted),
+    guests_min: normalizePositiveInteger(
+      extracted.guests_min
     ),
     budget_min: normalizeNonNegativeNumber(
       extracted.budget_min
@@ -143,6 +158,8 @@ function normalizeExtractedInquiry(
     source:
       cleanText(extracted.source) ??
       "AI import",
+    dates_are_approximate:
+      extracted.dates_are_approximate === true,
     extraction_confidence: 0,
     missing_information: [],
     suggested_question: null,
@@ -179,6 +196,41 @@ function normalizeExtractedInquiry(
     ];
   }
 
+  /*
+   * A charter cannot start in the past.
+   *
+   * The model is told this, but a returned date is still worth checking:
+   * "next July" resolved to this year is the single most likely mistake, and
+   * a start date behind today would be matched against availability that has
+   * already been sold. Dropping it back to null puts the date in front of
+   * the broker as a question instead of as a wrong answer.
+   */
+  if (
+    normalized.start_date &&
+    normalized.start_date < formatDateKey(today)
+  ) {
+    normalized.start_date = null;
+    normalized.end_date = null;
+    normalized.dates_are_approximate = false;
+  }
+
+  /*
+   * The guest range is kept where the broker will actually see it. The form
+   * has one guests field, so "8 to 10 guests" would otherwise be lost between
+   * extraction and the saved inquiry, and the flexibility is worth quoting
+   * against: a 10-berth yacht and an 8-berth yacht are different proposals.
+   */
+  if (
+    normalized.guests_min !== null &&
+    normalized.guests !== null &&
+    normalized.guests_min < normalized.guests
+  ) {
+    normalized.preferences = appendPreference(
+      normalized.preferences,
+      `party of ${normalized.guests_min} to ${normalized.guests}`
+    );
+  }
+
   normalized.missing_information =
     calculateMissingInformation(
       normalized
@@ -196,6 +248,56 @@ function normalizeExtractedInquiry(
     );
 
   return normalized;
+}
+
+/**
+ * The upper bound wins.
+ *
+ * "Around 8 of us, possibly 10" is a capacity statement before it is a
+ * headcount: a yacht that sleeps 8 is not an option if 10 might arrive. The
+ * model is instructed to put the upper bound in `guests`, and this covers the
+ * case where it puts the bounds the other way round anyway.
+ */
+function resolveGuestCount(
+  extracted: ExtractedInquiry
+): number | null {
+  const guests = normalizePositiveInteger(
+    extracted.guests
+  );
+
+  const guestsMin = normalizePositiveInteger(
+    extracted.guests_min
+  );
+
+  if (guests === null) {
+    return guestsMin;
+  }
+
+  if (guestsMin === null) {
+    return guests;
+  }
+
+  return Math.max(guests, guestsMin);
+}
+
+/** Comma-separated, matching how preferences are written everywhere else. */
+function appendPreference(
+  preferences: string | null,
+  addition: string
+): string {
+  if (!preferences) {
+    return addition;
+  }
+
+  if (preferences.toLowerCase().includes(addition.toLowerCase())) {
+    return preferences;
+  }
+
+  return `${preferences}, ${addition}`;
+}
+
+function formatDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 function inferSharedDateRange(
@@ -414,6 +516,16 @@ function buildSuggestedQuestion(
     return "What exact charter dates would you prefer?";
   }
 
+  /*
+   * Asked even though the dates are filled in. They were inferred from a
+   * phrase like "roughly the second week of July", so they are a reading of
+   * the message rather than something the client committed to, and a week is
+   * the one detail worth confirming before availability is held against it.
+   */
+  if (inquiry.dates_are_approximate) {
+    return "We have pencilled in these dates from your message. Can you confirm the exact week you would like?";
+  }
+
   if (!inquiry.guests) {
     return "How many guests will be joining the charter?";
   }
@@ -454,6 +566,12 @@ function calculateConfidence(
 
   if (repairedDateRange) {
     score -= 2;
+  }
+
+  // An inferred week is genuinely less certain than a stated one, and the
+  // confidence badge is what tells the broker how hard to look at the form.
+  if (inquiry.dates_are_approximate) {
+    score -= 10;
   }
 
   return Math.max(
