@@ -5,6 +5,7 @@ import path from "node:path";
 import { parsePdfBuffer } from "@/lib/data-sources/connectors/pdf";
 import { extractPdfText } from "@/lib/data-sources/pdf/extract-text";
 import { reconstructGrid } from "@/lib/data-sources/pdf/reconstruct-grid";
+import { detectReferenceDocument } from "@/lib/data-sources/pdf/reference-document";
 import {
   detectYachtWorkbook,
   parseYachtWorkbook,
@@ -198,5 +199,38 @@ describe("parsePdfBuffer", () => {
     await expect(
       parsePdfBuffer(new TextEncoder().encode("<html>preview page</html>"), null)
     ).rejects.toThrow(/not a PDF/i);
+  });
+});
+describe("detectReferenceDocument", () => {
+  it("declines SOURCE-D, which disclaims itself repeatedly", () => {
+    const result = detectReferenceDocument(
+      "MEDITERRANEAN MARKET REFERENCE Reference listing - not a booking source. " +
+        "This document does not constitute an offer or a bookable calendar. " +
+        "Enquiries should be directed to the appointed central agent."
+    );
+
+    expect(result.isReferenceDocument).toBe(true);
+    expect(result.matchedPhrases.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("allows an availability sheet that names a central agent once", () => {
+    const result = detectReferenceDocument(
+      "M/Y Aurora available 06 June to 13 June. Booked 20 June. " +
+        "Contact the central agent to hold a week."
+    );
+
+    expect(result.isReferenceDocument).toBe(false);
+  });
+
+  it("normalises smart quotes and dashes before matching", () => {
+    const result = detectReferenceDocument(
+      "Reference listing \u2014 not a booking source, and it isn\u2019t an offer."
+    );
+
+    expect(result.isReferenceDocument).toBe(true);
+  });
+
+  it("allows empty text rather than guessing", () => {
+    expect(detectReferenceDocument("").isReferenceDocument).toBe(false);
   });
 });

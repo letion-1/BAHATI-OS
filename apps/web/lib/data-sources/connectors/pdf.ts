@@ -55,6 +55,14 @@ export type PdfConnectorResult = WorkbookConnectorResult & {
     requiresAiExtraction: boolean;
     /** Best table-likeness score across all pages, 0 to 1. */
     bestConfidence: number;
+    /**
+     * Every text item on every page, joined in reading order.
+     *
+     * Exposed so callers can inspect what the document says about itself
+     * before deciding what to do with it. The reference-document check needs
+     * the prose, and the prose is discarded by grid reconstruction.
+     */
+    plainText: string;
   };
 };
 
@@ -121,6 +129,10 @@ export async function parsePdfBuffer(
     fileName,
   });
 
+  const plainText = extraction.pages
+    .map((page) => page.items.map((item) => item.text).join(" "))
+    .join("\n");
+
   return {
     kind: "workbook",
     sourceType: "pdf",
@@ -132,6 +144,7 @@ export async function parsePdfBuffer(
       lowConfidencePages,
       requiresAiExtraction: usableGrids.length === 0,
       bestConfidence,
+      plainText,
     },
   };
 }

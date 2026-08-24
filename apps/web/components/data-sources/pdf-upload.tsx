@@ -62,7 +62,7 @@ type UploadResult =
     }
   | {
       parsed: false;
-      reason: "scanned" | "unstructured";
+      reason: "scanned" | "unstructured" | "reference";
       pdf: PdfMeta;
       message: string;
     };
@@ -322,7 +322,9 @@ export function PdfUpload({
               <p className="text-sm font-medium text-foreground">
                 {result.reason === "scanned"
                   ? "This looks like a scan"
-                  : "No readable table found"}
+                  : result.reason === "reference"
+                    ? "Not a booking source"
+                    : "No readable table found"}
               </p>
               <p className="text-sm leading-6 text-muted-foreground">
                 {result.message}
@@ -330,17 +332,24 @@ export function PdfUpload({
             </div>
           </div>
 
-          <dl className="grid grid-cols-3 gap-3 text-center">
-            <Stat label="Pages" value={String(result.pdf.pageCount)} />
-            <Stat
-              label="Scanned"
-              value={String(result.pdf.scannedPages.length)}
-            />
-            <Stat
-              label="No table"
-              value={String(result.pdf.lowConfidencePages.length)}
-            />
-          </dl>
+          {/*
+            Page and table counts are meaningless for a reference document.
+            Showing "0 scanned, 0 no table" next to a refusal invites the
+            reader to conclude the refusal was a mistake.
+          */}
+          {result.reason === "reference" ? null : (
+            <dl className="grid grid-cols-3 gap-3 text-center">
+              <Stat label="Pages" value={String(result.pdf.pageCount)} />
+              <Stat
+                label="Scanned"
+                value={String(result.pdf.scannedPages.length)}
+              />
+              <Stat
+                label="No table"
+                value={String(result.pdf.lowConfidencePages.length)}
+              />
+            </dl>
+          )}
 
         </div>
       ) : null}
