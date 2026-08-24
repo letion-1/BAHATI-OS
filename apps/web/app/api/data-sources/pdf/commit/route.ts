@@ -154,11 +154,32 @@ export async function POST(request: Request) {
         yacht_count: 0,
         availability_count: 0,
         error_count: 0,
+        /*
+         * The data sources list reads its Imported counts from
+         * configuration.last_sync.summary, not from the yacht_count and
+         * availability_count columns. An upload wrote a flat configuration
+         * with no last_sync key, so getImportCounts fell through to zero on
+         * all three fields and a card whose columns said 40 yachts rendered
+         * "0 links".
+         *
+         * An import is a sync that ran once, so it records itself the same
+         * way a scheduled sync does.
+         */
         configuration: {
           origin: "upload",
           pageCount: read.pdf.pageCount,
           layout: parsed.layout,
           detectionConfidence: parsed.confidence,
+          last_sync: {
+            success: true,
+            started_at: syncedAt,
+            finished_at: syncedAt,
+            connector_kind: "workbook",
+            summary: {
+              yachtCount: 0,
+              availabilityCount: 0,
+            },
+          },
         },
       })
       .select("id")
@@ -217,15 +238,47 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    await admin
+    /*
+     * Checked rather than fired and forgotten. If this fails the import has
+     * happened but the card reports zero, which reads to the broker as a
+     * failed import and is indistinguishable from one.
+     */
+    const countsResult = await admin
       .from("data_sources")
       .update({
         yacht_count: imported.fleet.total,
         availability_count: imported.availability.total,
         updated_at: syncedAt,
+        configuration: {
+          origin: "upload",
+          pageCount: read.pdf.pageCount,
+          layout: parsed.layout,
+          detectionConfidence: parsed.confidence,
+          last_sync: {
+            success: true,
+            started_at: syncedAt,
+            finished_at: syncedAt,
+            connector_kind: "workbook",
+            summary: {
+              yachtCount: imported.fleet.total,
+              availabilityCount: imported.availability.total,
+              fleetInserted: imported.fleet.inserted,
+              fleetUpdated: imported.fleet.updated,
+              availabilityInserted: imported.availability.inserted,
+            },
+          },
+        },
       })
       .eq("id", sourceId)
-      .eq("company_id", workspace.companyId);
+      .eq("company_id", workspace.companyId)
+      .select("id");
+
+    if (countsResult.error || !countsResult.data?.length) {
+      console.error(
+        "Imported but could not update counts:",
+        countsResult.error
+      );
+    }
 
     return NextResponse.json(
       {

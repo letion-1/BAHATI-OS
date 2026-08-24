@@ -88,6 +88,11 @@ type DataSource = {
   sync_frequency_minutes?: number | null;
   next_sync_at?: string | null;
   is_active?: boolean | null;
+  // Written by every import path and returned by select("*"). The card
+  // prefers configuration.last_sync.summary, but falls back to these so a
+  // source that imported before last_sync was recorded still shows its work.
+  yacht_count?: number | null;
+  availability_count?: number | null;
   configuration?: DataSourceConfiguration | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -208,18 +213,35 @@ function getLastSync(
   return lastSync;
 }
 
+/*
+ * Counts come from the last sync summary when there is one, and from the
+ * source's own columns when there is not.
+ *
+ * Reading only the summary is what made an uploaded PDF render "0 links" on a
+ * card whose yacht_count column held a real number: the upload path wrote a
+ * flat configuration with no last_sync key, every field fell through to zero,
+ * and the zero-yachts branch of the card printed the links line instead.
+ */
 function getImportCounts(source: DataSource) {
   const summary = getLastSync(source)?.summary;
 
+  const yachts =
+    typeof summary?.yachtCount === "number"
+      ? summary.yachtCount
+      : typeof source.yacht_count === "number"
+        ? source.yacht_count
+        : 0;
+
+  const availability =
+    typeof summary?.availabilityCount === "number"
+      ? summary.availabilityCount
+      : typeof source.availability_count === "number"
+        ? source.availability_count
+        : 0;
+
   return {
-    yachts:
-      typeof summary?.yachtCount === "number"
-        ? summary.yachtCount
-        : 0,
-    availability:
-      typeof summary?.availabilityCount === "number"
-        ? summary.availabilityCount
-        : 0,
+    yachts,
+    availability,
     links:
       typeof summary?.linkCount === "number"
         ? summary.linkCount
@@ -745,22 +767,49 @@ export default function DataSourcesPage() {
       return;
     }
 
+    /*
+     * An uploaded file has no URL to poll. Sending it to the sync endpoint
+     * anyway means fetchDataSource throws "The data source does not have a
+     * source URL", the row is marked failed, and a PDF that imported
+     * perfectly wears a Needs attention badge until someone deletes it.
+     *
+     * The per-source Sync now button already hides itself for these. Sync all
+     * did not, which is how every upload in the workspace ended up red at
+     * once.
+     */
+    const syncableSources = sources.filter(
+      (source) => Boolean(source.source_url?.trim())
+    );
+
+    if (syncableSources.length === 0) {
+      setPageError("");
+      setSuccessMessage(
+        "Nothing to synchronize. Uploaded files have no source to re-read."
+      );
+      return;
+    }
+
     setIsSyncingAll(true);
     setPageError("");
     setSuccessMessage("");
     setLastSyncResult(null);
 
-    const sourceSnapshot = [...sources];
+    const sourceSnapshot = syncableSources;
 
     setSyncingIds(
       new Set(sourceSnapshot.map((source) => source.id))
     );
 
+    const syncingIdSet = new Set(
+      sourceSnapshot.map((source) => source.id)
+    );
+
     setSources((current) =>
-      current.map((source) => ({
-        ...source,
-        status: "syncing",
-      }))
+      current.map((source) =>
+        syncingIdSet.has(source.id)
+          ? { ...source, status: "syncing" }
+          : source
+      )
     );
 
     const successfulResults = new Map<

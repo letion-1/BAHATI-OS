@@ -61,6 +61,32 @@ type UploadResult =
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
+/**
+ * The result view reads result.pdf on both branches, so `pdf` is the field
+ * that has to exist. Everything else degrades to a missing number rather than
+ * a thrown render.
+ */
+function isUploadResult(value: unknown): value is UploadResult {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  if (typeof candidate.parsed !== "boolean") {
+    return false;
+  }
+
+  const pdf = candidate.pdf as Record<string, unknown> | undefined;
+
+  return (
+    Boolean(pdf) &&
+    typeof pdf?.pageCount === "number" &&
+    Array.isArray(pdf?.scannedPages) &&
+    Array.isArray(pdf?.lowConfidencePages)
+  );
+}
+
 export function PdfUpload({
   onConfirm,
   onClose,
@@ -122,7 +148,27 @@ export function PdfUpload({
         return;
       }
 
-      setResult(payload.data as UploadResult);
+      /*
+       * Validate the shape before it becomes render state.
+       *
+       * Both branches of the result view read result.pdf.pageCount, so a
+       * payload without a `pdf` object throws inside render rather than
+       * inside this handler, and a throw during render takes the whole page
+       * down instead of showing an error box. That is exactly what happened
+       * when this endpoint was returning the commit response shape.
+       *
+       * A malformed response is a bug worth seeing, but the broker should see
+       * it as a failed upload, not as a blank screen.
+       */
+      if (!isUploadResult(payload.data)) {
+        console.error("Unexpected PDF preview payload:", payload.data);
+        setError(
+          "The server sent back something unexpected. Please try again."
+        );
+        return;
+      }
+
+      setResult(payload.data);
     } catch {
       setError("Upload failed. Check your connection and try again.");
     } finally {
