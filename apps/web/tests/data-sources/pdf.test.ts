@@ -341,3 +341,104 @@ describe("multi-page workbooks", () => {
     expect(parsed.metadata.sheetsFailed).toBe(1);
   });
 });
+
+describe("capacity and location columns", () => {
+  function sheet(name: string, rows: string[][]): ParsedWorksheet {
+    return {
+      name,
+      range: null,
+      rowCount: rows.length,
+      columnCount: Math.max(...rows.map((row) => row.length)),
+      matrix: rows.map((row) => [...row]),
+      cells: rows.flatMap((row, rowIndex) =>
+        row.map((value, columnIndex) => ({
+          row: rowIndex + 1,
+          column: columnIndex + 1,
+          address: `${String.fromCharCode(65 + columnIndex)}${rowIndex + 1}`,
+          value,
+        }))
+      ),
+      merges: [],
+      records: [],
+    };
+  }
+
+  function workbook(sheets: ParsedWorksheet[]): ParsedWorkbook {
+    return {
+      kind: "workbook",
+      sheetCount: sheets.length,
+      rowCount: sheets.reduce((total, current) => total + current.rowCount, 0),
+      sheetNames: sheets.map((current) => current.name),
+      sheets,
+    };
+  }
+
+  it("reads guests and cabins from one combined column", () => {
+    const parsed = parseYachtWorkbook(
+      workbook([
+        sheet("s", [
+          ["Yacht", "Start Date", "End Date", "Status", "Location", "Capacity"],
+          [
+            "M/Y Alpha",
+            "2027-07-03",
+            "2027-07-10",
+            "Available",
+            "Split",
+            "5 cabins / 10 guests",
+          ],
+        ]),
+      ])
+    );
+
+    expect(parsed.yachts[0].metadata.guestCapacity).toBe(10);
+    expect(parsed.yachts[0].metadata.cabinCount).toBe(5);
+    expect(parsed.availability[0].metadata.location).toBe("Split");
+  });
+
+  it("collects every port a yacht visits", () => {
+    const parsed = parseYachtWorkbook(
+      workbook([
+        sheet("s", [
+          ["Yacht", "Start Date", "End Date", "Status", "Location"],
+          ["M/Y Beta", "2027-07-03", "2027-07-10", "Available", "Athens"],
+          ["M/Y Beta", "2027-07-10", "2027-07-17", "Available", "Mykonos"],
+          ["M/Y Beta", "2027-07-17", "2027-07-24", "Available", "Athens"],
+        ]),
+      ])
+    );
+
+    expect(parsed.yachts[0].metadata.cruisingRegions).toEqual([
+      "Athens",
+      "Mykonos",
+    ]);
+    expect(parsed.yachts[0].metadata.homePort).toBe("Athens");
+  });
+
+  it("refuses a number it cannot label rather than guessing", () => {
+    // "42" alone under a Capacity header is guests. Under a heading the
+    // parser does not recognise it must not become a capacity at all.
+    const parsed = parseYachtWorkbook(
+      workbook([
+        sheet("s", [
+          ["Yacht", "Start Date", "End Date", "Status", "Length"],
+          ["M/Y Gamma", "2027-07-03", "2027-07-10", "Available", "42"],
+        ]),
+      ])
+    );
+
+    expect(parsed.yachts[0].metadata.guestCapacity).toBeUndefined();
+  });
+
+  it("ignores a capacity that cannot be real", () => {
+    const parsed = parseYachtWorkbook(
+      workbook([
+        sheet("s", [
+          ["Yacht", "Start Date", "End Date", "Status", "Guests"],
+          ["M/Y Delta", "2027-07-03", "2027-07-10", "Available", "980"],
+        ]),
+      ])
+    );
+
+    expect(parsed.yachts[0].metadata.guestCapacity).toBeUndefined();
+  });
+});

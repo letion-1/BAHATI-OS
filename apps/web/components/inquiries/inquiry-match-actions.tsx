@@ -102,6 +102,15 @@ type YachtMatch = {
   score: number;
   reasons: string[];
   warnings: string[];
+  /**
+   * False when the yacht sleeps fewer guests than the inquiry asks for.
+   *
+   * Kept as its own flag rather than left to the score. The capacity penalty
+   * is arithmetic, and a yacht with a strong destination and rate match can
+   * out-score its own shortfall and surface above yachts that actually fit.
+   * A broker scanning the top of the list would never see the warning.
+   */
+  fitsParty: boolean;
 };
 
 type AvailabilityCheckSource =
@@ -1680,6 +1689,19 @@ export function InquiryMatchActions({
                         </p>
                       ) : null}
 
+                      {/*
+                        A capacity shortfall is not the same kind of note as a
+                        rate being slightly over budget, so it does not share
+                        the same line. It is the one warning that changes
+                        whether the yacht can carry the booking at all.
+                      */}
+                      {!match.fitsParty ? (
+                        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+                          <AlertTriangle className="size-3 shrink-0" />
+                          Too small for this party
+                        </p>
+                      ) : null}
+
                       {match.warnings.length > 0 ? (
                         <p className="mt-2 text-xs leading-5 text-amber-800 dark:text-amber-300">
                           {match.warnings
@@ -3121,9 +3143,19 @@ function buildRankedMatches(
         score: score.score,
         reasons: score.reasons,
         warnings: score.warnings,
+        fitsParty: score.fitsParty,
       };
     })
     .sort((left, right) => {
+      /*
+       * Yachts that fit come first, always. Below them the ordinary ranking
+       * still applies, so a broker who wants a near miss finds the best one
+       * at the top of the tail rather than scattered through the list.
+       */
+      if (left.fitsParty !== right.fitsParty) {
+        return left.fitsParty ? -1 : 1;
+      }
+
       if (
         right.score !== left.score
       ) {
@@ -3167,6 +3199,14 @@ function scoreMatch(
 
   const warnings: string[] = [];
 
+  /*
+   * True until a capacity shortfall is proven. A yacht whose capacity is
+   * unknown stays true: an unrecorded number is not evidence the yacht is
+   * too small, and demoting every yacht with a null capacity would bury the
+   * whole fleet whenever a source omits the column.
+   */
+  let fitsParty = true;
+
   const guestCapacity =
     getGuestCapacity(yacht);
 
@@ -3183,8 +3223,9 @@ function scoreMatch(
       );
     } else {
       score -= 120;
+      fitsParty = false;
       warnings.push(
-        `Capacity is ${guestCapacity}, below ${inquiry.guests} guests`
+        `Sleeps ${guestCapacity}, ${inquiry.guests - guestCapacity} short of ${inquiry.guests} guests`
       );
     }
   } else if (
@@ -3327,6 +3368,7 @@ function scoreMatch(
     score,
     reasons,
     warnings,
+    fitsParty,
   };
 }
 

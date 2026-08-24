@@ -75,6 +75,50 @@ const CURRENCY_HEADERS = [
   "curr",
 ];
 
+/*
+ * Columns beyond the six the parser originally read.
+ *
+ * Dropping these was not cosmetic. Without a capacity column guest_capacity
+ * stays null, and scoreMatch guards its guest logic on
+ * `guestCapacity !== null`, so the whole branch is skipped and matching falls
+ * back to dates alone. Without a location column the dashboard's destination
+ * grouping has nothing to group by, because it reads availability.region,
+ * then location, then embarkation_port, and all three are null.
+ *
+ * A 35-yacht fleet across eight countries therefore matched on dates only and
+ * drew an empty map.
+ */
+const LOCATION_HEADERS = [
+  "location",
+  "base",
+  "base port",
+  "home port",
+  "port",
+  "area",
+  "cruising area",
+  "region",
+  "cruising region",
+  "destination",
+];
+
+const CAPACITY_HEADERS = [
+  "capacity",
+  "guests",
+  "guest capacity",
+  "max guests",
+  "pax",
+  "sleeps",
+  "berths",
+];
+
+const CABIN_HEADERS = [
+  "cabins",
+  "cabin count",
+  "staterooms",
+  "no of cabins",
+  "number of cabins",
+];
+
 const NOTES_HEADERS = [
   "notes",
   "note",
@@ -112,6 +156,56 @@ function normalizeHeader(
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Read guests and cabins out of a capacity column.
+ *
+ * Operators write this as one field far more often than two: "5 cabins / 10
+ * guests", "10 guests, 5 cabins", "12 pax". Taking the first number would
+ * report a ten-guest yacht as sleeping five, which for matching is worse than
+ * reporting nothing, because a wrong capacity silently excludes a yacht that
+ * fits or offers one that does not.
+ *
+ * So numbers are only claimed when the word beside them says what they are.
+ * A bare number in a column headed "Guests" is the one safe exception.
+ */
+function parseCapacity(
+  capacityText: string,
+  cabinText: string
+): { guests: number | null; cabins: number | null } {
+  const combined = `${capacityText} ${cabinText}`.toLowerCase();
+
+  const guestMatch = combined.match(
+    /(\d{1,3})\s*(?:guests?|pax|berths?|sleeps)/
+  );
+
+  const cabinMatch = combined.match(
+    /(\d{1,3})\s*(?:cabins?|staterooms?)/
+  );
+
+  let guests = guestMatch ? Number(guestMatch[1]) : null;
+  let cabins = cabinMatch ? Number(cabinMatch[1]) : null;
+
+  // A column of bare numbers, where the header already said what they are.
+  if (guests === null && /^\d{1,3}$/.test(capacityText.trim())) {
+    guests = Number(capacityText.trim());
+  }
+
+  if (cabins === null && /^\d{1,3}$/.test(cabinText.trim())) {
+    cabins = Number(cabinText.trim());
+  }
+
+  // A yacht with 200 guests or 0 cabins is a misread column, not a superyacht.
+  if (guests !== null && (guests < 1 || guests > 100)) {
+    guests = null;
+  }
+
+  if (cabins !== null && (cabins < 1 || cabins > 50)) {
+    cabins = null;
+  }
+
+  return { guests, cabins };
 }
 
 function slugify(value: string): string {
@@ -401,6 +495,24 @@ function parseGenericTable(
       NOTES_HEADERS
     );
 
+  const locationHeader =
+    findHeaderColumn(
+      worksheet,
+      LOCATION_HEADERS
+    );
+
+  const capacityHeader =
+    findHeaderColumn(
+      worksheet,
+      CAPACITY_HEADERS
+    );
+
+  const cabinHeader =
+    findHeaderColumn(
+      worksheet,
+      CABIN_HEADERS
+    );
+
   const yachts:
     NormalizedYacht[] =
       [];
@@ -414,6 +526,16 @@ function parseGenericTable(
       string,
       string
     >();
+
+  /*
+   * A yacht moves. One row says Split, the next says Hvar, the next says
+   * Dubrovnik, and the fleet's cruising regions are the set of all of them
+   * rather than whichever row happened to come first.
+   *
+   * Insertion-ordered, so the first place a yacht appears becomes its home
+   * port, which is the closest thing an availability sheet offers.
+   */
+  const locationsByYacht = new Map<string, Set<string>>();
 
   const headerRow =
     nameHeader.row;
@@ -467,6 +589,25 @@ function parseGenericTable(
             )
           : "";
 
+      /*
+       * Capacity is read from the first row for this yacht. A hull does not
+       * gain cabins mid-season, so repeating the value on every week is the
+       * sheet being tabular, not the yacht changing.
+       */
+      const capacityText =
+        capacityHeader?.row === headerRow
+          ? normalizeText(
+              readValue(worksheet, row, capacityHeader.column)
+            )
+          : "";
+
+      const cabinText =
+        cabinHeader?.row === headerRow
+          ? normalizeText(readValue(worksheet, row, cabinHeader.column))
+          : "";
+
+      const capacity = parseCapacity(capacityText, cabinText);
+
       yachts.push({
         sourceKey:
           yachtSourceKey,
@@ -487,6 +628,18 @@ function parseGenericTable(
           parserId:
             PARSER_ID,
           headerRow,
+
+          /*
+           * Named to match what importFleet looks for: it reads
+           * metadata.guestCapacity then metadata.guests, and metadata.cabinCount
+           * then metadata.cabins. A different key here writes a null column.
+           */
+          ...(capacity.guests !== null
+            ? { guestCapacity: capacity.guests }
+            : {}),
+          ...(capacity.cabins !== null
+            ? { cabinCount: capacity.cabins }
+            : {}),
         },
       });
     }
@@ -575,6 +728,21 @@ function parseGenericTable(
           ) || null
         : null;
 
+    const location =
+      locationHeader?.row === headerRow
+        ? normalizeText(
+            readValue(worksheet, row, locationHeader.column)
+          ) || null
+        : null;
+
+    if (location) {
+      const seen =
+        locationsByYacht.get(yachtSourceKey) ?? new Set<string>();
+
+      seen.add(location);
+      locationsByYacht.set(yachtSourceKey, seen);
+    }
+
     availability.push({
       sourceKey: [
         yachtSourceKey,
@@ -615,8 +783,38 @@ function parseGenericTable(
         parserId:
           PARSER_ID,
         headerRow,
+
+        /*
+         * summariseDestinations reads region, then location, then
+         * embarkation_port. Written as `location` rather than `region`
+         * because a sheet's Location column holds a port ("Split", "Bodrum"),
+         * and calling a port a region would put an unmatched label on the
+         * map's coordinate lookup.
+         */
+        ...(location ? { location } : {}),
       },
     });
+  }
+
+  /*
+   * Folded in at the end rather than at first sight, because a yacht's full
+   * set of ports is only known once every row has been read.
+   */
+  for (const yacht of yachts) {
+    const places = locationsByYacht.get(yacht.sourceKey);
+
+    if (!places || places.size === 0) {
+      continue;
+    }
+
+    const ordered = [...places];
+
+    yacht.metadata = {
+      ...yacht.metadata,
+      // importFleet reads cruisingRegions then regions, and homePort then port.
+      cruisingRegions: ordered,
+      homePort: ordered[0],
+    };
   }
 
   if (
