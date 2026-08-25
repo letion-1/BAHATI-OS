@@ -6,6 +6,7 @@ import { parsePdfBuffer } from "@/lib/data-sources/connectors/pdf";
 import { extractPdfText } from "@/lib/data-sources/pdf/extract-text";
 import { reconstructGrid } from "@/lib/data-sources/pdf/reconstruct-grid";
 import { detectReferenceDocument } from "@/lib/data-sources/pdf/reference-document";
+import { resolveRegion } from "@/lib/data-sources/parsers/port-regions";
 import type {
   ParsedWorkbook,
   ParsedWorksheet,
@@ -407,10 +408,15 @@ describe("capacity and location columns", () => {
       ])
     );
 
-    expect(parsed.yachts[0].metadata.cruisingRegions).toEqual([
-      "Athens",
-      "Mykonos",
-    ]);
+    /*
+     * Athens and Mykonos are one cruising ground, not two. A fleet page
+     * listing every port a yacht called at describes an itinerary; the region
+     * answers where the yacht works, which is what a broker filters on.
+     */
+    expect(parsed.yachts[0].metadata.cruisingRegions).toEqual(["Greece"]);
+
+    // The port is still kept, as the closest thing to a home berth the sheet
+    // offers.
     expect(parsed.yachts[0].metadata.homePort).toBe("Athens");
   });
 
@@ -440,5 +446,30 @@ describe("capacity and location columns", () => {
     );
 
     expect(parsed.yachts[0].metadata.guestCapacity).toBeUndefined();
+  });
+});
+
+describe("resolveRegion", () => {
+  it("maps a port to its charter region", () => {
+    expect(resolveRegion("Split")).toBe("Croatia");
+    expect(resolveRegion("Mykonos")).toBe("Greece");
+    expect(resolveRegion("Porto Cervo")).toBe("Sardinia");
+  });
+
+  it("ignores annotations sheets add to a place", () => {
+    expect(resolveRegion("Trogir (refit)")).toBe("Croatia");
+    expect(resolveRegion("Athens, Greece")).toBe("Greece");
+    expect(resolveRegion("Split - berth 4")).toBe("Croatia");
+  });
+
+  it("passes a region through when the sheet already wrote one", () => {
+    expect(resolveRegion("Croatia")).toBe("Croatia");
+  });
+
+  it("returns null rather than guessing at an unknown place", () => {
+    // An unresolved place still reaches the dashboard as a location. Forcing
+    // a region would put the yacht on the wrong part of the map.
+    expect(resolveRegion("Wherever Bay")).toBeNull();
+    expect(resolveRegion(null)).toBeNull();
   });
 });

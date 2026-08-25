@@ -1,3 +1,4 @@
+import { resolveRegion } from "./port-regions";
 import type {
   ParsedWorkbook,
   ParsedWorksheet,
@@ -735,6 +736,8 @@ function parseGenericTable(
           ) || null
         : null;
 
+    const regionLabel = resolveRegion(location);
+
     if (location) {
       const seen =
         locationsByYacht.get(yachtSourceKey) ?? new Set<string>();
@@ -792,6 +795,13 @@ function parseGenericTable(
          * map's coordinate lookup.
          */
         ...(location ? { location } : {}),
+
+        /*
+         * The dashboard groups by region and falls back to location. A port
+         * name has no entry in the map's coordinate table, so without this
+         * the location imports but never draws a marker.
+         */
+        ...(regionLabel ? { region: regionLabel } : {}),
       },
     });
   }
@@ -809,10 +819,22 @@ function parseGenericTable(
 
     const ordered = [...places];
 
+    /*
+     * Cruising regions are regions. A fleet page listing "Split, Sibenik,
+     * Hvar, Dubrovnik" is listing one cruising ground four times, which is
+     * noise; "Croatia" is the answer to where the yacht works.
+     *
+     * Ports that resolve to nothing are kept as themselves rather than
+     * dropped, so an unusual base still shows up somewhere.
+     */
+    const regions = [
+      ...new Set(ordered.map((place) => resolveRegion(place) ?? place)),
+    ];
+
     yacht.metadata = {
       ...yacht.metadata,
       // importFleet reads cruisingRegions then regions, and homePort then port.
-      cruisingRegions: ordered,
+      cruisingRegions: regions,
       homePort: ordered[0],
     };
   }
