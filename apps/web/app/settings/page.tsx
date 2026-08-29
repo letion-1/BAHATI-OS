@@ -21,6 +21,7 @@ import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountDeletionPanel } from "@/components/settings/account-deletion-panel";
 
 type Account = {
   id: string;
@@ -379,6 +380,16 @@ export default function SettingsPage() {
               />
             </div>
           </section>
+
+          {/*
+            Last on the page, deliberately. Nothing should sit below the
+            control that erases the workspace, and nobody should meet it on
+            the way to changing their display name.
+          */}
+          <AccountDeletionPanel
+            workspaceName={account.companyName ?? "this workspace"}
+            isOwner={account.membershipRole === "owner"}
+          />
         </>
       ) : null}
     </PageContainer>
