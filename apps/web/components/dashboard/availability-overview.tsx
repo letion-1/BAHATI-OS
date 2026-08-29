@@ -3,20 +3,21 @@
 import { useMemo } from "react";
 import { MapPin } from "lucide-react";
 
+import { AvailabilityGlobe } from "./availability-globe";
+
 /**
- * Availability overview: a Mediterranean map with a marker per charter
- * region, sized by how many yachts are open there, beside a ranked list of
+ * Availability overview: a rotating globe with a marker per charter region,
+ * sized by how many yachts are open there, beside a ranked list of
  * destinations.
  *
- * Built from an inline SVG rather than a mapping library on purpose. A tile
- * map would pull in a dependency, make network requests on every dashboard
- * load, and need an API key. At this size the map is a shape that orients the
- * eye, not something anyone will pan or zoom, so the extra weight buys
- * nothing.
+ * This replaced a hand-drawn SVG of the Mediterranean. That map was six
+ * polygons approximating a coastline, which was fine while every source was
+ * Croatian and stopped being fine the moment a fleet spanned eight regions:
+ * the shapes were too coarse to tell Sardinia from Sicily, and there was
+ * nowhere to put a marker outside the basin.
  *
- * All colour comes from the existing theme tokens, so this follows the
- * brand and switches with light and dark mode rather than hard-coding a
- * palette that would drift from the rest of the product.
+ * The globe is drawn by cobe, roughly five kilobytes of WebGL with no tiles
+ * and no API key, so it costs no network request on dashboard load.
  */
 
 export type DestinationCount = {
@@ -56,83 +57,33 @@ const REGION_COORDINATES: Record<string, { lat: number; lon: number }> = {
   crete: { lat: 35.3, lon: 24.8 },
 };
 
-/** Bounding box of the drawn map, in degrees. */
-const BOUNDS = { minLon: -6, maxLon: 36, minLat: 30, maxLat: 47 };
-
-const VIEW = { width: 420, height: 200 };
-
-function project(lat: number, lon: number) {
-  const x =
-    ((lon - BOUNDS.minLon) / (BOUNDS.maxLon - BOUNDS.minLon)) * VIEW.width;
-
-  // SVG y grows downward, latitude grows upward.
-  const y =
-    ((BOUNDS.maxLat - lat) / (BOUNDS.maxLat - BOUNDS.minLat)) * VIEW.height;
-
-  return { x, y };
-}
-
-/**
- * Simplified Mediterranean landmass. Deliberately low-fidelity: enough for
- * the eye to recognise the basin and place a marker, without the weight of
- * real coastline data.
- */
-const LANDMASS = [
-  // Iberian peninsula
-  "M 0 62 L 34 55 L 58 60 L 74 78 L 66 100 L 40 108 L 12 96 L 0 84 Z",
-  // France and the northern arc
-  "M 58 46 L 96 38 L 122 44 L 132 60 L 116 70 L 88 66 L 66 58 Z",
-  // Italy
-  "M 128 52 L 146 58 L 158 84 L 172 106 L 168 122 L 152 116 L 142 92 L 130 70 Z",
-  // Balkans and Greece
-  "M 176 46 L 214 44 L 236 56 L 248 78 L 236 96 L 214 92 L 196 74 L 180 60 Z",
-  // Turkey
-  "M 250 52 L 310 48 L 348 58 L 356 76 L 320 84 L 276 76 L 252 66 Z",
-  // North Africa
-  "M 0 150 L 80 138 L 170 134 L 260 140 L 340 148 L 420 152 L 420 200 L 0 200 Z",
-];
-
-const ISLANDS = [
-  // Corsica
-  "M 118 76 L 126 74 L 128 88 L 120 92 Z",
-  // Sardinia
-  "M 116 96 L 126 94 L 128 112 L 118 116 Z",
-  // Sicily
-  "M 148 122 L 166 120 L 168 132 L 150 134 Z",
-  // Balearics
-  "M 78 92 L 90 90 L 92 98 L 80 100 Z",
-  // Crete
-  "M 226 130 L 254 128 L 256 136 L 228 138 Z",
-  // Cyprus
-  "M 330 106 L 348 104 L 350 112 L 332 114 Z",
-];
-
 export function AvailabilityOverview({
   destinations,
 }: {
   destinations: DestinationCount[];
 }) {
-  const markers = useMemo(() => {
-    const highest = Math.max(1, ...destinations.map((item) => item.count));
+  const markers = useMemo(
+    () =>
+      destinations
+        .map((item) => {
+          const coordinates = REGION_COORDINATES[item.region.toLowerCase()];
 
-    return destinations
-      .map((item) => {
-        const coordinates = REGION_COORDINATES[item.region.toLowerCase()];
+          if (!coordinates) {
+            return null;
+          }
 
-        if (!coordinates) {
-          return null;
-        }
-
-        const { x, y } = project(coordinates.lat, coordinates.lon);
-
-        // Area, not radius, scales with the count, so a region with twice the
-        // availability looks twice as large rather than four times.
-        const radius = 4 + Math.sqrt(item.count / highest) * 9;
-
-        return { ...item, x, y, radius };
-      })
-      .filter((marker): marker is NonNullable<typeof marker> => marker !== null);
-  }, [destinations]);
+          return {
+            region: item.region,
+            count: item.count,
+            lat: coordinates.lat,
+            lon: coordinates.lon,
+          };
+        })
+        .filter(
+          (marker): marker is NonNullable<typeof marker> => marker !== null
+        ),
+    [destinations]
+  );
 
   const total = destinations.reduce((sum, item) => sum + item.count, 0);
 
@@ -161,61 +112,24 @@ export function AvailabilityOverview({
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-background/40">
-          <svg
-            viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
-            className="h-auto w-full"
-            role="img"
-            aria-label={`Map of the Mediterranean showing availability across ${markers.length} regions`}
-          >
-            {/* Sea */}
-            <rect
-              width={VIEW.width}
-              height={VIEW.height}
-              className="fill-muted/25"
-            />
+        <div className="rounded-2xl border border-border bg-background/40 p-2">
+          <AvailabilityGlobe markers={markers} />
 
-            {LANDMASS.map((path, index) => (
-              <path
-                key={`land-${index}`}
-                d={path}
-                className="fill-muted/70 stroke-border"
-                strokeWidth={0.5}
-              />
-            ))}
-
-            {ISLANDS.map((path, index) => (
-              <path
-                key={`island-${index}`}
-                d={path}
-                className="fill-muted/70 stroke-border"
-                strokeWidth={0.5}
-              />
-            ))}
-
-            {markers.map((marker) => (
-              <g key={marker.region}>
-                {/* Halo, so a marker stays visible against the landmass. */}
-                <circle
-                  cx={marker.x}
-                  cy={marker.y}
-                  r={marker.radius + 4}
-                  className="fill-primary/15"
-                />
-                <circle
-                  cx={marker.x}
-                  cy={marker.y}
-                  r={marker.radius}
-                  className="fill-primary/70 stroke-primary"
-                  strokeWidth={1}
-                />
-                <title>
-                  {marker.region}: {marker.count} open week
-                  {marker.count === 1 ? "" : "s"}
-                </title>
-              </g>
-            ))}
-          </svg>
+          {/*
+            Named here rather than only on the sphere. Marker labels on a
+            rotating globe are unreadable at this size and half of them face
+            away at any moment, so the regions are spelled out underneath and
+            the globe shows only where they are.
+          */}
+          {markers.length > 0 ? (
+            <p className="px-2 pb-1 pt-2 text-center text-[11px] leading-5 text-muted-foreground">
+              {markers
+                .slice(0, 6)
+                .map((marker) => marker.region)
+                .join(" · ")}
+              {markers.length > 6 ? ` and ${markers.length - 6} more` : ""}
+            </p>
+          ) : null}
         </div>
       )}
     </section>

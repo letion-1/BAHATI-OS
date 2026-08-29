@@ -610,9 +610,9 @@ export default function MissionControlPage() {
                   <Link
                     key={item.id}
                     href={`/availability?startDate=${item.startDate}`}
-                    className="group flex items-start justify-between gap-5 py-4 first:pt-0 last:pb-0"
+                    className="group flex items-start justify-between gap-3 py-4 first:pt-0 last:pb-0 sm:gap-5"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-foreground group-hover:underline">
                         {item.yachtName}
                       </p>
@@ -631,8 +631,14 @@ export default function MissionControlPage() {
                       </p>
                     </div>
 
+                    {/*
+                      Rates like "Rate on request" are long enough to force
+                      the row wider than a phone screen when they are not
+                      allowed to wrap, which pushed the value off the edge and
+                      left "€52," visible with the rest cut off.
+                    */}
                     <div className="shrink-0 text-right">
-                      <p className="text-xs font-semibold text-foreground">
+                      <p className="text-xs font-semibold leading-5 text-foreground">
                         {formatRate(
                           item.weeklyRate,
                           item.currency
@@ -673,8 +679,8 @@ export default function MissionControlPage() {
                     key={source.id}
                     className="ui-panel-soft rounded-2xl p-4"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-foreground">
                           {source.name}
                         </p>
@@ -1307,8 +1313,14 @@ function SourceStatusBadge({
           : "border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300";
 
   return (
+    /*
+      `shrink-0` and `whitespace-nowrap` so the badge keeps its shape while
+      the source name beside it truncates. Without them the flex row split the
+      shortfall between both children and the badge wrapped or slid past the
+      card edge, which is how HEALTHY ended up half off the screen.
+    */
     <span
-      className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${style}`}
+      className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${style}`}
     >
       {status}
     </span>
