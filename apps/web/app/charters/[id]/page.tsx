@@ -1903,7 +1903,7 @@ export default function CharterWorkspacePage() {
           </div>
         </section>
 
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[1.2fr_0.8fr]">
           <section
             id="commercial"
             className="ui-panel scroll-mt-28 rounded-[28px] p-5 sm:p-6"

@@ -70,7 +70,18 @@ export function AvailabilityGlobe({
   const rotationRef = useRef(0);
 
   const pointerInteractingRef = useRef<number | null>(null);
-  const pointerMovementRef = useRef(0);
+
+  /*
+   * Two values, not one.
+   *
+   * `target` jumps the moment a finger moves; `current` chases it a fraction
+   * at a time inside the frame loop. Feeding the raw pointer delta straight
+   * into phi is what made dragging feel broken: touch events arrive in
+   * bursts at an irregular cadence, so the sphere lurched between positions
+   * instead of following the finger.
+   */
+  const dragTargetRef = useRef(0);
+  const dragCurrentRef = useRef(0);
 
   const [isDark, setIsDark] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -117,13 +128,36 @@ export function AvailabilityGlobe({
       return;
     }
 
-    let width = canvas.offsetWidth;
+    /*
+     * Guarded against zero.
+     *
+     * offsetWidth is 0 when this effect runs before the browser has laid the
+     * canvas out, which happens on a cold load. cobe then builds its buffers
+     * at 0x0 and every frame throws INVALID_OPERATION: drawArrays: no buffer
+     * is bound to enabled attribute, filling the console and rendering
+     * nothing.
+     *
+     * A sensible default keeps the first frame valid; the resize observer
+     * below corrects it as soon as the real width is known.
+     */
+    let width = canvas.offsetWidth || 320;
 
     const onResize = () => {
-      width = canvas.offsetWidth;
+      width = canvas.offsetWidth || width;
     };
 
     window.addEventListener("resize", onResize);
+
+    /*
+     * A resize listener alone misses the case that causes this: the canvas
+     * getting its width from layout without the window ever resizing.
+     */
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(onResize)
+        : null;
+
+    observer?.observe(canvas);
 
     const palette = isDark ? THEME.dark : THEME.light;
 
@@ -173,8 +207,20 @@ export function AvailabilityGlobe({
           rotationRef.current += 0.0035;
         }
 
+        /*
+         * Exponential smoothing at 0.08 per frame. High enough that the globe
+         * does not lag noticeably behind the finger, low enough to absorb the
+         * uneven gaps between touch events.
+         *
+         * It also gives the release a short glide: `current` is still
+         * catching up when the finger lifts, so the sphere eases to a stop
+         * rather than freezing mid-drag.
+         */
+        dragCurrentRef.current +=
+          (dragTargetRef.current - dragCurrentRef.current) * 0.08;
+
         globe?.update({
-          phi: rotationRef.current + pointerMovementRef.current,
+          phi: rotationRef.current + dragCurrentRef.current,
           width: width * 2,
           height: width * 2,
         });
@@ -194,6 +240,7 @@ export function AvailabilityGlobe({
         cancelAnimationFrame(frame);
         window.clearTimeout(timer);
         window.removeEventListener("resize", onResize);
+        observer?.disconnect();
         globe?.destroy();
       };
     } catch (error) {
@@ -206,6 +253,7 @@ export function AvailabilityGlobe({
       console.error("Globe failed to initialise:", error);
       setFailed(true);
       window.removeEventListener("resize", onResize);
+      observer?.disconnect();
       return;
     }
   }, [markers, isDark, reduceMotion, failed]);
@@ -229,44 +277,55 @@ export function AvailabilityGlobe({
     >
       <canvas
         ref={canvasRef}
-        className="size-full cursor-grab opacity-0 transition-opacity duration-500 contain-layout contain-paint"
+        className="size-full cursor-grab touch-none select-none opacity-0 transition-opacity duration-500 contain-layout contain-paint"
         role="img"
         aria-label={
           markers.length > 0
             ? `Globe showing open availability across ${markers.length} charter regions`
             : "Globe with no availability markers"
         }
+        /*
+         * Pointer events only.
+         *
+         * The first version mixed onPointerDown with onMouseMove and
+         * onTouchMove. On a touch screen the browser fires pointer AND touch
+         * events for the same gesture, so both handlers ran and each computed
+         * a delta from the same origin, doubling the movement and fighting
+         * each other. Pointer events cover mouse, touch and pen on their own.
+         */
         onPointerDown={(event) => {
           pointerInteractingRef.current =
-            event.clientX - pointerMovementRef.current;
+            event.clientX - dragTargetRef.current * 200;
+
+          // Keeps the drag alive if the finger leaves the canvas, which on a
+          // sphere this small happens constantly.
+          event.currentTarget.setPointerCapture(event.pointerId);
           event.currentTarget.style.cursor = "grabbing";
         }}
-        onPointerUp={(event) => {
-          pointerInteractingRef.current = null;
-          event.currentTarget.style.cursor = "grab";
-        }}
-        onPointerOut={(event) => {
-          pointerInteractingRef.current = null;
-          event.currentTarget.style.cursor = "grab";
-        }}
-        onMouseMove={(event) => {
+        onPointerMove={(event) => {
           if (pointerInteractingRef.current === null) {
             return;
           }
 
-          const delta = event.clientX - pointerInteractingRef.current;
+          /*
+           * Divided by the rendered width rather than a constant, so a drag
+           * across the sphere turns it by the same amount on a phone as on a
+           * desktop. The fixed 180 and 220 divisors in the first version made
+           * the same swipe spin much further on a narrow screen.
+           */
+          const size = event.currentTarget.offsetWidth || 320;
 
-          pointerMovementRef.current = delta / 180;
+          dragTargetRef.current =
+            ((event.clientX - pointerInteractingRef.current) / size) * 2.2;
         }}
-        onTouchMove={(event) => {
-          if (pointerInteractingRef.current === null || !event.touches[0]) {
-            return;
-          }
-
-          const delta =
-            event.touches[0].clientX - pointerInteractingRef.current;
-
-          pointerMovementRef.current = delta / 220;
+        onPointerUp={(event) => {
+          pointerInteractingRef.current = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          event.currentTarget.style.cursor = "grab";
+        }}
+        onPointerCancel={(event) => {
+          pointerInteractingRef.current = null;
+          event.currentTarget.style.cursor = "grab";
         }}
       />
     </div>

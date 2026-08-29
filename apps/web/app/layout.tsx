@@ -18,6 +18,32 @@ export const metadata: Metadata = {
 const themeBootScript = `
 (function () {
   try {
+    /*
+     * Client-facing pages are always light.
+     *
+     * The theme is a broker's personal preference stored in their own
+     * localStorage, and it has nothing to do with a charter client opening a
+     * contract link. Letting it apply meant the document a client reads
+     * looked different depending on a setting they cannot see and did not
+     * choose, and a signed brokerage agreement rendered in dark mode reads
+     * as a broken page rather than a deliberate one.
+     *
+     * Decided here, in the boot script, rather than in the page component.
+     * Anywhere later and the dark class is already on <html> for a frame,
+     * which the reader sees as a flash of the wrong theme.
+     */
+    var path = window.location.pathname;
+    var isClientFacing =
+      path.indexOf("/contract-review") === 0 ||
+      path.indexOf("/proposal-review") === 0 ||
+      path.indexOf("/guest") === 0;
+
+    if (isClientFacing) {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.style.colorScheme = "light";
+      return;
+    }
+
     var savedTheme = localStorage.getItem("intrigue-theme");
     var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     var useDark =

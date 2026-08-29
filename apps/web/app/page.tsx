@@ -447,7 +447,21 @@ export default function MissionControlPage() {
         )}
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      {/*
+        [&>*]:min-w-0 on every grid on this page.
+      
+        A grid item defaults to min-width:auto, so an auto-sized track is at
+        least as wide as its widest item's min-content. On a phone the single
+        implicit column therefore grew to 465px inside a 371px container, the
+        panel inherited that width, and the shell's overflow-x-clip cut the
+        overhang off rather than letting it scroll. That is why text ended
+        mid-word with no ellipsis and no way to reach it.
+      
+        Setting the items to min-width:0 lets the track collapse to the
+        container, at which point the wrapping and truncation already in the
+        cards can do their job.
+      */}
+      <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[1.05fr_0.95fr]">
         <DashboardPanel
           eyebrow="Operating model"
           title={
@@ -580,7 +594,7 @@ export default function MissionControlPage() {
         </div>
       </DashboardPanel>
 
-      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[1.1fr_0.9fr]">
         <DashboardPanel
           eyebrow="Availability"
           title={cockpit.availabilityTitle}
@@ -722,7 +736,7 @@ export default function MissionControlPage() {
         and stacked below. The map is two thirds of the width because it is
         the orienting element; the ranked list reads fine narrow.
       */}
-      <section className="grid gap-5 lg:grid-cols-3">
+      <section className="grid gap-5 [&>*]:min-w-0 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <AvailabilityOverview
             destinations={dashboard.destinations ?? []}
@@ -1365,7 +1379,7 @@ function MissionControlSkeleton() {
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-2">
         <div className="h-80 animate-pulse rounded-[26px] bg-muted" />
         <div className="h-80 animate-pulse rounded-[26px] bg-muted" />
       </div>

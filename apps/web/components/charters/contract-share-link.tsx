@@ -195,7 +195,7 @@ export function ContractShareLink({ charterId }: { charterId: string }) {
         <div className="mt-4 space-y-3">
           {freshUrl ? (
             <div className="flex flex-wrap items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background/60 px-3 py-2 text-[11px] text-foreground">
+              <code className="w-full min-w-0 flex-1 truncate rounded-lg border border-border bg-background/60 px-3 py-2 text-[11px] text-foreground sm:w-auto">
                 {freshUrl}
               </code>
 
@@ -240,7 +240,13 @@ export function ContractShareLink({ charterId }: { charterId: string }) {
             </div>
           )}
 
-          <dl className="grid grid-cols-3 gap-2 text-center">
+          {/*
+            One column until there is room for three. At a 390px viewport the
+            card has roughly 300px of usable width, so three boxes get 95px
+            each and "Last opened" plus a date does not fit in that, which is
+            what pushed the row past the screen edge.
+          */}
+          <dl className="grid grid-cols-1 gap-2 text-center sm:grid-cols-3">
             <div className="rounded-lg border border-border px-2 py-2">
               <dt className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
                 Opens

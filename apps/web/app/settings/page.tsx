@@ -208,7 +208,7 @@ export default function SettingsPage() {
         </div>
       ) : account ? (
         <>
-          <section className="grid gap-5 xl:grid-cols-[0.78fr_1.22fr]">
+          <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[0.78fr_1.22fr]">
             <div className="ui-panel rounded-[28px] p-6">
               <SectionHeader
                 eyebrow="Account"
