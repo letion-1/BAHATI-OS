@@ -19,6 +19,21 @@ const PUBLIC_ROUTE_PREFIXES = [
   "/api/public/proposals/",
   "/guest/",
   "/api/public/guest/",
+
+  /*
+   * Contract review, added late and missed here.
+   *
+   * A charter client has no account, so without these entries the proxy
+   * redirected them to /login and the link a broker sent simply did not work
+   * for its only intended audience. That failure was invisible in testing,
+   * because a signed-in broker sails past the redirect and sees the page.
+   *
+   * The token in the URL is the authorisation: it is high-entropy, stored
+   * only as a SHA-256 hash, expires, and can be revoked. The endpoint checks
+   * all of that before returning anything.
+   */
+  "/contract-review/",
+  "/api/public/contracts/",
 ];
 
 function isPublicRoute(

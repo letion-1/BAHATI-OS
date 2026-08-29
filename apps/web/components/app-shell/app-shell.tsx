@@ -173,6 +173,21 @@ function isPublicRoute(
     pathname.startsWith(
       "/proposal-review/"
     ) ||
+    /*
+     * The contract review page was added without being listed here, so it
+     * rendered inside the workspace chrome: a charter client opening the link
+     * saw the brokerage's sidebar, its notification bell, and the name and
+     * role of whichever broker happened to be signed in on that device.
+     *
+     * The page has no auth requirement, so this only shows to someone who is
+     * already signed in. That is exactly the case that matters: a broker
+     * checking their own link sees it framed correctly and concludes the
+     * client does too.
+     */
+    pathname === "/contract-review" ||
+    pathname.startsWith(
+      "/contract-review/"
+    ) ||
     pathname === "/guest" ||
     pathname.startsWith(
       "/guest/"
