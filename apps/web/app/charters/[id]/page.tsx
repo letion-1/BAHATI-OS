@@ -10,6 +10,8 @@ import {
 } from "react";
 import { useParams } from "next/navigation";
 
+import { ContractShareLink } from "@/components/charters/contract-share-link";
+
 type CharterData = {
   id: string;
   proposalId: string;
@@ -2393,6 +2395,13 @@ export default function CharterWorkspacePage() {
                 </Link>
               </div>
             </div>
+
+            {/*
+              Sits above the file list rather than below it. A broker who has
+              just generated an agreement is looking for how to send it, and
+              the answer should not be underneath the thing they already have.
+            */}
+            <ContractShareLink charterId={charterId} />
 
             {documents.length > 0 ? (
               <div className="mt-5 space-y-2">
