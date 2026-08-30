@@ -367,10 +367,19 @@ export async function POST(request: Request) {
           fleetById.get(selected.yachtId)?.name ??
           "Selected yacht";
 
+        /*
+         * The message names the fix, because the most common cause is now an
+         * unclassified data source rather than a deliberate restriction, and
+         * "not permitted" alone gives the broker nowhere to go.
+         */
+        const isMissingProfile = !accessByFleetId.has(selected.yachtId);
+
         return NextResponse.json(
           {
             success: false,
-            error: `${yachtName} is not permitted in a client-facing proposal.`,
+            error: isMissingProfile
+              ? `${yachtName} has no access classification, so it cannot be offered to a client. Set an access type on its data source, then re-sync.`
+              : `${yachtName} is not permitted in a client-facing proposal.`,
           },
           { status: 409 }
         );
@@ -1121,16 +1130,32 @@ function parseProposalYachts(
   );
 }
 
+/**
+ * What a yacht with no access profile is assumed to be.
+ *
+ * This used to return broker_access with client_proposal_permission true,
+ * which meant a missing profile was silently read as permission to sell. No
+ * importer wrote profiles at the time, so that fallback applied to every
+ * imported yacht in the fleet and the check above never rejected anything.
+ *
+ * Importers now write a profile for every yacht, so reaching this function is
+ * an anomaly: a yacht created before that change, or one inserted by hand. The
+ * safe reading of an anomaly is the restrictive one.
+ *
+ * The two ways to be wrong are not symmetrical. Refusing a sellable yacht
+ * shows the broker an error naming the yacht, and they classify its source.
+ * Allowing a reference-only yacht puts a hull the brokerage cannot deliver in
+ * front of a client, and the client discovers it.
+ */
 function defaultBrokerAccess(
   fleetId: string
 ): YachtAccessRow {
   return {
     fleet_id: fleetId,
-    access_type: "broker_access",
+    access_type: "reference",
     calendar_authority: "unknown",
-    booking_model:
-      "owner_approval_required",
-    client_proposal_permission: true,
+    booking_model: "reference_only",
+    client_proposal_permission: false,
   };
 }
 

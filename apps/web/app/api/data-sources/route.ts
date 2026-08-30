@@ -16,11 +16,21 @@ type SourceType =
   | "pdf";
 
 type CreateDataSourceBody = {
+  /** How this brokerage may work the yachts in the feed. Optional. */
+  accessType?: string;
   name?: string;
   sourceType?: SourceType;
   sourceUrl?: string;
   syncFrequencyMinutes?: number;
 };
+
+/** Matches the constraint in migration 0016 and the enums in /api/yacht-access. */
+const SOURCE_ACCESS_TYPES = [
+  "controlled",
+  "managed",
+  "broker_access",
+  "reference",
+];
 
 const ALLOWED_SOURCE_TYPES: SourceType[] = [
   "google_sheets",
@@ -102,6 +112,18 @@ export async function POST(
     const sourceType = body.sourceType;
     const sourceUrl =
       body.sourceUrl?.trim();
+
+    /*
+     * Optional on create, and deliberately not defaulted to something
+     * convenient. An unclassified source imports its yachts as reference-only,
+     * which is visible and correctable; a source guessed as broker_access
+     * would silently make every hull in it sellable.
+     */
+    const accessType =
+      typeof body.accessType === "string" &&
+      SOURCE_ACCESS_TYPES.includes(body.accessType)
+        ? body.accessType
+        : null;
 
     const syncFrequencyMinutes =
       typeof body.syncFrequencyMinutes ===
@@ -264,6 +286,8 @@ export async function POST(
 
         source_url:
           sourceUrl,
+
+        access_type: accessType,
 
         external_reference:
           externalReference,

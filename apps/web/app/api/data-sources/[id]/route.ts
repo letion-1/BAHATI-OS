@@ -26,6 +26,114 @@ type IdRow = {
   id: string;
 };
 
+/** Matches migration 0016's constraint and the enums in /api/yacht-access. */
+const SOURCE_ACCESS_TYPES = [
+  "controlled",
+  "managed",
+  "broker_access",
+  "reference",
+];
+
+/**
+ * Set or change a source's access classification.
+ *
+ * Every yacht imported from the source inherits this, so changing it is a
+ * change to what the brokerage may do with forty hulls at once. The existing
+ * profiles are not rewritten here: they are refreshed on the next sync, which
+ * keeps one code path responsible for writing profiles instead of two that
+ * can drift.
+ *
+ * The response says so, because a broker who changes this expects it to take
+ * effect and would otherwise find the old classification still applying.
+ */
+export async function PATCH(
+  request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    const workspace = await getCurrentWorkspace();
+    const { id } = await context.params;
+
+    const body = (await request.json().catch(() => ({}))) as {
+      accessType?: unknown;
+    };
+
+    const accessType =
+      typeof body.accessType === "string" &&
+      SOURCE_ACCESS_TYPES.includes(body.accessType)
+        ? body.accessType
+        : null;
+
+    /*
+     * Null is a valid value: a broker can un-classify a source they set by
+     * mistake, and the yachts fall back to reference-only on the next sync.
+     * So the check is for a value that was supplied and unrecognised, not for
+     * absence.
+     */
+    if (body.accessType !== undefined && accessType === null) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Access type must be one of: ${SOURCE_ACCESS_TYPES.join(", ")}.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const admin = createAdminClient();
+
+    const { data, error } = await admin
+      .from("data_sources")
+      .update({
+        access_type: accessType,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("company_id", workspace.companyId)
+      .select("id, name, access_type")
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: "Data source not found." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      source: data,
+      message:
+        "Saved. Re-sync or re-upload this source to apply it to yachts already imported.",
+    });
+  } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json(
+        { success: false, error: "You must sign in to continue." },
+        { status: error.status }
+      );
+    }
+
+    if (isWorkspaceAccessError(error)) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.status }
+      );
+    }
+
+    console.error("Could not update the data source:", error);
+
+    return NextResponse.json(
+      { success: false, error: "Could not update the data source." },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   _request: NextRequest,
   context: RouteContext
