@@ -309,7 +309,7 @@ export default function PublicItineraryPage() {
                 key={day.id}
                 className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm"
               >
-                <div className="grid gap-5 border-b border-slate-200 bg-slate-50 p-5 sm:grid-cols-[130px_1fr] sm:p-7">
+                <div className="grid gap-5 [&>*]:min-w-0 border-b border-slate-200 bg-slate-50 p-5 sm:grid-cols-[130px_1fr] sm:p-7">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                       Day {index + 1}
@@ -334,7 +334,7 @@ export default function PublicItineraryPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[1fr_0.82fr]">
+                <div className="grid gap-6 [&>*]:min-w-0 p-5 sm:p-7 lg:grid-cols-[1fr_0.82fr]">
                   <div>
                     {day.summary ? (
                       <p className="text-sm leading-7 text-slate-700">

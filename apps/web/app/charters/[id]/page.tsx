@@ -2322,7 +2322,7 @@ export default function CharterWorkspacePage() {
           </section>
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-2">
+        <div className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-2">
           <section
             id="documents"
             className="ui-panel scroll-mt-28 rounded-[28px] p-5 sm:p-6"
@@ -2526,7 +2526,7 @@ export default function CharterWorkspacePage() {
 
             {showPaymentForm ? (
               <div className="mt-5 rounded-2xl border border-border bg-background/45 p-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-muted-foreground">
                       Type

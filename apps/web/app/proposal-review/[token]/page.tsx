@@ -410,7 +410,7 @@ export default function PublicProposalReviewPage() {
           </p>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid gap-6 [&>*]:min-w-0">
           {data.yachts.map(
             (yacht) => {
               const selected =

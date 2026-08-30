@@ -603,7 +603,7 @@ export default function ConciergeRequestPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[1.35fr_0.65fr]">
           <section className="ui-panel rounded-[28px] p-5 sm:p-6">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">

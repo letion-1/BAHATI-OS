@@ -294,7 +294,7 @@ export default function ChartersPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
           <Metric
             label="Open charters"
             value={String(
@@ -450,7 +450,7 @@ export default function ChartersPage() {
 
         {filtered.length >
         0 ? (
-          <section className="grid gap-4 xl:grid-cols-2">
+          <section className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
             {filtered.map(
               (charter) => (
                 <CharterCard
@@ -578,7 +578,7 @@ function CharterCard({
       </div>
 
       <div className="border-t border-border bg-background/25 p-4 sm:p-5">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-2 lg:grid-cols-5">
           <Readiness
             label="Contract"
             value={formatLabel(

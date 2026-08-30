@@ -160,7 +160,7 @@ export default function NewInquiryPage() {
           title="Client details"
           description="Who the request came from."
         >
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-5 [&>*]:min-w-0 md:grid-cols-2">
             <Field label="Client name" required invalid={invalid("client_name")}>
               <input
                 name="client_name"
@@ -208,7 +208,7 @@ export default function NewInquiryPage() {
           title="Charter requirements"
           description="Anything left blank can be filled in later from the inquiry workspace."
         >
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-5 [&>*]:min-w-0 md:grid-cols-2">
             <Field label="Destination" icon={<MapPin className="size-3.5" />}>
               <input
                 name="destination"

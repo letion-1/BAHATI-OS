@@ -164,7 +164,7 @@ export default function AiCopilotPage() {
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <section className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-[0.8fr_1.2fr]">
           <div className="ui-panel rounded-[24px] p-5 sm:p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
               Ask the workspace

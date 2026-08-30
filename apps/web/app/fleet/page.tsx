@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -275,7 +275,7 @@ export default function FleetPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Yachts"
           value={data.overview.yachtCount}
@@ -309,7 +309,7 @@ export default function FleetPage() {
       </section>
 
       <section className="ui-panel rounded-[24px] p-4 sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_220px_190px_auto]">
+        <div className="grid gap-3 [&>*]:min-w-0 lg:grid-cols-[minmax(280px,1fr)_190px_220px_190px_auto]">
           <label className="relative block">
             <span className="sr-only">Search yachts</span>
             <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-muted-foreground">
@@ -409,7 +409,7 @@ export default function FleetPage() {
             </button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 2xl:grid-cols-3">
             {filteredYachts.map((yacht) => (
               <YachtCard key={yacht.id} yacht={yacht} />
             ))}
@@ -600,7 +600,7 @@ function FleetSkeleton() {
       <div className="animate-pulse space-y-7">
         <div className="h-64 rounded-[30px] bg-muted" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}
@@ -611,7 +611,7 @@ function FleetSkeleton() {
 
         <div className="h-24 rounded-[24px] bg-muted" />
 
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 2xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}

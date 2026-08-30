@@ -187,7 +187,7 @@ export default async function InquiriesPage() {
           }
         />
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Open inquiries"
             value={inquiries.length}
@@ -215,7 +215,7 @@ export default async function InquiriesPage() {
         </section>
 
         <section className="ui-panel rounded-[24px] p-4 sm:p-5">
-          <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_auto]">
+          <div className="grid gap-3 [&>*]:min-w-0 lg:grid-cols-[minmax(280px,1fr)_auto]">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 

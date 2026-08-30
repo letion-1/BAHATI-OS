@@ -792,7 +792,7 @@ export default function ProposalDetailPage() {
             className="mb-6"
           />
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-3">
             {proposalYachts.map((yacht) => {
               const isClientSelected =
                 clientSelection?.proposalYachtId ===
@@ -1027,7 +1027,7 @@ export default function ProposalDetailPage() {
         ) : null}
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={
             multiYacht
@@ -1097,7 +1097,7 @@ export default function ProposalDetailPage() {
         />
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-2">
+      <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-2">
         <Panel
           title="Client information"
           description="Proposal recipient and contact details"
@@ -1207,7 +1207,7 @@ export default function ProposalDetailPage() {
         </Panel>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel
           title="Commercial summary"
           description={
@@ -1217,7 +1217,7 @@ export default function ProposalDetailPage() {
           }
         >
           {multiYacht ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
               {clientSelection ? (
                 <CommercialCard
                   label="Client selected"
@@ -1252,7 +1252,7 @@ export default function ProposalDetailPage() {
               />
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
               <CommercialCard
                 label="Weekly rate"
                 value={formatRate(
@@ -1464,7 +1464,7 @@ function ProposalDetailSkeleton() {
         <div className="h-10 w-40 rounded-xl bg-muted" />
         <div className="h-80 rounded-[30px] bg-muted" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({
             length: 4,
           }).map((_, index) => (
@@ -1475,7 +1475,7 @@ function ProposalDetailSkeleton() {
           ))}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-2">
+        <div className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-2">
           <div className="h-96 rounded-[24px] bg-muted" />
           <div className="h-96 rounded-[24px] bg-muted" />
         </div>

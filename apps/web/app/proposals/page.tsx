@@ -300,7 +300,7 @@ function ProposalsContent() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Total proposals"
           value={data.overview.total}
@@ -338,7 +338,7 @@ function ProposalsContent() {
       </section>
 
       <section className="ui-panel rounded-[24px] p-4 sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_200px_220px_auto]">
+        <div className="grid gap-3 [&>*]:min-w-0 lg:grid-cols-[minmax(280px,1fr)_200px_220px_auto]">
           <label className="relative block">
             <span className="sr-only">
               Search proposals
@@ -462,7 +462,7 @@ function ProposalsContent() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
             {visibleProposals.map(
               (proposal) => (
                 <ProposalCard
@@ -679,7 +679,7 @@ function ProposalsSkeleton() {
       <div className="animate-pulse space-y-7">
         <div className="h-64 rounded-[30px] bg-muted" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
           {Array.from({
             length: 5,
           }).map((_, index) => (
@@ -692,7 +692,7 @@ function ProposalsSkeleton() {
 
         <div className="h-24 rounded-[24px] bg-muted" />
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
           {Array.from({
             length: 4,
           }).map((_, index) => (

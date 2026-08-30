@@ -1264,7 +1264,7 @@ export function InquiryMatchActions({
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
               {matches.map((match, index) => {
                 const yachtChecks =
                   checksByYacht.get(match.yacht.id) ?? [];

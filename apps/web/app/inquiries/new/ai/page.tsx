@@ -295,7 +295,7 @@ export default function AIImportPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
+      <div className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
         <section className="ui-panel overflow-hidden rounded-[26px]">
           <div className="flex items-center justify-between border-b border-border px-6 py-5">
             <div>
@@ -397,7 +397,7 @@ export default function AIImportPage() {
               </div>
 
               <div className="max-h-[calc(100vh-240px)] overflow-y-auto px-6 py-6">
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2">
                   <EditableTextField
                     label="Client name"
                     value={draft.client_name}

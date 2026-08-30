@@ -773,7 +773,7 @@ export default function GuestPreferencePage() {
                     key={day.id}
                     className="overflow-hidden rounded-[24px] border border-slate-200"
                   >
-                    <div className="grid gap-4 bg-slate-50 p-4 sm:grid-cols-[110px_1fr] sm:p-5">
+                    <div className="grid gap-4 [&>*]:min-w-0 bg-slate-50 p-4 sm:grid-cols-[110px_1fr] sm:p-5">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
                           Day {index + 1}
@@ -796,7 +796,7 @@ export default function GuestPreferencePage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[1fr_0.9fr]">
+                    <div className="grid gap-5 [&>*]:min-w-0 p-4 sm:p-5 lg:grid-cols-[1fr_0.9fr]">
                       <div>
                         {day.summary ? (
                           <p className="text-sm leading-6 text-slate-700">
@@ -1169,7 +1169,7 @@ export default function GuestPreferencePage() {
           title="Things you'd like to do"
           description="Choose anything that sounds interesting. Your broker will confirm what is possible for the yacht, location and dates."
         >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-2 lg:grid-cols-3">
             {activityOptions.map(
               (activity) => (
                 <CheckRow
@@ -1222,7 +1222,7 @@ export default function GuestPreferencePage() {
           title="Food & drinks"
           description="Help the yacht team prepare the onboard experience. Only provide information relevant to your charter."
         >
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2">
             <TextArea
               label="Dietary requirements"
               value={
@@ -1291,7 +1291,7 @@ export default function GuestPreferencePage() {
           title="Special occasions"
           description="Birthday, anniversary, proposal or another moment you'd like the broker and crew to help plan."
         >
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2">
             <Field
               label="Occasion"
               value={
@@ -1348,7 +1348,7 @@ export default function GuestPreferencePage() {
           title="Guest preferences"
           description="Share cabin, family, music or accessibility details that can help the yacht team prepare."
         >
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2">
             <TextArea
               label="Cabin preferences"
               value={

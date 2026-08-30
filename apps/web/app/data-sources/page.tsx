@@ -1352,7 +1352,7 @@ export default function DataSourcesPage() {
                 <p className="mt-3 break-all text-sm leading-6 text-foreground/80">{selectedSource.source_url}</p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
                 {[
                   ["Status", syncingIds.has(selectedSource.id) ? "Syncing" : statusLabel(selectedSource)],
                   ["Last sync", formatDate(getLastSync(selectedSource)?.finished_at ?? selectedSource.updated_at)],

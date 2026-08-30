@@ -310,7 +310,7 @@ export default function ClientsPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
           <UIStatCard
             label="Total clients"
             value={stats.total}
@@ -338,7 +338,7 @@ export default function ClientsPage() {
         </section>
 
         <section className="ui-panel rounded-[24px] p-5 sm:p-6">
-          <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
+          <div className="grid gap-3 [&>*]:min-w-0 lg:grid-cols-[1fr_220px_auto]">
             <label className="relative">
               <span className="sr-only">Search clients</span>
               <input
@@ -388,7 +388,7 @@ export default function ClientsPage() {
         ) : filteredClients.length === 0 ? (
           <EmptyState onCreate={openCreateModal} />
         ) : (
-          <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          <section className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-2 2xl:grid-cols-3">
             {filteredClients.map((client) => (
               <ClientCard
                 key={client.id}

@@ -307,7 +307,7 @@ export default function DocumentsPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Documents" value={documents.length} />
           <Stat
             label="Proposal PDFs"
@@ -333,7 +333,7 @@ export default function DocumentsPage() {
         </section>
 
         <section className="ui-panel rounded-[24px] p-5 sm:p-6">
-          <div className="grid gap-3 lg:grid-cols-[1fr_260px_auto]">
+          <div className="grid gap-3 [&>*]:min-w-0 lg:grid-cols-[1fr_260px_auto]">
             <input
               value={search}
               onChange={(event) =>
@@ -383,7 +383,7 @@ export default function DocumentsPage() {
             </p>
           </section>
         ) : (
-          <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          <section className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-2 2xl:grid-cols-3">
             {filtered.map((document) => (
               <article
                 key={document.id}

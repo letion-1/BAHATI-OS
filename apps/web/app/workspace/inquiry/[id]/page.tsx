@@ -231,7 +231,7 @@ export default async function InquiryWorkspacePage({
         />
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+      <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
         <div className="space-y-7">
           <section className="ui-panel apple-transition overflow-hidden rounded-[26px] hover:border-ring/20">
             <div className="relative overflow-hidden border-b border-border bg-[linear-gradient(135deg,var(--hero-start),var(--hero-middle),var(--hero-end))] px-5 py-6 sm:px-6">
@@ -328,7 +328,7 @@ export default async function InquiryWorkspacePage({
 
             <div className="ui-panel rounded-[26px] p-5 sm:p-6">
               {preferences.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-3">
                   {preferences.map((preference, index) => (
   <div
     key={`${preference}-${index}`}

@@ -669,14 +669,14 @@ export default function NewProposalPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="grid gap-6 xl:grid-cols-[1fr_420px]"
+          className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-[1fr_420px]"
         >
           <div className="space-y-6">
             <FormPanel
               title="Client information"
               description="Who will receive this proposal?"
             >
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-5 [&>*]:min-w-0 sm:grid-cols-2">
                 <TextField
                   label="Client name"
                   value={form.clientName}
@@ -728,7 +728,7 @@ export default function NewProposalPage() {
               title="Charter period"
               description="These dates apply to every yacht in the client selection."
             >
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-5 [&>*]:min-w-0 sm:grid-cols-2">
                 <TextField
                   label="Start date"
                   value={form.startDate}
@@ -1235,7 +1235,7 @@ function ProposalSkeleton() {
       <div className="mx-auto max-w-[1500px] animate-pulse space-y-7">
         <div className="h-10 w-40 rounded-xl bg-muted" />
         <div className="h-64 rounded-[28px] bg-muted" />
-        <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <div className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-[1fr_420px]">
           <div className="space-y-6">
             <div className="h-72 rounded-2xl bg-muted" />
             <div className="h-96 rounded-2xl bg-muted" />

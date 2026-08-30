@@ -663,7 +663,7 @@ function EmailWorkspace() {
         }
       />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Workspace emails"
           value={overview.total}
@@ -701,7 +701,7 @@ function EmailWorkspace() {
           className="mb-5"
         />
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2">
           <ConnectionCard
             name="Gmail"
             detail={
@@ -854,7 +854,7 @@ function EmailWorkspace() {
               </div>
 
               <div className="space-y-5 p-5 sm:p-6">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       To
@@ -1176,7 +1176,7 @@ function EmailPageSkeleton() {
     <PageContainer contentClassName="space-y-7">
       <div className="h-48 animate-pulse rounded-[28px] border border-border bg-muted/30" />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({
           length: 4,
         }).map((_, index) => (

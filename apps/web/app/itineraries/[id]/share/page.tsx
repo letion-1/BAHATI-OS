@@ -406,7 +406,7 @@ export default function ItinerarySharePage() {
           </div>
         ) : null}
 
-        <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="ui-panel rounded-[28px] p-5 sm:p-6">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Hero image
@@ -548,7 +548,7 @@ export default function ItinerarySharePage() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2">
                   <Info
                     label="Published"
                     value={
@@ -568,7 +568,7 @@ export default function ItinerarySharePage() {
                   />
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-2">
                   <button
                     type="button"
                     disabled={busy}

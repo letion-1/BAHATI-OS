@@ -181,7 +181,7 @@ export default function ClientProfilePage() {
         <div className="contents">
           <div className="h-64 animate-pulse rounded-[28px] bg-accent/60" />
           <div className="h-16 animate-pulse rounded-2xl bg-accent/60" />
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-2">
             <div className="h-96 animate-pulse rounded-2xl bg-accent/60" />
             <div className="h-96 animate-pulse rounded-2xl bg-accent/60" />
           </div>
@@ -255,7 +255,7 @@ export default function ClientProfilePage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
               <HeaderMetric
                 label="Lifetime value"
                 value={formatCurrency(
@@ -306,12 +306,12 @@ export default function ClientProfilePage() {
         </section>
 
         {activeTab === "overview" && (
-          <section className="grid gap-6 xl:grid-cols-2">
+          <section className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-2">
             <Panel
               title="Client profile"
               subtitle="Relationship and preference summary"
             >
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
                 <InfoBlock
                   label="Preferred destination"
                   value={
@@ -411,7 +411,7 @@ export default function ClientProfilePage() {
         )}
 
         {activeTab === "proposals" && (
-          <section className="grid gap-4 lg:grid-cols-2">
+          <section className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-2">
             {proposals.length === 0 ? (
               <div className="lg:col-span-2">
                 <EmptyPanel
@@ -450,7 +450,7 @@ export default function ClientProfilePage() {
         )}
 
         {activeTab === "documents" && (
-          <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          <section className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-2 2xl:grid-cols-3">
             {documents.length === 0 ? (
               <div className="lg:col-span-2 2xl:col-span-3">
                 <EmptyPanel
@@ -498,7 +498,7 @@ export default function ClientProfilePage() {
         )}
 
         {activeTab === "notes" && (
-          <section className="grid gap-6 xl:grid-cols-2">
+          <section className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-2">
             <Panel
               title="Broker notes"
               subtitle="Private relationship context"

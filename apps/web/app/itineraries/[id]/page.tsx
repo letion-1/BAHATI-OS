@@ -668,7 +668,7 @@ export default function ItineraryPlannerPage() {
           </section>
         ) : (
           <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
               <Metric
                 label="Route legs"
                 value={String(
@@ -713,7 +713,7 @@ export default function ItineraryPlannerPage() {
               />
             </section>
 
-            <section className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+            <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[0.8fr_1.2fr]">
               <div className="ui-panel rounded-[28px] p-5 sm:p-6">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Yacht assumptions
@@ -896,7 +896,7 @@ export default function ItineraryPlannerPage() {
 
                 {showLegForm ? (
                   <div className="mt-5 rounded-2xl border border-border bg-background/35 p-4">
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2">
                       <Field
                         label="Charter date"
                         type="date"

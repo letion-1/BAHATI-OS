@@ -153,7 +153,7 @@ export default function ReportsPage() {
         </section>
 
         <section className="ui-panel rounded-[24px] p-5">
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]">
+          <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-[1fr_1fr_auto_auto]">
             <DateField
               label="From"
               value={from}
@@ -193,7 +193,7 @@ export default function ReportsPage() {
         ) : null}
 
         {isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 8 }).map(
               (_, index) => (
                 <div
@@ -205,7 +205,7 @@ export default function ReportsPage() {
           </div>
         ) : (
           <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
               <Metric
                 label="Pipeline value"
                 value={formatCurrency(
@@ -232,7 +232,7 @@ export default function ReportsPage() {
               />
             </section>
 
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
               <SmallMetric
                 label="Total inquiries"
                 value={metrics?.totalInquiries ?? 0}
@@ -269,7 +269,7 @@ export default function ReportsPage() {
               />
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-2">
+            <section className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-2">
               <Panel title="Inquiry pipeline">
                 <Bars
                   items={data?.statusBreakdown ?? []}
@@ -305,7 +305,7 @@ export default function ReportsPage() {
               </Panel>
 
               <Panel title="Commercial summary">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
                   <SmallMetric
                     label="Open opportunities"
                     value={metrics?.openInquiries ?? 0}

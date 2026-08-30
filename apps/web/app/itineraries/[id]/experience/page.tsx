@@ -618,7 +618,7 @@ export default function ItineraryExperiencePage() {
           </section>
         ) : (
           <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
               <Metric
                 label="Days"
                 value={String(
@@ -645,7 +645,7 @@ export default function ItineraryExperiencePage() {
               />
             </section>
 
-            <section className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr]">
+            <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[0.82fr_1.18fr]">
               <div className="space-y-4">
                 <div className="ui-panel rounded-[28px] p-5 sm:p-6">
                   <div className="flex items-end justify-between gap-3">

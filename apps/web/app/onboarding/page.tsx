@@ -1,4 +1,4 @@
-﻿import {
+import {
   Building2,
   Compass,
   ShieldCheck,
@@ -164,7 +164,7 @@ export default async function OnboardingPage({
               </p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-3 lg:w-[360px] lg:grid-cols-1">
+            <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-3 lg:w-[360px] lg:grid-cols-1">
               <HeroPoint
                 icon={Building2}
                 label="Company-aware workflows"

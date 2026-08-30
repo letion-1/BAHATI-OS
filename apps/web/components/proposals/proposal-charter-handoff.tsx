@@ -177,7 +177,7 @@ export function ProposalCharterHandoff({
             : "border-emerald-500/25 bg-emerald-500/[0.07]"
         }`}
       >
-        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="grid gap-5 [&>*]:min-w-0 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex items-start gap-4">
             <div
               className={`flex size-11 shrink-0 items-center justify-center rounded-full text-white ${
@@ -280,7 +280,7 @@ function ConvertedCharterPanel({
 }) {
   return (
     <section className="ui-panel overflow-hidden rounded-[26px]">
-      <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[1fr_auto] xl:items-center">
+      <div className="grid gap-6 [&>*]:min-w-0 p-5 sm:p-6 xl:grid-cols-[1fr_auto] xl:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-cyan-800 dark:text-cyan-200">

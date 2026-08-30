@@ -502,7 +502,7 @@ export default function CharterPortalManagementPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
           <Metric
             label="Portal status"
             value={
@@ -732,7 +732,7 @@ export default function CharterPortalManagementPage() {
           ) : null}
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-4">
+        <section className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-4">
           <PortalArea
             title="Itinerary"
             description="Published day-by-day route, activities and guest-facing overnight details."

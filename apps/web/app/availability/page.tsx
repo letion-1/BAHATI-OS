@@ -576,7 +576,7 @@ export default function AvailabilityPage() {
             onClear={clearFilters}
           />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 2xl:grid-cols-3">
             {groupedYachts.map(({ yacht, windows }) => (
               <AvailabilityYachtCard
                 key={yacht.id}
@@ -872,7 +872,7 @@ function AvailabilitySkeleton() {
       <div className="animate-pulse space-y-7">
         <div className="h-64 rounded-[30px] bg-muted" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}
@@ -884,7 +884,7 @@ function AvailabilitySkeleton() {
         <div className="h-24 rounded-[24px] bg-muted" />
         <div className="h-[520px] rounded-[28px] bg-muted" />
 
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 2xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               key={index}

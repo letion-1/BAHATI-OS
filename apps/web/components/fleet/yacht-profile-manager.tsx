@@ -460,7 +460,7 @@ export function YachtProfileManager({
           className="mb-6"
         />
 
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid gap-6 [&>*]:min-w-0 xl:grid-cols-[0.9fr_1.1fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
               Hero image
@@ -717,7 +717,7 @@ export function YachtProfileManager({
                 </div>
                 <div className="space-y-2">
                   {draft.cabins.map((cabin, index) => (
-                    <div key={index} className="grid gap-2 sm:grid-cols-[1fr_110px_42px]">
+                    <div key={index} className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-[1fr_110px_42px]">
                       <input
                         value={cabin.type}
                         onChange={(event) => {
@@ -812,7 +812,7 @@ function ProfileSummary({ data }: { data: NonNullable<YachtProfilePayload["yacht
   ].filter(([, value]) => value !== null && value !== "");
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
       <SummaryBox title="Description">
         {p.description ? (
           <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/80">{p.description}</p>
@@ -823,7 +823,7 @@ function ProfileSummary({ data }: { data: NonNullable<YachtProfilePayload["yacht
 
       <SummaryBox title="Basic information">
         {basic.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-2">
             {basic.map(([label, value]) => (
               <Metric key={String(label)} label={String(label)} value={String(value)} />
             ))}
@@ -834,7 +834,7 @@ function ProfileSummary({ data }: { data: NonNullable<YachtProfilePayload["yacht
       </SummaryBox>
 
       <SummaryBox title="Accommodation & crew">
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-2">
           <Metric label="Guests" value={p.guestCapacity ?? "Not set"} />
           <Metric label="Guests sleeping" value={p.sleepingGuests ?? "Not set"} />
           <Metric label="Cabins" value={p.cabinCount ?? "Not set"} />
@@ -867,7 +867,7 @@ function ProfileSummary({ data }: { data: NonNullable<YachtProfilePayload["yacht
 
       <div className="xl:col-span-2">
         <SummaryBox title="Standard rates">
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Low season" value={formatRate(p.lowSeasonRate, p.standardRateCurrency)} />
             <Metric label="High season" value={formatRate(p.highSeasonRate, p.standardRateCurrency)} />
             <Metric label="Currency" value={p.standardRateCurrency || "EUR"} />
@@ -883,7 +883,7 @@ function EditorGroup({ title, children }: { title: string; children: ReactNode }
   return (
     <section>
       <h3 className="mb-4 font-semibold text-foreground">{title}</h3>
-      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+      <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">{children}</div>
     </section>
   );
 }

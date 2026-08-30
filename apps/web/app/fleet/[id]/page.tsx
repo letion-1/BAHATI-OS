@@ -321,7 +321,7 @@ export default function YachtDetailPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Availability windows"
           value={yacht.overview.availabilityCount}
@@ -353,12 +353,12 @@ export default function YachtDetailPage() {
         onUpdated={() => void loadYacht(true)}
       />
 
-      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[1.1fr_0.9fr]">
         <DashboardPanel
           title="Commercial overview"
           description="Rates and the next important charter windows"
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
             <DetailCard
               label="Weekly rate"
               value={formatRateRange(
@@ -464,7 +464,7 @@ export default function YachtDetailPage() {
         </DashboardPanel>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+      <section className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-[0.8fr_1.2fr]">
         <DashboardPanel
           title="Connected sources"
           description="Suppliers contributing yacht data"
@@ -753,7 +753,7 @@ function YachtDetailSkeleton() {
         <div className="h-10 w-40 rounded-xl bg-muted" />
         <div className="h-80 rounded-[30px] bg-muted" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
@@ -762,7 +762,7 @@ function YachtDetailSkeleton() {
           ))}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-2">
+        <div className="grid gap-5 [&>*]:min-w-0 xl:grid-cols-2">
           <div className="h-96 rounded-[24px] bg-muted" />
           <div className="h-96 rounded-[24px] bg-muted" />
         </div>

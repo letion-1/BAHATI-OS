@@ -212,7 +212,7 @@ export default function ItinerariesPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
           <Metric
             label="Charters"
             value={summary.charters}

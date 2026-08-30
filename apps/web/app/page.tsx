@@ -432,7 +432,7 @@ export default function MissionControlPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         {cockpit.stats.map(
           (stat) => (
             <StatCard
@@ -475,7 +475,7 @@ export default function MissionControlPage() {
             cockpit.modelExplanation
           }
         >
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2">
             <ModelSignal
               label="Default workflow"
               value={
@@ -582,7 +582,7 @@ export default function MissionControlPage() {
         title={cockpit.priorityTitle}
         description={cockpit.priorityDescription}
       >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
           {cockpit.actions.map(
             (action) => (
               <QuickAction
@@ -760,7 +760,7 @@ export default function MissionControlPage() {
             description="Imports, proposals and other Bahari OS events will appear here."
           />
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 [&>*]:min-w-0 md:grid-cols-2">
             {dashboard.activities
               .slice(0, 6)
               .map((activity) => (
@@ -1368,7 +1368,7 @@ function MissionControlSkeleton() {
     <PageContainer contentClassName="space-y-7">
       <div className="h-64 animate-pulse rounded-[28px] bg-muted" />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({
           length: 4,
         }).map((_, index) => (

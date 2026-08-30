@@ -739,7 +739,7 @@ export default function CharterGuestsPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-5">
           <Metric
             label="Expected"
             value={
@@ -810,7 +810,7 @@ export default function CharterGuestsPage() {
             <EditorSection
               title="Identity"
             >
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 xl:grid-cols-4">
                 <Field
                   label="Full name"
                   value={
@@ -995,7 +995,7 @@ export default function CharterGuestsPage() {
             <EditorSection
               title="Passport readiness"
             >
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-3">
                 <SelectField
                   label="Passport status"
                   value={
@@ -1095,7 +1095,7 @@ export default function CharterGuestsPage() {
             <EditorSection
               title="Arrival"
             >
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 xl:grid-cols-3">
                 <Field
                   label="Airport"
                   value={
@@ -1166,7 +1166,7 @@ export default function CharterGuestsPage() {
             <EditorSection
               title="Departure"
             >
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 xl:grid-cols-3">
                 <Field
                   label="Airport"
                   value={
@@ -1237,7 +1237,7 @@ export default function CharterGuestsPage() {
             <EditorSection
               title="Onboard requirements"
             >
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2">
                 <TextArea
                   label="Dietary requirements"
                   value={
@@ -1286,7 +1286,7 @@ export default function CharterGuestsPage() {
                   }
                 />
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
                   <Field
                     label="Cabin preference"
                     value={

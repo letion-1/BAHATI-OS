@@ -888,7 +888,7 @@ export default function CharterConciergePage() {
           </div>
         ) : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 [&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Active"
             value={stats.active}
@@ -1376,7 +1376,7 @@ function ConciergeTimeline({
             </h3>
           </div>
 
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-3 [&>*]:min-w-0 xl:grid-cols-2">
             {groups.unscheduled.map(
               (item) => (
                 <Link
