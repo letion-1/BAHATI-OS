@@ -24,6 +24,12 @@ import {
 import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
 import { SectionHeader } from "@/components/ui/section-header";
+import {
+  AccessTypeSelect,
+  accessLabel,
+  accessTone,
+  type AccessType,
+} from "@/components/data-sources/access-type-select";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,6 +97,8 @@ type DataSource = {
   // Written by every import path and returned by select("*"). The card
   // prefers configuration.last_sync.summary, but falls back to these so a
   // source that imported before last_sync was recorded still shows its work.
+  /** Default classification inherited by yachts imported from this source. */
+  access_type?: string | null;
   yacht_count?: number | null;
   availability_count?: number | null;
   configuration?: DataSourceConfiguration | null;
@@ -350,6 +358,9 @@ export default function DataSourcesPage() {
    * The modal source is always derived from the latest sources state,
    * preventing it from holding an old "syncing" snapshot.
    */
+  const [savingAccessId, setSavingAccessId] = useState<string | null>(null);
+  const [accessMessage, setAccessMessage] = useState("");
+
   const [selectedSourceId, setSelectedSourceId] = useState<
     string | null
   >(null);
@@ -635,6 +646,53 @@ export default function DataSourcesPage() {
           : source
       )
     );
+  }
+
+  /**
+   * Save a source's default classification.
+   *
+   * The endpoint applies it to yachts already imported from this source,
+   * skipping any a person classified individually, so the change is visible
+   * straight away rather than waiting for a sync that an uploaded file will
+   * never have.
+   */
+  async function saveAccessType(
+    source: DataSource,
+    accessType: AccessType | ""
+  ) {
+    setSavingAccessId(source.id);
+    setAccessMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/data-sources/${encodeURIComponent(source.id)}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            accessType: accessType === "" ? null : accessType,
+          }),
+        }
+      );
+
+      const payload = await response.json();
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? "Could not save.");
+      }
+
+      setAccessMessage(payload.message ?? "Saved.");
+
+      // Reloaded rather than patched into state, because the endpoint also
+      // rewrites yacht profiles and the card's counts come from the server.
+      await loadSources();
+    } catch (caught) {
+      setAccessMessage(
+        caught instanceof Error ? caught.message : "Could not save."
+      );
+    } finally {
+      setSavingAccessId(null);
+    }
   }
 
   async function deleteSource(source: DataSource) {
@@ -1066,11 +1124,34 @@ export default function DataSourcesPage() {
                               )}
                               {displayedLabel}
                             </Badge>
+
+                            {/*
+                              Shown on the card, not only inside Manage.
+                              An unclassified source imports its yachts as
+                              reference-only, so they quietly cannot go in a
+                              proposal. Without this the broker finds out when
+                              a proposal refuses a yacht and nothing explains
+                              why.
+                            */}
+                            <Badge
+                              variant="outline"
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${accessTone(source.access_type)}`}
+                            >
+                              {accessLabel(source.access_type)}
+                            </Badge>
                           </div>
 
                           <p className="mt-1.5 text-sm text-muted-foreground">
                             {sourceTypeLabels[source.source_type]}
                           </p>
+
+                          {!source.access_type ? (
+                            <p className="mt-3 max-w-xl rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-300">
+                              Yachts from this source cannot be offered to
+                              clients until it is classified. Open Manage to
+                              set it.
+                            </p>
+                          ) : null}
 
                           {lastSync?.error ? (
                             <p className="mt-3 max-w-xl rounded-xl border border-red-400/15 bg-red-400/[0.06] px-3 py-2 text-xs text-red-700 dark:text-red-200">
@@ -1350,6 +1431,44 @@ export default function DataSourcesPage() {
               <div className="rounded-[22px] border border-border bg-background/45 p-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/75">Source URL</p>
                 <p className="mt-3 break-all text-sm leading-6 text-foreground/80">{selectedSource.source_url}</p>
+              </div>
+
+              {/*
+                Placed above the sync statistics rather than below them,
+                because this is the setting that decides whether the yachts in
+                this source can be offered to a client at all. Everything else
+                in this panel is reporting.
+              */}
+              <div className="rounded-[22px] border border-border bg-background/45 p-5">
+                <label
+                  htmlFor="source-access-type"
+                  className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/75"
+                >
+                  Yacht access
+                </label>
+
+                <p className="mt-2 mb-3 text-sm leading-6 text-muted-foreground">
+                  How this brokerage can work the yachts in this feed. New
+                  yachts inherit it; yachts you set individually keep their
+                  own.
+                </p>
+
+                <AccessTypeSelect
+                  id="source-access-type"
+                  value={
+                    (selectedSource.access_type as AccessType | null) ?? ""
+                  }
+                  disabled={savingAccessId === selectedSource.id}
+                  onChange={(value) => {
+                    void saveAccessType(selectedSource, value);
+                  }}
+                />
+
+                {accessMessage ? (
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    {accessMessage}
+                  </p>
+                ) : null}
               </div>
 
               <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">

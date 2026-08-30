@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -11,6 +11,7 @@ import {
 
 import { HeroCard } from "@/components/ui/hero-card";
 import { PageContainer } from "@/components/ui/page-container";
+import { AccessTypeSelect } from "@/components/data-sources/access-type-select";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { getYachtPlaceholderMedia } from "@/lib/yachts/placeholder-media";
@@ -68,6 +69,13 @@ type FleetResponse = {
 
     availabilityCount: number;
 
+    access: {
+      accessType: string | null;
+      clientProposalPermission: boolean;
+      /** True when a person set this yacht's access, not its source. */
+      isOverridden: boolean;
+    };
+
     statusCounts: Record<AvailabilityStatus, number>;
   }>;
 
@@ -90,6 +98,19 @@ export default function FleetPage() {
   const [statusFilter, setStatusFilter] =
     useState<YachtStatus | "all">("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+
+  /*
+   * A separate filter rather than a value in the source dropdown, because
+   * "which yachts cannot be offered to a client" cuts across sources and is
+   * the question a broker actually needs answered after a bulk import.
+   */
+  const [accessFilter, setAccessFilter] = useState<
+    "all" | "unclassified" | "overridden"
+  >("all");
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSavingAccess, setIsSavingAccess] = useState(false);
+  const [accessMessage, setAccessMessage] = useState("");
   const [sort, setSort] = useState<SortOption>("name");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -172,10 +193,17 @@ export default function FleetPage() {
         sourceFilter === "all" ||
         yacht.source?.name === sourceFilter;
 
+      const matchesAccess =
+        accessFilter === "all" ||
+        (accessFilter === "unclassified" &&
+          !yacht.access.clientProposalPermission) ||
+        (accessFilter === "overridden" && yacht.access.isOverridden);
+
       return (
         matchesQuery &&
         matchesStatus &&
-        matchesSource
+        matchesSource &&
+        matchesAccess
       );
     });
 
@@ -206,17 +234,73 @@ export default function FleetPage() {
 
       return left.name.localeCompare(right.name);
     });
-  }, [data, query, sort, sourceFilter, statusFilter]);
+  }, [accessFilter, data, query, sort, sourceFilter, statusFilter]);
 
   const hasFilters =
     query.trim().length > 0 ||
     statusFilter !== "all" ||
-    sourceFilter !== "all";
+    sourceFilter !== "all" ||
+    accessFilter !== "all";
+
+  const blockedCount =
+    data?.yachts.filter(
+      (yacht) => !yacht.access.clientProposalPermission
+    ).length ?? 0;
+
+  /**
+   * Apply one access type to every selected yacht.
+   *
+   * Flagged as an override server-side, so the choice survives future syncs
+   * of the source these yachts came from.
+   */
+  async function applyAccess(accessType: string | null) {
+    if (selectedIds.size === 0) {
+      return;
+    }
+
+    setIsSavingAccess(true);
+    setAccessMessage("");
+
+    try {
+      const response = await fetch("/api/yacht-access/bulk", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          accessType === null
+            ? { yachtIds: [...selectedIds], clearOverride: true }
+            : { yachtIds: [...selectedIds], accessType }
+        )
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? "Could not update those yachts.");
+      }
+
+      setAccessMessage(
+        payload.message ??
+          `Updated ${payload.updated ?? selectedIds.size} yachts.`
+      );
+
+      setSelectedIds(new Set());
+      await loadFleet(true);
+    } catch (caught) {
+      setAccessMessage(
+        caught instanceof Error
+          ? caught.message
+          : "Could not update those yachts."
+      );
+    } finally {
+      setIsSavingAccess(false);
+    }
+  }
 
   function clearFilters() {
     setQuery("");
     setStatusFilter("all");
     setSourceFilter("all");
+    setAccessFilter("all");
     setSort("name");
   }
 
@@ -356,6 +440,18 @@ export default function FleetPage() {
           </Select>
 
           <Select
+            value={accessFilter}
+            onChange={(value) =>
+              setAccessFilter(value as "all" | "unclassified" | "overridden")
+            }
+            ariaLabel="Filter by client access"
+          >
+            <option value="all">All access</option>
+            <option value="unclassified">Not offerable to clients</option>
+            <option value="overridden">Set individually</option>
+          </Select>
+
+          <Select
             value={sort}
             onChange={(value) => setSort(value as SortOption)}
             ariaLabel="Sort yachts"
@@ -386,6 +482,53 @@ export default function FleetPage() {
           className="mb-5"
         />
 
+        {/*
+          The bar appears only with a selection, so the page is not carrying
+          a permanently visible toolbar for something most visits never do.
+        */}
+        {selectedIds.size > 0 ? (
+          <div className="mb-5 flex flex-col gap-3 rounded-[22px] border border-border bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-foreground">
+              {selectedIds.size} selected
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <AccessTypeSelect
+                value=""
+                disabled={isSavingAccess}
+                onChange={(value) => {
+                  void applyAccess(value === "" ? null : value);
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="ui-secondary-button apple-transition h-11 px-4 text-sm font-semibold hover:bg-accent"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {accessMessage ? (
+          <p className="mb-4 text-sm leading-6 text-muted-foreground">
+            {accessMessage}
+          </p>
+        ) : null}
+
+        {blockedCount > 0 && accessFilter === "all" ? (
+          <button
+            type="button"
+            onClick={() => setAccessFilter("unclassified")}
+            className="mb-5 w-full rounded-[22px] border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-left text-sm leading-6 text-amber-800 hover:bg-amber-500/[0.12] dark:text-amber-300"
+          >
+            {blockedCount} {blockedCount === 1 ? "yacht" : "yachts"} cannot be
+            offered to clients yet. Show them.
+          </button>
+        ) : null}
+
         {filteredYachts.length === 0 ? (
           <div className="ui-panel rounded-[28px] border-dashed px-6 py-16 text-center">
             <div className="mx-auto flex size-14 items-center justify-center rounded-[20px] bg-accent text-accent-foreground">
@@ -411,7 +554,24 @@ export default function FleetPage() {
         ) : (
           <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 2xl:grid-cols-3">
             {filteredYachts.map((yacht) => (
-              <YachtCard key={yacht.id} yacht={yacht} />
+              <YachtCard
+                key={yacht.id}
+                yacht={yacht}
+                selected={selectedIds.has(yacht.id)}
+                onToggle={() =>
+                  setSelectedIds((current) => {
+                    const next = new Set(current);
+
+                    if (next.has(yacht.id)) {
+                      next.delete(yacht.id);
+                    } else {
+                      next.add(yacht.id);
+                    }
+
+                    return next;
+                  })
+                }
+              />
             ))}
           </div>
         )}
@@ -422,8 +582,12 @@ export default function FleetPage() {
 
 function YachtCard({
   yacht,
+  selected,
+  onToggle,
 }: {
   yacht: FleetResponse["yachts"][number];
+  selected: boolean;
+  onToggle: () => void;
 }) {
   const placeholderMedia =
     getYachtPlaceholderMedia(
@@ -445,6 +609,32 @@ function YachtCard({
         <div className="absolute left-4 top-4">
           <StatusBadge status={yacht.status} />
         </div>
+
+        {/*
+          A checkbox on the image rather than a row of them down one side,
+          because the fleet is a card grid and a broker picking eight yachts
+          out of a hundred is looking at the yachts, not at a column.
+        */}
+        <label className="absolute right-4 top-4 flex size-8 cursor-pointer items-center justify-center rounded-xl border border-white/25 bg-black/40 backdrop-blur-sm">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="size-4 accent-white"
+            aria-label={`Select ${yacht.name}`}
+          />
+        </label>
+
+        {/*
+          Stated on the card, because a yacht that cannot be offered is
+          otherwise indistinguishable from one that can until a proposal
+          refuses it.
+        */}
+        {!yacht.access.clientProposalPermission ? (
+          <div className="absolute bottom-4 left-4 rounded-full border border-amber-400/30 bg-amber-500/20 px-2.5 py-1 text-[11px] font-medium text-amber-100 backdrop-blur-sm">
+            Not offerable to clients
+          </div>
+        ) : null}
       </div>
 
       <div className="p-5">

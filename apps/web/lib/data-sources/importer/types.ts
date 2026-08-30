@@ -39,6 +39,7 @@ export type AvailabilityImportResult = {
 export type WorkbookImportResult = {
   access?: {
     profilesWritten: number;
+    profilesSkipped: number;
     /** True when the source has no access_type, so yachts defaulted to reference. */
     unclassified: boolean;
   };

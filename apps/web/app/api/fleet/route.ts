@@ -138,6 +138,25 @@ export async function GET() {
       sources.map((source) => [source.id, source])
     );
 
+    /*
+     * One query for every profile, rather than one per yacht. A hundred-hull
+     * fleet would otherwise mean a hundred round trips to render one page.
+     */
+    const accessResult = await supabase
+      .from("yacht_access_profiles")
+      .select("fleet_id, access_type, client_proposal_permission, is_overridden")
+      .eq("company_id", workspace.companyId);
+
+    if (accessResult.error) {
+      throw new Error(
+        `Could not load yacht access profiles: ${accessResult.error.message}`
+      );
+    }
+
+    const accessByFleetId = new Map(
+      (accessResult.data ?? []).map((row) => [row.fleet_id as string, row])
+    );
+
     const yachts = fleet.map((yacht) => {
       const yachtAvailability = availability
         .filter((row) => row.fleet_id === yacht.id)
@@ -166,9 +185,24 @@ export async function GET() {
         ? sourceById.get(sourceId) ?? null
         : null;
 
+      const access = accessByFleetId.get(yacht.id) ?? null;
+
       return {
         id: yacht.id,
         name: yacht.name,
+
+        /*
+         * Included so the fleet list can show which yachts cannot be offered
+         * to a client and let a broker fix it in place. Without it the only
+         * way to discover an unclassified yacht is to build a proposal and
+         * have it refused.
+         */
+        access: {
+          accessType: access?.access_type ?? null,
+          clientProposalPermission:
+            access?.client_proposal_permission ?? false,
+          isOverridden: access?.is_overridden ?? false,
+        },
 
         status: effectiveStatus,
 

@@ -17,12 +17,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Every imported hull was therefore treated as sellable. The enforcement was
  * real and the data it enforced against did not exist.
  *
- * WHY IT IS DERIVED FROM THE SOURCE
+ * SOURCE SETS THE DEFAULT, THE YACHT MAY OVERRIDE IT
  *
- * A broker knows what a feed is when they connect it: our own fleet, a
- * partner's, a market reference sheet. Every yacht in that feed inherits it.
- * Asking per yacht would mean answering the same question forty times for one
- * upload, and the answer would be identical each time.
+ * A broker knows roughly what a feed is when they connect it, so the source
+ * classification is the sensible default for a yacht arriving in it, and
+ * asking per yacht at import time would mean answering the same question a
+ * hundred times.
+ *
+ * But a feed is not always uniform. One partner spreadsheet can carry a hull
+ * this brokerage manages next to hulls it merely has access to. So a person
+ * can set a single yacht's access explicitly, and `is_overridden` records
+ * that they did.
+ *
+ * An earlier version of this file claimed the source always wins and a
+ * per-yacht edit would be reverted on the next sync. That was wrong: it would
+ * mean a broker classifies eight yachts and the next morning's sync silently
+ * undoes all eight.
  *
  * WHAT AN UNCLASSIFIED SOURCE GETS
  *
@@ -54,6 +64,7 @@ type ProfileRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  is_overridden: boolean;
 };
 
 /**
@@ -142,11 +153,8 @@ export function resolveAccessProfile(
  * profile it wrote rather than accumulating duplicates or silently keeping a
  * stale classification after the broker corrects the source.
  *
- * A broker who has edited one yacht's profile by hand will see that edit
- * overwritten on the next sync. That is the intended precedence: the source
- * classification is the standing answer, and a per-yacht exception should be
- * expressed by splitting the source rather than by an edit the next sync
- * quietly reverts.
+ * Profiles flagged is_overridden are skipped entirely, so a per-yacht
+ * decision outlives every future sync of its source.
  */
 export async function importAccessProfiles({
   supabase,
@@ -162,14 +170,53 @@ export async function importAccessProfiles({
   source: SourceAccessClassification | null;
   syncedAt: string;
   createdBy?: string | null;
-}): Promise<{ written: number; unclassified: boolean }> {
+}): Promise<{
+  written: number;
+  skipped: number;
+  unclassified: boolean;
+}> {
   if (fleetIds.length === 0) {
-    return { written: 0, unclassified: false };
+    return { written: 0, skipped: 0, unclassified: false };
   }
 
   const resolved = resolveAccessProfile(source);
 
-  const rows: ProfileRow[] = fleetIds.map((fleetId) => ({
+  /*
+   * Yachts somebody has classified by hand are left alone.
+   *
+   * Read before writing rather than expressed as a conditional upsert,
+   * because PostgREST's upsert has no "update only where" clause and an
+   * ON CONFLICT DO NOTHING would also skip genuine default refreshes for
+   * yachts nobody has touched.
+   */
+  const { data: overriddenRows, error: overriddenError } = await supabase
+    .from("yacht_access_profiles")
+    .select("fleet_id")
+    .eq("company_id", companyId)
+    .eq("is_overridden", true)
+    .in("fleet_id", fleetIds);
+
+  if (overriddenError) {
+    throw new Error(
+      `Could not check for manual access overrides: ${overriddenError.message}`
+    );
+  }
+
+  const overridden = new Set(
+    (overriddenRows ?? []).map((row) => row.fleet_id as string)
+  );
+
+  const writable = fleetIds.filter((fleetId) => !overridden.has(fleetId));
+
+  if (writable.length === 0) {
+    return {
+      written: 0,
+      skipped: overridden.size,
+      unclassified: resolved.isUnclassified,
+    };
+  }
+
+  const rows: ProfileRow[] = writable.map((fleetId) => ({
     company_id: companyId,
     fleet_id: fleetId,
     access_type: resolved.accessType,
@@ -183,6 +230,10 @@ export async function importAccessProfiles({
     created_by: createdBy,
     created_at: syncedAt,
     updated_at: syncedAt,
+
+    // Written by the importer from a source default, so by definition not a
+    // decision anyone made about this particular yacht.
+    is_overridden: false,
   }));
 
   const { error } = await supabase
@@ -203,6 +254,7 @@ export async function importAccessProfiles({
 
   return {
     written: rows.length,
+    skipped: overridden.size,
     unclassified: resolved.isUnclassified,
   };
 }

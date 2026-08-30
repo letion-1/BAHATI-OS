@@ -7,6 +7,7 @@ import {
   isAuthenticationRequiredError,
 } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAccessProfile } from "@/lib/data-sources/importer/access-profiles";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentWorkspace,
@@ -104,11 +105,97 @@ export async function PATCH(
       );
     }
 
+    /*
+     * Applied to existing yachts immediately rather than waiting for a sync.
+     *
+     * An uploaded PDF has nothing to re-sync against, so "it will apply next
+     * sync" would mean never for exactly the sources a broker is most likely
+     * to be classifying. Waiting would make the setting a promise rather than
+     * an action.
+     *
+     * Yachts a person classified by hand are excluded: that is the whole
+     * point of the override flag, and a source-level change must not quietly
+     * undo a per-yacht decision.
+     */
+    const resolved = resolveAccessProfile({
+      access_type: accessType,
+      calendar_authority: null,
+      booking_model: null,
+    });
+
+    const fleetRows = await admin
+      .from("fleet")
+      .select("id")
+      .eq("company_id", workspace.companyId)
+      .eq("source_id", id);
+
+    if (fleetRows.error) {
+      throw new Error(fleetRows.error.message);
+    }
+
+    const fleetIds = (fleetRows.data ?? []).map(
+      (row) => row.id as string
+    );
+
+    let applied = 0;
+
+    if (fleetIds.length > 0) {
+      const overridden = await admin
+        .from("yacht_access_profiles")
+        .select("fleet_id")
+        .eq("company_id", workspace.companyId)
+        .eq("is_overridden", true)
+        .in("fleet_id", fleetIds);
+
+      if (overridden.error) {
+        throw new Error(overridden.error.message);
+      }
+
+      const skip = new Set(
+        (overridden.data ?? []).map((row) => row.fleet_id as string)
+      );
+
+      const now = new Date().toISOString();
+
+      const rows = fleetIds
+        .filter((fleetId) => !skip.has(fleetId))
+        .map((fleetId) => ({
+          company_id: workspace.companyId,
+          fleet_id: fleetId,
+          access_type: resolved.accessType,
+          calendar_authority: resolved.calendarAuthority,
+          booking_model: resolved.bookingModel,
+          client_proposal_permission: resolved.clientProposalPermission,
+          public_listing_permission: resolved.publicListingPermission,
+          notes: null,
+          created_by: workspace.userId,
+          created_at: now,
+          updated_at: now,
+          is_overridden: false,
+        }));
+
+      if (rows.length > 0) {
+        const applyResult = await admin
+          .from("yacht_access_profiles")
+          .upsert(rows, { onConflict: "company_id,fleet_id" })
+          .select("fleet_id");
+
+        if (applyResult.error) {
+          throw new Error(applyResult.error.message);
+        }
+
+        applied = applyResult.data?.length ?? rows.length;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       source: data,
+      appliedToYachts: applied,
       message:
-        "Saved. Re-sync or re-upload this source to apply it to yachts already imported.",
+        applied > 0
+          ? `Applied to ${applied} ${applied === 1 ? "yacht" : "yachts"}. Yachts you set individually keep their own classification.`
+          : "Saved. It will apply to yachts as they are imported.",
     });
   } catch (error) {
     if (isAuthenticationRequiredError(error)) {

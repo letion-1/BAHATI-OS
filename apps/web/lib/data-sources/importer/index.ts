@@ -97,6 +97,8 @@ export async function importParsedWorkbook({
      */
     access: {
       profilesWritten: access.written,
+      /** Yachts a person had classified by hand, left untouched. */
+      profilesSkipped: access.skipped,
       unclassified: access.unclassified,
     },
   };
